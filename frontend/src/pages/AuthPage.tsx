@@ -12,7 +12,6 @@ export const AuthPage = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const configuredRedirect = (import.meta.env.VITE_SUPABASE_REDIRECT_URL ?? '').trim();
-  const productionRedirectFallback = 'https://nimble-frontend-ten.vercel.app/';
 
   const toSupabaseEmail = (value: string): string => {
     const trimmed = value.trim().toLowerCase();
@@ -25,18 +24,13 @@ export const AuthPage = () => {
   };
 
   const startOAuth = async (provider: 'google' | 'apple') => {
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      window.location.assign(productionRedirectFallback);
-      return;
-    }
-
     setPending(provider);
     setMessage(null);
     setError(null);
 
     const normalizedConfiguredRedirect = configuredRedirect.replace(/\/+$/, '');
     const normalizedOrigin = window.location.origin.replace(/\/+$/, '');
-    const redirectTarget = normalizedConfiguredRedirect ? `${normalizedConfiguredRedirect}/` : productionRedirectFallback;
+    const redirectTarget = normalizedConfiguredRedirect ? `${normalizedConfiguredRedirect}/` : `${normalizedOrigin}/`;
 
     logDebug('auth', 'Starting OAuth flow', {
       provider,
@@ -78,7 +72,7 @@ export const AuthPage = () => {
     window.location.assign(resolvedUrl.toString());
   };
 
-  const sendMagicLink = async (event: FormEvent) => {
+  const handlePasswordAuth = async (event: FormEvent) => {
     event.preventDefault();
     if (!identifier.trim() || !password) {
       setError('Username/email and password are required.');
@@ -204,7 +198,7 @@ export const AuthPage = () => {
             <div className="h-px flex-1 bg-gradient-to-l from-transparent to-outline-variant/30"></div>
           </div>
 
-          <form className="space-y-6" onSubmit={(e) => { void sendMagicLink(e); }}>
+          <form className="space-y-6" onSubmit={(e) => { void handlePasswordAuth(e); }}>
             <div>
               <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant/50 mb-3 ml-1">Email or Username</label>
               <div className="relative">
@@ -242,7 +236,7 @@ export const AuthPage = () => {
 
           <div className="mt-10 flex flex-col items-center gap-6">
             <p className="text-xs text-on-surface-variant/50 text-center max-w-[280px] leading-relaxed">
-              By entering, you agree to our <a href="#/help" className="underline hover:text-on-surface">Terms</a> and <a href="#/help" className="underline hover:text-on-surface">Privacy Policy</a>.
+              By entering, you agree to our <a href="/legal/terms" className="underline hover:text-on-surface">Terms</a> and <a href="/legal/privacy" className="underline hover:text-on-surface">Privacy Policy</a>.
             </p>
           </div>
         </div>

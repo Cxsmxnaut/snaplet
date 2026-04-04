@@ -154,13 +154,13 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex flex-col items-center md:items-start gap-2">
             <span className="text-2xl font-black text-primary font-headline">Nimble</span>
-            <p className="text-on-surface-variant text-sm">© 2024 Kinetic Intelligence Inc.</p>
+            <p className="text-on-surface-variant text-sm">© 2026 Kinetic Intelligence Inc.</p>
           </div>
           <div className="flex gap-8 text-sm font-medium text-on-surface-variant">
-            <a href="#/help" className="hover:text-primary transition-colors">Privacy</a>
-            <a href="#/help" className="hover:text-primary transition-colors">Terms</a>
-            <a href="#/help" className="hover:text-primary transition-colors">Methodology</a>
-            <a href="#/help" className="hover:text-primary transition-colors">Contact</a>
+            <a href="/legal/privacy" className="hover:text-primary transition-colors">Privacy</a>
+            <a href="/legal/terms" className="hover:text-primary transition-colors">Terms</a>
+            <a href="/legal/methodology" className="hover:text-primary transition-colors">Methodology</a>
+            <a href="/legal/contact" className="hover:text-primary transition-colors">Contact</a>
           </div>
         </div>
       </footer>

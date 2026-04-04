@@ -68,53 +68,42 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
   );
   const progress = currentQuestion ? ((currentQuestion.position - 1) / totalQuestions) * 100 : 0;
 
+  const beginSession = async () => {
+    if (kit.questions.length === 0) {
+      setRequestError('This kit has no questions yet. Add content or regenerate questions first.');
+      setLoading(false);
+      return;
+    }
+    logDebug('study', 'Starting backend session', { sourceId: kit.id, mode });
+    setLoading(true);
+    setRequestError(null);
+
+    try {
+      const started = await startSession(kit.id, mode);
+      setSessionId(started.session.id);
+      setSessionQuestionCap(started.session.questionCap);
+      setCurrentQuestion(started.currentQuestion);
+      setQueuedNextQuestion(null);
+      logDebug('study', 'Session started', {
+        sessionId: started.session.id,
+        hasCurrentQuestion: Boolean(started.currentQuestion),
+        questionCap: started.session.questionCap,
+      });
+      setResults({ correct: 0, incorrect: 0, weak: [] });
+    } catch (err) {
+      logError('study', 'Failed to start backend session', err);
+      setRequestError(err instanceof Error ? err.message : 'Failed to start session.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let mounted = true;
-
     const begin = async () => {
-      if (kit.questions.length === 0) {
-        setRequestError('This kit has no questions yet. Add content or regenerate questions first.');
-        setLoading(false);
-        return;
-      }
-      logDebug('study', 'Starting backend session', { sourceId: kit.id, mode });
-      setLoading(true);
-      setRequestError(null);
-
-      try {
-        const started = await startSession(kit.id, mode);
-        if (!mounted) {
-          return;
-        }
-
-        setSessionId(started.session.id);
-        setSessionQuestionCap(started.session.questionCap);
-        setCurrentQuestion(started.currentQuestion);
-        setQueuedNextQuestion(null);
-        logDebug('study', 'Session started', {
-          sessionId: started.session.id,
-          hasCurrentQuestion: Boolean(started.currentQuestion),
-          questionCap: started.session.questionCap,
-        });
-        setResults({ correct: 0, incorrect: 0, weak: [] });
-      } catch (err) {
-        if (!mounted) {
-          return;
-        }
-        logError('study', 'Failed to start backend session', err);
-        setRequestError(err instanceof Error ? err.message : 'Failed to start session.');
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
+      await beginSession();
     };
 
     void begin();
-
-    return () => {
-      mounted = false;
-    };
   }, [kit.id, mode]);
 
   useEffect(() => {
@@ -268,12 +257,29 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
     );
   }
 
+  if (requestError && !currentQuestion) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-6">
+        <p className="text-error font-semibold">Could not start this study session.</p>
+        <p className="text-on-surface-variant max-w-lg">{requestError}</p>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => {
+              void beginSession();
+            }}
+          >
+            Retry Start
+          </Button>
+          <Button variant="outline" onClick={onQuit}>Back to Review</Button>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentQuestion) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-6">
-        <p className="text-on-surface-variant">
-          {requestError ?? 'No question available for this session.'}
-        </p>
+        <p className="text-on-surface-variant">No question available for this session.</p>
         <div className="flex items-center gap-3">
           <Button onClick={onQuit}>Back to Review</Button>
         </div>
@@ -352,7 +358,7 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <h3 className={isIncorrectFeedback ? "text-error font-bold text-lg" : isRetryFeedback ? "text-tertiary font-bold text-lg" : "text-secondary font-bold text-lg"}>
-                        {isIncorrectFeedback ? "Incorrect" : isRetryFeedback ? "Retry Needed" : "Feedback"}
+                        {isIncorrectFeedback ? "Incorrect" : isRetryFeedback ? "Retry Needed" : "Correct"}
                       </h3>
                       <span className={isIncorrectFeedback ? "bg-error/20 text-error text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-tighter" : isRetryFeedback ? "bg-tertiary/20 text-tertiary text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-tighter" : "bg-secondary/20 text-secondary text-[10px] font-black uppercase px-2 py-0.5 rounded tracking-tighter"}>
                         Evaluation
@@ -387,8 +393,8 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
             </div>
           </div>
           <div className="bg-surface-container-low/80 backdrop-blur-md px-5 py-3 rounded-full flex items-center gap-3 border border-outline-variant/10 pointer-events-auto">
-            <div className="flex flex-col items-end"><span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">Correct</span><span className="text-sm font-headline font-bold text-secondary">{results.correct} 🔥</span></div>
-            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-surface-container"><Flame className="text-secondary w-4 h-4 fill-secondary" /></div>
+            <div className="flex flex-col items-end"><span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">Correct</span><span className="text-sm font-headline font-bold text-secondary">{results.correct} streak</span></div>
+            <div aria-hidden="true" className="flex items-center justify-center h-8 w-8 rounded-full bg-surface-container"><Flame className="text-secondary w-4 h-4 fill-secondary" /></div>
           </div>
         </div>
       </footer>

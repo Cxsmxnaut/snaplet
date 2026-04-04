@@ -106,10 +106,20 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
     hasBody: Boolean(init?.body),
   });
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch (err) {
+    const mapped = new Error('Unable to reach backend. Check your connection or API URL and try again.');
+    logError('api', 'Network request failed', {
+      path,
+      error: err,
+    });
+    throw mapped;
+  }
 
   const payload = (await response.json().catch(() => ({}))) as { error?: string } & T;
   logDebug("api", "Response received", {
@@ -119,7 +129,15 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
     ok: response.ok,
   });
   if (!response.ok) {
-    const error = new Error(payload.error ?? `Request failed (${response.status})`);
+    const fallbackMessage =
+      response.status === 401
+        ? 'Your session expired. Please sign in again.'
+        : response.status === 403
+        ? 'You do not have permission to perform this action.'
+        : response.status >= 500
+        ? 'The server had an issue. Please try again in a moment.'
+        : `Request failed (${response.status})`;
+    const error = new Error(payload.error ?? fallbackMessage);
     logError("api", "Request failed", {
       path,
       status: response.status,

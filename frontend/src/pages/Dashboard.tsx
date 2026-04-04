@@ -28,7 +28,11 @@ interface DashboardProps {
 }
 
 export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll, onTabChange, progress }: DashboardProps) => {
-  const recentKit = kits[0];
+  const recentKit = [...kits].sort((a, b) => {
+    const aTime = a.lastSession ? a.lastSession.getTime() : 0;
+    const bTime = b.lastSession ? b.lastSession.getTime() : 0;
+    return bTime - aTime;
+  })[0];
   const weakItems = progress?.weakQuestions ?? [];
   const outcomeValues = progress ? Object.values(progress.outcomes) : [];
   const chartBars = outcomeValues.length > 0

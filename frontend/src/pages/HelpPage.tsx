@@ -2,7 +2,7 @@ import { Button } from '../components/Button';
 import { BookOpen, CircleHelp, LifeBuoy, MessageSquareWarning, Wrench } from 'lucide-react';
 import React from 'react';
 
-export const HelpPage = ({ onCreateKit }: { onCreateKit: () => void }) => {
+export const HelpPage = ({ onCreateKit, onGoDashboard }: { onCreateKit: () => void; onGoDashboard: () => void }) => {
   return (
     <div className="max-w-6xl mx-auto space-y-10">
       <header className="space-y-3">
@@ -25,7 +25,7 @@ export const HelpPage = ({ onCreateKit }: { onCreateKit: () => void }) => {
           title="Reset Stuck Session"
           description="If session startup fails, return to Dashboard and start again."
           cta="Go to Dashboard"
-          onClick={() => window.location.reload()}
+          onClick={onGoDashboard}
         />
         <ActionCard
           icon={<LifeBuoy className="w-5 h-5" />}

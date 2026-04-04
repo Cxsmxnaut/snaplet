@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { LandingPage } from './pages/LandingPage';
 import { AuthPage } from './pages/AuthPage';
 import { Dashboard } from './pages/Dashboard';
@@ -35,48 +36,17 @@ import { supabase } from './lib/supabase';
 const MASTERY_KEY = 'nimble_kit_mastery_map';
 const LAST_SESSION_KEY = 'nimble_kit_last_session_map';
 const USER_CACHE_PREFIX = 'nimble_user_cache_v1';
-const APP_TABS = new Set([
-  'dashboard',
-  'kits',
-  'progress',
-  'help',
-  'settings',
-  'create',
-  'processing',
-  'review',
-  'study-mode',
-  'study',
-  'complete',
-]);
+const SESSION_RESULT_PREFIX = 'nimble_session_result_v1';
 
-function readHashRoute(): { view: 'landing' | 'auth' | 'app'; tab: string } {
-  if (typeof window === 'undefined') {
-    return { view: 'landing', tab: 'dashboard' };
-  }
-
-  const raw = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
-  if (!raw || raw === 'landing') {
-    return { view: 'landing', tab: 'dashboard' };
-  }
-  if (raw === 'auth') {
-    return { view: 'auth', tab: 'dashboard' };
-  }
-  if (APP_TABS.has(raw)) {
-    return { view: 'app', tab: raw };
-  }
-  return { view: 'landing', tab: 'dashboard' };
-}
-
-function writeHashRoute(view: 'landing' | 'auth' | 'app', activeTab: string): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-  const nextRoute = view === 'app' ? activeTab : view;
-  const nextHash = `#/${nextRoute}`;
-  if (window.location.hash !== nextHash) {
-    window.location.hash = nextHash;
-  }
-}
+const APP_TAB_PATHS: Record<string, string> = {
+  dashboard: '/app/dashboard',
+  kits: '/app/kits',
+  progress: '/app/progress',
+  help: '/app/help',
+  settings: '/app/settings',
+  create: '/app/create',
+  processing: '/app/create/processing',
+};
 
 function loadJsonMap(key: string): Record<string, number> {
   const raw = window.localStorage.getItem(key);
@@ -106,8 +76,16 @@ type UserCachePayload = {
   updatedAt: string;
 };
 
+type SerializedSessionResult = Omit<SessionResult, 'date'> & {
+  date: string;
+};
+
 function userCacheKey(userId: string): string {
   return `${USER_CACHE_PREFIX}:${userId}`;
+}
+
+function sessionResultKey(sessionId: string): string {
+  return `${SESSION_RESULT_PREFIX}:${sessionId}`;
 }
 
 function serializeKits(kits: Kit[]): SerializedKit[] {
@@ -122,6 +100,13 @@ function deserializeKits(kits: SerializedKit[]): Kit[] {
     ...kit,
     lastSession: kit.lastSession ? new Date(kit.lastSession) : undefined,
   }));
+}
+
+function deserializeSessionResult(result: SerializedSessionResult): SessionResult {
+  return {
+    ...result,
+    date: new Date(result.date),
+  };
 }
 
 function loadUserCache(userId: string): UserCachePayload | null {
@@ -191,15 +176,97 @@ function mapSourceToKit(
   };
 }
 
+function deriveRoute(pathname: string): {
+  view: 'landing' | 'auth' | 'app';
+  tab: string;
+  kitId: string | null;
+  sessionId: string | null;
+} {
+  if (pathname === '/' || pathname === '') {
+    return { view: 'landing', tab: 'dashboard', kitId: null, sessionId: null };
+  }
+  if (pathname === '/auth') {
+    return { view: 'auth', tab: 'dashboard', kitId: null, sessionId: null };
+  }
+  if (pathname.startsWith('/legal/')) {
+    return { view: 'landing', tab: 'dashboard', kitId: null, sessionId: null };
+  }
+
+  const reviewMatch = pathname.match(/^\/app\/kits\/([^/]+)\/review$/);
+  if (reviewMatch) {
+    return { view: 'app', tab: 'review', kitId: reviewMatch[1], sessionId: null };
+  }
+
+  const modeMatch = pathname.match(/^\/app\/kits\/([^/]+)\/study-mode$/);
+  if (modeMatch) {
+    return { view: 'app', tab: 'study-mode', kitId: modeMatch[1], sessionId: null };
+  }
+
+  const studyMatch = pathname.match(/^\/app\/kits\/([^/]+)\/study$/);
+  if (studyMatch) {
+    return { view: 'app', tab: 'study', kitId: studyMatch[1], sessionId: null };
+  }
+
+  const completeMatch = pathname.match(/^\/app\/session\/([^/]+)\/complete$/);
+  if (completeMatch) {
+    return { view: 'app', tab: 'complete', kitId: null, sessionId: completeMatch[1] };
+  }
+
+  const staticTab = Object.entries(APP_TAB_PATHS).find(([, value]) => value === pathname)?.[0] ?? null;
+  if (staticTab) {
+    return { view: 'app', tab: staticTab, kitId: null, sessionId: null };
+  }
+
+  return { view: 'landing', tab: 'dashboard', kitId: null, sessionId: null };
+}
+
+function buildAppPath(tab: string, kitId: string | null, sessionId: string | null, mode: StudyMode): string {
+  if (tab === 'review' && kitId) {
+    return `/app/kits/${kitId}/review`;
+  }
+  if (tab === 'study-mode' && kitId) {
+    return `/app/kits/${kitId}/study-mode`;
+  }
+  if (tab === 'study' && kitId) {
+    return `/app/kits/${kitId}/study?mode=${mode}`;
+  }
+  if (tab === 'complete' && sessionId) {
+    return `/app/session/${sessionId}/complete`;
+  }
+  return APP_TAB_PATHS[tab] ?? '/app/dashboard';
+}
+
+function LegalPage({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="min-h-screen bg-background px-6 py-16">
+      <div className="max-w-3xl mx-auto rounded-2xl border border-outline-variant/20 bg-surface-container-low p-8">
+        <h1 className="text-3xl font-headline font-black text-on-surface mb-4">{title}</h1>
+        <p className="text-on-surface-variant leading-relaxed">{body}</p>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
-  const initialRoute = readHashRoute();
-  const [view, setView] = useState<'landing' | 'auth' | 'app'>(initialRoute.view);
+  const navigate = useNavigate();
+  const location = useLocation();
+  const route = useMemo(() => deriveRoute(location.pathname), [location.pathname]);
+  const routeMode = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const raw = params.get('mode');
+    if (raw === 'focus' || raw === 'weak_review' || raw === 'fast_drill' || raw === 'standard') {
+      return raw;
+    }
+    return null;
+  }, [location.search]);
+
+  const [view, setView] = useState<'landing' | 'auth' | 'app'>(route.view);
   const [authReady, setAuthReady] = useState(false);
   const [authSession, setAuthSession] = useState<Session | null>(null);
-  const [activeTab, setActiveTab] = useState(initialRoute.tab);
+  const [activeTab, setActiveTab] = useState(route.tab);
   const [kits, setKits] = useState<Kit[]>([]);
-  const [currentKitId, setCurrentKitId] = useState<string | null>(null);
-  const [selectedStudyMode, setSelectedStudyMode] = useState<StudyMode>('standard');
+  const [currentKitId, setCurrentKitId] = useState<string | null>(route.kitId);
+  const [selectedStudyMode, setSelectedStudyMode] = useState<StudyMode>(routeMode ?? 'standard');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState<ProgressData | null>(null);
@@ -224,10 +291,7 @@ export default function App() {
       metadata.preferred_username,
       user.email?.split('@')[0],
     ];
-    const avatarCandidates = [
-      metadata.avatar_url,
-      metadata.picture,
-    ];
+    const avatarCandidates = [metadata.avatar_url, metadata.picture];
 
     const displayName =
       displayNameCandidates.find((value): value is string => typeof value === 'string' && value.trim().length > 0)?.trim() ??
@@ -277,25 +341,19 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    logDebug('app', 'View changed', { view, activeTab });
-  }, [view, activeTab]);
+    setView(route.view);
+    setActiveTab(route.tab);
+    if (route.kitId) {
+      setCurrentKitId(route.kitId);
+    }
+    if (routeMode) {
+      setSelectedStudyMode(routeMode);
+    }
+  }, [route.view, route.tab, route.kitId, routeMode]);
 
   useEffect(() => {
-    const handleHashChange = () => {
-      const route = readHashRoute();
-      if (route.view === 'app') {
-        setActiveTab(route.tab);
-        setView(authSession ? 'app' : 'auth');
-        return;
-      }
-      setView(route.view);
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => {
-      window.removeEventListener('hashchange', handleHashChange);
-    };
-  }, [authSession]);
+    logDebug('app', 'View changed', { view, activeTab });
+  }, [view, activeTab]);
 
   useEffect(() => {
     logDebug('app', 'Kits/progress state updated', {
@@ -306,12 +364,14 @@ export default function App() {
     });
   }, [kits.length, progress, currentKitId, error]);
 
-  const currentKit = useMemo(
-    () => kits.find((kit) => kit.id === currentKitId) ?? null,
-    [kits, currentKitId],
-  );
+  const currentKit = useMemo(() => kits.find((kit) => kit.id === currentKitId) ?? null, [kits, currentKitId]);
 
   const filteredKits = useMemo(() => kits, [kits]);
+
+  const navigateToTab = (tab: string, nextKitId: string | null = currentKitId, nextSessionId: string | null = sessionResult?.id ?? null) => {
+    setActiveTab(tab);
+    navigate(buildAppPath(tab, nextKitId, nextSessionId, selectedStudyMode));
+  };
 
   const refreshProgress = async () => {
     try {
@@ -337,12 +397,15 @@ export default function App() {
     );
 
     const questionMap = new Map(questionsBySource.map((row) => [row.sourceId, row.questions]));
-    const nextKits = sources.map((source, idx) =>
-      mapSourceToKit(source, questionMap.get(source.id) ?? [], idx, masteryMap, lastSessionMap),
-    );
+    const nextKits = sources.map((source, idx) => mapSourceToKit(source, questionMap.get(source.id) ?? [], idx, masteryMap, lastSessionMap));
 
     setKits(nextKits);
-    setCurrentKitId((prev) => (prev && nextKits.some((k) => k.id === prev) ? prev : nextKits[0]?.id ?? null));
+    setCurrentKitId((prev) => {
+      if (route.kitId && nextKits.some((kit) => kit.id === route.kitId)) {
+        return route.kitId;
+      }
+      return prev && nextKits.some((kit) => kit.id === prev) ? prev : nextKits[0]?.id ?? null;
+    });
   };
 
   const enterApp = async () => {
@@ -375,18 +438,40 @@ export default function App() {
   }, [authSession?.user?.id, loadedUserId, kits, progress, currentKitId]);
 
   useEffect(() => {
+    if (!route.sessionId) {
+      return;
+    }
+
+    const raw = window.localStorage.getItem(sessionResultKey(route.sessionId));
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(raw) as SerializedSessionResult;
+      setSessionResult(deserializeSessionResult(parsed));
+    } catch {
+      // ignore invalid persisted session payload
+    }
+  }, [route.sessionId]);
+
+  useEffect(() => {
     if (!authReady) {
       return;
     }
 
     if (!authSession) {
       setLoadedUserId(null);
-      setView((current) => (current === 'app' ? 'auth' : current));
+      if (route.view === 'app') {
+        navigate('/auth', { replace: true });
+      }
       return;
     }
 
     if (loadedUserId === authSession.user.id) {
-      setView('app');
+      if (route.view !== 'app') {
+        navigate('/app/dashboard', { replace: true });
+      }
       return;
     }
 
@@ -406,14 +491,7 @@ export default function App() {
 
     setLoadedUserId(authSession.user.id);
     void enterApp();
-  }, [authReady, authSession, loadedUserId]);
-
-  useEffect(() => {
-    if (!authReady) {
-      return;
-    }
-    writeHashRoute(view, activeTab);
-  }, [authReady, view, activeTab]);
+  }, [authReady, authSession, loadedUserId, navigate, route.view]);
 
   const handleLogout = async () => {
     logDebug('auth', 'Signing out');
@@ -427,6 +505,7 @@ export default function App() {
     setView('landing');
     setAuthSession(null);
     setActiveTab('dashboard');
+    navigate('/', { replace: true });
   };
 
   const handleGenerateKit = async (title: string, content: string) => {
@@ -435,7 +514,7 @@ export default function App() {
       contentLength: content.length,
     });
     setIsProcessing(true);
-    setActiveTab('processing');
+    navigateToTab('processing');
     setError(null);
 
     try {
@@ -443,11 +522,11 @@ export default function App() {
       await refreshKits();
       await refreshProgress();
       setCurrentKitId(source.id);
-      setActiveTab('review');
+      navigateToTab('review', source.id);
     } catch (err) {
       logError('app', 'Failed creating kit', err);
       setError(err instanceof Error ? err.message : 'Failed to create kit.');
-      setActiveTab('create');
+      navigateToTab('create');
     } finally {
       setIsProcessing(false);
     }
@@ -456,18 +535,18 @@ export default function App() {
   const handleUploadKitFile = async (file: File) => {
     logDebug('app', 'Uploading source file', { fileName: file.name, size: file.size });
     setIsProcessing(true);
-    setActiveTab('processing');
+    navigateToTab('processing');
     setError(null);
     try {
       const source = await uploadSourceFile(file);
       await refreshKits();
       await refreshProgress();
       setCurrentKitId(source.id);
-      setActiveTab('review');
+      navigateToTab('review', source.id);
     } catch (err) {
       logError('app', 'Failed uploading source file', err);
       setError(err instanceof Error ? err.message : 'Failed to upload file.');
-      setActiveTab('create');
+      navigateToTab('create');
       throw err;
     } finally {
       setIsProcessing(false);
@@ -480,7 +559,7 @@ export default function App() {
       await deleteSource(kitId);
       await refreshKits();
       await refreshProgress();
-      setActiveTab('dashboard');
+      navigateToTab('dashboard');
     } catch (err) {
       logError('app', 'Failed deleting kit', err);
       setError(err instanceof Error ? err.message : 'Failed to delete kit.');
@@ -535,17 +614,17 @@ export default function App() {
   const handleStudyKit = (kitId: string) => {
     logDebug('app', 'Opening study mode picker', { kitId });
     setCurrentKitId(kitId);
-    setActiveTab('study-mode');
+    navigateToTab('study-mode', kitId);
   };
 
   const handleStartStudyMode = (mode: StudyMode) => {
     setSelectedStudyMode(mode);
-    setActiveTab('study');
+    navigate(buildAppPath('study', currentKitId, null, mode));
   };
 
   const handleRetryWeakItems = () => {
     setSelectedStudyMode('weak_review');
-    setActiveTab('study');
+    navigate(buildAppPath('study', currentKitId, null, 'weak_review'));
   };
 
   const handleCompleteSession = (results: { correct: number; incorrect: number; weak: SessionResult['weakQuestions'] }) => {
@@ -586,117 +665,168 @@ export default function App() {
       );
     }
 
+    const serializable: SerializedSessionResult = {
+      ...result,
+      date: result.date.toISOString(),
+    };
+
+    window.localStorage.setItem(sessionResultKey(result.id), JSON.stringify(serializable));
     setSessionResult(result);
-    setActiveTab('complete');
+    navigate(buildAppPath('complete', null, result.id, selectedStudyMode));
     void refreshProgress();
   };
+
+  const renderMissingState = (title: string, message: string) => (
+    <div className="max-w-2xl mx-auto rounded-2xl border border-outline-variant/20 bg-surface-container-low p-8 text-center space-y-4">
+      <h2 className="text-2xl font-headline font-black text-on-surface">{title}</h2>
+      <p className="text-on-surface-variant">{message}</p>
+      <button
+        className="px-6 py-3 rounded-full bg-primary text-on-primary font-bold"
+        onClick={() => navigate('/app/dashboard')}
+      >
+        Go to Dashboard
+      </button>
+    </div>
+  );
 
   if (!authReady) {
     return <div className="min-h-screen flex items-center justify-center text-on-surface-variant">Checking session...</div>;
   }
 
-  if (!authSession && view === 'landing') return <LandingPage onGetStarted={() => setView('auth')} />;
+  if (location.pathname === '/legal/privacy') {
+    return <LegalPage title="Privacy" body="Nimble stores your study data to run kit generation, adaptive review, and account features." />;
+  }
+  if (location.pathname === '/legal/terms') {
+    return <LegalPage title="Terms" body="Use Nimble responsibly. You are responsible for uploaded content and account access security." />;
+  }
+  if (location.pathname === '/legal/methodology') {
+    return <LegalPage title="Methodology" body="Nimble combines active recall, spaced repetition, and adaptive question sequencing based on your outcomes." />;
+  }
+  if (location.pathname === '/legal/contact') {
+    return <LegalPage title="Contact" body="Support: support@nimble.app" />;
+  }
+
+  if (!authSession && view === 'landing') return <LandingPage onGetStarted={() => navigate('/auth')} />;
   if (!authSession) return <AuthPage />;
+
+  const hideShell = activeTab === 'study' || activeTab === 'processing';
 
   return (
     <div className="min-h-screen bg-background">
-      {activeTab !== 'study' && activeTab !== 'processing' && (
-        <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      )}
+      {!hideShell && <Sidebar activeTab={activeTab} onTabChange={(tab) => navigateToTab(tab)} />}
 
-      <main className={activeTab !== 'study' && activeTab !== 'processing' ? 'ml-64' : ''}>
-        {activeTab !== 'study' && activeTab !== 'processing' && (
+      <main className={!hideShell ? 'ml-64' : ''}>
+        {!hideShell && (
           <TopBar
-            onNavigate={setActiveTab}
-            onLogout={() => { void handleLogout(); }}
+            onNavigate={(tab) => navigateToTab(tab)}
+            onLogout={() => {
+              void handleLogout();
+            }}
             userProfile={userProfile}
           />
         )}
 
-        <div className={activeTab !== 'study' && activeTab !== 'processing' ? 'pt-22 pb-12 px-10' : ''}>
-          {error ? (
-            <div className="mb-6 rounded-xl border border-error/30 bg-error/10 p-4 text-sm text-error">{error}</div>
-          ) : null}
+        <div className={!hideShell ? 'pt-22 pb-12 px-10' : ''}>
+          {error ? <div className="mb-6 rounded-xl border border-error/30 bg-error/10 p-4 text-sm text-error">{error}</div> : null}
 
           {activeTab === 'dashboard' && (
             <Dashboard
               kits={filteredKits}
               onStudyKit={handleStudyKit}
-              onCreateKit={() => setActiveTab('create')}
+              onCreateKit={() => navigateToTab('create')}
               onEditKit={(id) => {
                 setCurrentKitId(id);
-                setActiveTab('review');
+                navigateToTab('review', id);
               }}
-              onViewAll={() => setActiveTab('kits')}
-              onTabChange={setActiveTab}
+              onViewAll={() => navigateToTab('kits')}
+              onTabChange={(tab) => navigateToTab(tab)}
               progress={progress}
-              userProfile={userProfile}
             />
           )}
+
           {activeTab === 'kits' && (
             <KitsPage
               kits={filteredKits}
               onStudyKit={handleStudyKit}
-              onCreateKit={() => setActiveTab('create')}
+              onCreateKit={() => navigateToTab('create')}
               onEditKit={(id) => {
                 setCurrentKitId(id);
-                setActiveTab('review');
+                navigateToTab('review', id);
               }}
             />
           )}
+
           {activeTab === 'progress' && <ProgressPage progress={progress} onRefresh={() => { void refreshProgress(); }} />}
-          {activeTab === 'help' && <HelpPage onCreateKit={() => setActiveTab('create')} />}
+          {activeTab === 'help' && <HelpPage onCreateKit={() => navigateToTab('create')} onGoDashboard={() => navigateToTab('dashboard')} />}
           {activeTab === 'settings' && <SettingsPage onLogout={() => { void handleLogout(); }} userProfile={userProfile} />}
           {activeTab === 'create' && <CreateKit onGenerate={handleGenerateKit} onUploadFile={handleUploadKitFile} />}
           {activeTab === 'processing' && isProcessing && <Processing />}
-          {activeTab === 'review' && currentKit && (
-            <ReviewKit
-              kit={currentKit}
-              onStart={() => handleStudyKit(currentKit.id)}
-              onStartRapid={() => {
-                setSelectedStudyMode('fast_drill');
-                setActiveTab('study');
-              }}
-              onBack={() => setActiveTab('dashboard')}
-              onDelete={() => { void handleDeleteKit(currentKit.id); }}
-              onUpdateQuestion={(questionId, question, answer) => {
-                return handleEditQuestion(currentKit.id, questionId, question, answer).catch((err) => {
-                  setError(err instanceof Error ? err.message : 'Failed to update question.');
-                  throw err;
-                });
-              }}
-              onDeleteQuestion={(questionId) => {
-                return handleDeleteQuestion(currentKit.id, questionId).catch((err) => {
-                  setError(err instanceof Error ? err.message : 'Failed to delete question.');
-                  throw err;
-                });
-              }}
-            />
-          )}
-          {activeTab === 'study-mode' && currentKit && (
-            <StudyModeSelection
-              kit={currentKit}
-              progress={progress}
-              onStart={handleStartStudyMode}
-              onBack={() => setActiveTab('dashboard')}
-            />
-          )}
-          {activeTab === 'study' && currentKit && (
-            <StudySession
-              kit={currentKit}
-              mode={selectedStudyMode}
-              onComplete={handleCompleteSession}
-              onQuit={() => setActiveTab('dashboard')}
-            />
-          )}
-          {activeTab === 'complete' && sessionResult && (
-            <SessionComplete
-              result={sessionResult}
-              onBack={() => setActiveTab('dashboard')}
-              onRetry={handleRetryWeakItems}
-              onNew={() => setActiveTab('create')}
-            />
-          )}
+
+          {activeTab === 'review' &&
+            (currentKit ? (
+              <ReviewKit
+                kit={currentKit}
+                onStart={() => handleStudyKit(currentKit.id)}
+                onStartRapid={() => {
+                  setSelectedStudyMode('fast_drill');
+                  navigate(buildAppPath('study', currentKit.id, null, 'fast_drill'));
+                }}
+                onBack={() => navigateToTab('dashboard')}
+                onDelete={() => {
+                  void handleDeleteKit(currentKit.id);
+                }}
+                onUpdateQuestion={(questionId, question, answer) => {
+                  return handleEditQuestion(currentKit.id, questionId, question, answer).catch((err) => {
+                    setError(err instanceof Error ? err.message : 'Failed to update question.');
+                    throw err;
+                  });
+                }}
+                onDeleteQuestion={(questionId) => {
+                  return handleDeleteQuestion(currentKit.id, questionId).catch((err) => {
+                    setError(err instanceof Error ? err.message : 'Failed to delete question.');
+                    throw err;
+                  });
+                }}
+              />
+            ) : (
+              renderMissingState('Kit Not Found', 'This kit is unavailable. Select another kit to continue.')
+            ))}
+
+          {activeTab === 'study-mode' &&
+            (currentKit ? (
+              <StudyModeSelection
+                kit={currentKit}
+                progress={progress}
+                onStart={handleStartStudyMode}
+                onBack={() => navigateToTab('dashboard')}
+              />
+            ) : (
+              renderMissingState('No Kit Selected', 'Pick a kit first, then choose your study mode.')
+            ))}
+
+          {activeTab === 'study' &&
+            (currentKit ? (
+              <StudySession
+                kit={currentKit}
+                mode={selectedStudyMode}
+                onComplete={handleCompleteSession}
+                onQuit={() => navigateToTab('dashboard')}
+              />
+            ) : (
+              renderMissingState('Session Not Ready', 'We could not restore this study session. Start from your kit list.')
+            ))}
+
+          {activeTab === 'complete' &&
+            (sessionResult ? (
+              <SessionComplete
+                result={sessionResult}
+                onBack={() => navigateToTab('dashboard')}
+                onRetry={handleRetryWeakItems}
+                onNew={() => navigateToTab('create')}
+              />
+            ) : (
+              renderMissingState('Session Summary Missing', 'This completion page expired. Start a fresh session from your dashboard.')
+            ))}
         </div>
       </main>
     </div>

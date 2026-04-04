@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../components/Button';
 import { 
@@ -9,7 +8,6 @@ import { cn } from '../lib/utils';
 import { ProgressData } from '../types';
 
 export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData | null; onRefresh: () => void }) => {
-  const [range, setRange] = useState<'30d' | '90d' | '1y'>('30d');
   const weak = progress?.weakQuestions ?? [];
   const totalAttempts = progress?.totals.attempts ?? 0;
   const correctAttempts = (progress?.outcomes.exact ?? 0) + (progress?.outcomes.accent_near ?? 0) + (progress?.outcomes.correct_after_retry ?? 0);
@@ -54,12 +52,7 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
           <div className="flex justify-between items-center mb-10">
             <div>
               <h2 className="text-xl font-bold font-headline mb-1">Learning Velocity</h2>
-              <p className="text-on-surface-variant text-sm">Performance tracking ({range.toUpperCase()})</p>
-            </div>
-            <div className="flex bg-surface-container-highest p-1 rounded-xl">
-              <button onClick={() => setRange('30d')} className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-colors", range === '30d' ? "bg-surface-bright text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface")}>30D</button>
-              <button onClick={() => setRange('90d')} className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-colors", range === '90d' ? "bg-surface-bright text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface")}>90D</button>
-              <button onClick={() => setRange('1y')} className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-colors", range === '1y' ? "bg-surface-bright text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface")}>1Y</button>
+              <p className="text-on-surface-variant text-sm">Performance snapshot (current data)</p>
             </div>
           </div>
           <div className="h-64 flex items-end gap-3 px-2">
