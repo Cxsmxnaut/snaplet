@@ -10,7 +10,7 @@ import {
   type StudySource,
 } from "@/lib/domain/types";
 import { mapCsvRows, parseCsv, suggestCsvMapping, toPreviewRows } from "@/lib/domain/csv";
-import { evaluateAnswer } from "@/lib/domain/evaluation";
+import { evaluateAnswer, isLexicalSemanticEquivalent } from "@/lib/domain/evaluation";
 import { extractTextFromUpload } from "@/lib/domain/extraction";
 import { generateQuestionPairs, generateStudyTitle } from "@/lib/domain/generation";
 import { buildSessionQueue, pickRevisitOffset } from "@/lib/domain/queue";
@@ -221,7 +221,7 @@ export async function createPasteSource(userId: string, title: string, content: 
   }
 
   const generatedTitle = await generateStudyTitle(trimmedContent);
-  const resolvedTitle = generatedTitle.trim() || title.trim() || "Untitled notes";
+  const resolvedTitle = title.trim() || generatedTitle.trim() || "Untitled notes";
 
   const source = await mutateUserBucket(userId, (bucket) => {
     const sourceId = createId("src");
@@ -1069,14 +1069,16 @@ export async function submitAttempt(
 
     const question = getQuestionById(bucket, payload.questionId);
     const evaluation = evaluateAnswer(payload.answer, question.answer);
-    const semanticResult = evaluation.outcome === "incorrect"
+    const lexicalSemanticMatch =
+      evaluation.outcome === "incorrect" && isLexicalSemanticEquivalent(payload.answer, question.answer);
+    const semanticResult = evaluation.outcome === "incorrect" && !lexicalSemanticMatch
       ? await semanticCheckAnswer({
           prompt: question.prompt,
           canonicalAnswer: question.answer,
           userAnswer: payload.answer,
         })
       : null;
-    const semanticMatch = semanticPassesThreshold(semanticResult);
+    const semanticMatch = lexicalSemanticMatch || semanticPassesThreshold(semanticResult);
 
     const isRetry = Boolean(payload.isRetry);
     if (isRetry && session.pendingRetryQuestionId !== question.id) {
@@ -1158,8 +1160,14 @@ export async function submitAttempt(
       correct_after_retry: "Correct after retry.",
       incorrect: "Incorrect. You will see this again soon.",
     };
+    const semanticUnavailable =
+      evaluation.outcome === "incorrect" &&
+      !semanticMatch &&
+      !semanticResult;
     const feedback = semanticMatch
       ? (isRetry ? "Correct after retry (semantic match)." : "Correct (semantic match).")
+      : semanticUnavailable && finalOutcome === "incorrect"
+      ? "Incorrect. Semantic check was unavailable, so this was graded with strict matching."
       : feedbackByOutcome[finalOutcome];
 
     return {

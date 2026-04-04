@@ -1,16 +1,18 @@
 import { FormEvent, useState } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../components/Button';
-import { Apple, ArrowRight, Bolt, CheckCircle, Lock, User } from 'lucide-react';
+import { Apple, Bolt, CheckCircle, Lock, User } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { logDebug, logError } from '../lib/debug';
 
 export const AuthPage = () => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [pending, setPending] = useState<null | 'google' | 'apple' | 'magic' | 'guest'>(null);
+  const [pending, setPending] = useState<null | 'google' | 'apple' | 'magic'>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const configuredRedirect = (import.meta.env.VITE_SUPABASE_REDIRECT_URL ?? '').trim();
+  const productionRedirectFallback = 'https://nimble-frontend-ten.vercel.app/';
 
   const toSupabaseEmail = (value: string): string => {
     const trimmed = value.trim().toLowerCase();
@@ -23,14 +25,31 @@ export const AuthPage = () => {
   };
 
   const startOAuth = async (provider: 'google' | 'apple') => {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      window.location.assign(productionRedirectFallback);
+      return;
+    }
+
     setPending(provider);
     setMessage(null);
     setError(null);
 
-    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+    const normalizedConfiguredRedirect = configuredRedirect.replace(/\/+$/, '');
+    const normalizedOrigin = window.location.origin.replace(/\/+$/, '');
+    const redirectTarget = normalizedConfiguredRedirect ? `${normalizedConfiguredRedirect}/` : productionRedirectFallback;
+
+    logDebug('auth', 'Starting OAuth flow', {
+      provider,
+      redirectTarget,
+      configuredRedirect: normalizedConfiguredRedirect || null,
+      currentOrigin: normalizedOrigin,
+    });
+
+    const { data: oauthData, error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: window.location.origin,
+        redirectTo: redirectTarget,
+        skipBrowserRedirect: true,
       },
     });
 
@@ -41,7 +60,22 @@ export const AuthPage = () => {
       return;
     }
 
-    logDebug('auth', `OAuth redirect started for ${provider}`);
+    const providerUrl = oauthData?.url ?? null;
+    if (!providerUrl) {
+      setError('OAuth provider URL was not returned.');
+      setPending(null);
+      return;
+    }
+
+    const resolvedUrl = new URL(providerUrl);
+    resolvedUrl.searchParams.set('redirect_to', redirectTarget);
+
+    logDebug('auth', `OAuth redirect started for ${provider}`, {
+      providerUrl,
+      resolvedUrl: resolvedUrl.toString(),
+    });
+
+    window.location.assign(resolvedUrl.toString());
   };
 
   const sendMagicLink = async (event: FormEvent) => {
@@ -92,23 +126,6 @@ export const AuthPage = () => {
 
     logDebug('auth', 'Auto-signup created account but needs confirmation', { email });
     setMessage('Account created. Please confirm your email before signing in.');
-  };
-
-  const continueAsGuest = async () => {
-    setPending('guest');
-    setMessage(null);
-    setError(null);
-
-    const { error: anonError } = await supabase.auth.signInAnonymously();
-    setPending(null);
-
-    if (anonError) {
-      logError('auth', 'Anonymous auth failed', anonError);
-      setError(anonError.message);
-      return;
-    }
-
-    logDebug('auth', 'Anonymous session created');
   };
 
   return (
@@ -224,12 +241,8 @@ export const AuthPage = () => {
           {error ? <p className="mt-4 text-sm text-error">{error}</p> : null}
 
           <div className="mt-10 flex flex-col items-center gap-6">
-            <button onClick={() => { void continueAsGuest(); }} disabled={pending !== null} className="text-on-surface-variant hover:text-primary transition-colors text-sm font-semibold flex items-center gap-2 group disabled:opacity-60">
-              Continue as Guest
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-            </button>
             <p className="text-xs text-on-surface-variant/50 text-center max-w-[280px] leading-relaxed">
-              By entering, you agree to our <a href="#" className="underline hover:text-on-surface">Terms</a> and <a href="#" className="underline hover:text-on-surface">Privacy Policy</a>.
+              By entering, you agree to our <a href="#/help" className="underline hover:text-on-surface">Terms</a> and <a href="#/help" className="underline hover:text-on-surface">Privacy Policy</a>.
             </p>
           </div>
         </div>

@@ -24,12 +24,21 @@ export const KitsPage = ({ kits, onStudyKit, onCreateKit, onEditKit }: KitsPageP
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'recent' | 'mastered'>('all');
 
-  const filteredKits = kits.filter(kit => {
-    const matchesSearch = kit.title.toLowerCase().includes(searchQuery.toLowerCase());
-    if (filter === 'mastered') return matchesSearch && kit.mastery === 100;
-    // For 'recent', we'd normally sort by date, but for now just filter
-    return matchesSearch;
-  });
+  const filteredKits = [...kits]
+    .filter((kit) => {
+      const matchesSearch = kit.title.toLowerCase().includes(searchQuery.toLowerCase());
+      if (filter === 'mastered') return matchesSearch && kit.mastery === 100;
+      if (filter === 'recent') return matchesSearch && Boolean(kit.lastSession);
+      return matchesSearch;
+    })
+    .sort((a, b) => {
+      if (filter === 'recent') {
+        const aTime = a.lastSession ? a.lastSession.getTime() : 0;
+        const bTime = b.lastSession ? b.lastSession.getTime() : 0;
+        return bTime - aTime;
+      }
+      return 0;
+    });
 
   const recommendation = (() => {
     const candidates = [...kits].sort((a, b) => a.mastery - b.mastery);

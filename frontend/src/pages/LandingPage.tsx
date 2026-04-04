@@ -157,10 +157,10 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
             <p className="text-on-surface-variant text-sm">© 2024 Kinetic Intelligence Inc.</p>
           </div>
           <div className="flex gap-8 text-sm font-medium text-on-surface-variant">
-            <a href="#" className="hover:text-primary transition-colors">Privacy</a>
-            <a href="#" className="hover:text-primary transition-colors">Terms</a>
-            <a href="#" className="hover:text-primary transition-colors">Methodology</a>
-            <a href="#" className="hover:text-primary transition-colors">Contact</a>
+            <a href="#/help" className="hover:text-primary transition-colors">Privacy</a>
+            <a href="#/help" className="hover:text-primary transition-colors">Terms</a>
+            <a href="#/help" className="hover:text-primary transition-colors">Methodology</a>
+            <a href="#/help" className="hover:text-primary transition-colors">Contact</a>
           </div>
         </div>
       </footer>

@@ -1,14 +1,15 @@
+import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../components/Button';
 import { 
   Clock, 
-  ArrowRight,
   Zap,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { ProgressData } from '../types';
 
 export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData | null; onRefresh: () => void }) => {
+  const [range, setRange] = useState<'30d' | '90d' | '1y'>('30d');
   const weak = progress?.weakQuestions ?? [];
   const totalAttempts = progress?.totals.attempts ?? 0;
   const correctAttempts = (progress?.outcomes.exact ?? 0) + (progress?.outcomes.accent_near ?? 0) + (progress?.outcomes.correct_after_retry ?? 0);
@@ -53,12 +54,12 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
           <div className="flex justify-between items-center mb-10">
             <div>
               <h2 className="text-xl font-bold font-headline mb-1">Learning Velocity</h2>
-              <p className="text-on-surface-variant text-sm">Performance tracking over the last 30 days</p>
+              <p className="text-on-surface-variant text-sm">Performance tracking ({range.toUpperCase()})</p>
             </div>
             <div className="flex bg-surface-container-highest p-1 rounded-xl">
-              <button className="px-4 py-1.5 rounded-lg text-xs font-bold bg-surface-bright text-on-surface shadow-sm">30D</button>
-              <button className="px-4 py-1.5 rounded-lg text-xs font-bold text-on-surface-variant hover:text-on-surface transition-colors">90D</button>
-              <button className="px-4 py-1.5 rounded-lg text-xs font-bold text-on-surface-variant hover:text-on-surface transition-colors">1Y</button>
+              <button onClick={() => setRange('30d')} className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-colors", range === '30d' ? "bg-surface-bright text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface")}>30D</button>
+              <button onClick={() => setRange('90d')} className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-colors", range === '90d' ? "bg-surface-bright text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface")}>90D</button>
+              <button onClick={() => setRange('1y')} className={cn("px-4 py-1.5 rounded-lg text-xs font-bold transition-colors", range === '1y' ? "bg-surface-bright text-on-surface shadow-sm" : "text-on-surface-variant hover:text-on-surface")}>1Y</button>
             </div>
           </div>
           <div className="h-64 flex items-end gap-3 px-2">
@@ -94,7 +95,7 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
             ))}
           </div>
           <Button variant="outline" className="w-full mt-10 py-4" onClick={onRefresh}>
-            Generate Review Session
+            Refresh Progress Data
           </Button>
         </div>
       </div>
@@ -102,9 +103,7 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
       <div className="bg-surface-container-low rounded-2xl overflow-hidden border border-outline-variant/5">
         <div className="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center">
           <h2 className="text-xl font-bold font-headline">Recent Study Sessions</h2>
-          <button className="text-primary text-sm font-bold flex items-center gap-1 hover:underline">
-            View All <ArrowRight className="w-4 h-4" />
-          </button>
+          <span className="text-on-surface-variant text-xs font-semibold">Session history preview</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { ChangeEvent, DragEvent, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../components/Button';
 import { logDebug } from '../lib/debug';
@@ -8,16 +8,57 @@ import {
   X, 
   Lightbulb, 
   Trash2,
-  Sparkles
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 
 interface CreateKitProps {
   onGenerate: (title: string, content: string) => void;
+  onUploadFile: (file: File) => Promise<void>;
 }
 
-export const CreateKit = ({ onGenerate }: CreateKitProps) => {
+const ACCEPTED_FILE_TYPES = '.pdf,.docx,.txt,.md,.csv';
+
+export const CreateKit = ({ onGenerate, onUploadFile }: CreateKitProps) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleUpload = async (file: File) => {
+    setUploadError(null);
+    setUploading(true);
+    try {
+      await onUploadFile(file);
+      setUploadedFileName(file.name);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handlePickFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const nextFile = event.target.files?.[0];
+    if (!nextFile) {
+      return;
+    }
+    await handleUpload(nextFile);
+    event.target.value = '';
+  };
+
+  const handleDrop = async (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDragOver(false);
+    const nextFile = event.dataTransfer.files?.[0];
+    if (!nextFile) {
+      return;
+    }
+    await handleUpload(nextFile);
+  };
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -88,27 +129,56 @@ export const CreateKit = ({ onGenerate }: CreateKitProps) => {
             <div className="relative z-10">
               <h3 className="text-xl font-headline font-bold text-on-surface mb-2">Import Documents</h3>
               <p className="text-sm text-on-surface-variant mb-6">Drop your PDFs, DOCX, or text files here for automated parsing.</p>
-              <div className="border-2 border-dashed border-outline-variant/30 rounded-2xl p-10 flex flex-col items-center justify-center gap-4 hover:border-primary/50 transition-all cursor-pointer bg-surface-container-lowest/50 group/upload">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept={ACCEPTED_FILE_TYPES}
+                className="hidden"
+                onChange={(e) => {
+                  void handlePickFile(e);
+                }}
+              />
+              <div
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setIsDragOver(true);
+                }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={(event) => {
+                  void handleDrop(event);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-2xl p-10 flex flex-col items-center justify-center gap-4 transition-all cursor-pointer bg-surface-container-lowest/50 group/upload ${
+                  isDragOver ? 'border-primary/80' : 'border-outline-variant/30 hover:border-primary/50'
+                }`}
+              >
                 <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center group-hover/upload:scale-110 transition-transform">
-                  <CloudUpload className="w-8 h-8 text-primary" />
+                  {uploading ? <Loader2 className="w-8 h-8 text-primary animate-spin" /> : <CloudUpload className="w-8 h-8 text-primary" />}
                 </div>
                 <div className="text-center">
-                  <span className="text-sm font-semibold text-on-surface">Click to upload</span>
-                  <p className="text-xs text-on-surface-variant/60 mt-1">Maximum file size: 25MB</p>
+                  <span className="text-sm font-semibold text-on-surface">{uploading ? 'Uploading...' : 'Click to upload or drag file'}</span>
+                  <p className="text-xs text-on-surface-variant/60 mt-1">Supported: PDF, DOCX, TXT, MD, CSV (max 8MB)</p>
                 </div>
               </div>
             </div>
             <div className="mt-4 flex flex-col gap-3">
-              <div className="flex items-center gap-3 p-3 bg-surface-container-high/40 rounded-xl border border-outline-variant/10">
-                <FileText className="w-5 h-5 text-secondary" />
-                <div className="flex-grow">
-                  <p className="text-xs font-bold text-on-surface truncate">biology_lecture_notes.pdf</p>
-                  <p className="text-[10px] text-on-surface-variant/60">Ready to parse • 1.2 MB</p>
+              {uploadedFileName ? (
+                <div className="flex items-center gap-3 p-3 bg-surface-container-high/40 rounded-xl border border-outline-variant/10">
+                  <FileText className="w-5 h-5 text-secondary" />
+                  <div className="flex-grow">
+                    <p className="text-xs font-bold text-on-surface truncate">{uploadedFileName}</p>
+                    <p className="text-[10px] text-on-surface-variant/60">Uploaded and parsed</p>
+                  </div>
+                  <button
+                    onClick={() => setUploadedFileName(null)}
+                    className="text-on-surface-variant hover:text-error transition-colors"
+                    aria-label="Clear uploaded file state"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <button className="text-on-surface-variant hover:text-error transition-colors">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+              ) : null}
+              {uploadError ? <p className="text-xs text-error">{uploadError}</p> : null}
             </div>
           </section>
 

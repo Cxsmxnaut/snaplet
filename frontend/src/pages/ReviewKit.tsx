@@ -12,15 +12,17 @@ import { Kit } from '../types';
 interface ReviewKitProps {
   kit: Kit;
   onStart: () => void;
+  onStartRapid: () => void;
   onBack: () => void;
   onDelete: () => void;
-  onUpdateQuestion: (questionId: string, question: string, answer: string) => void;
-  onDeleteQuestion: (questionId: string) => void;
+  onUpdateQuestion: (questionId: string, question: string, answer: string) => Promise<void>;
+  onDeleteQuestion: (questionId: string) => Promise<void>;
 }
 
 export const ReviewKit = ({
   kit,
   onStart,
+  onStartRapid,
   onBack,
   onDelete,
   onUpdateQuestion,
@@ -29,6 +31,9 @@ export const ReviewKit = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ question: '', answer: '' });
   const [localQuestions, setLocalQuestions] = useState(kit.questions);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [itemError, setItemError] = useState<string | null>(null);
   const mastery = Math.max(0, Math.min(100, kit.mastery));
   const estimatedMinutes = Math.max(1, Math.round(localQuestions.length * 0.75));
 
@@ -41,28 +46,42 @@ export const ReviewKit = ({
     setEditForm({ question: q.question, answer: q.answer });
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingId) return;
-
-    setLocalQuestions((prev) =>
-      prev.map((q) =>
-        q.id === editingId
-          ? {
-              ...q,
-              question: editForm.question,
-              answer: editForm.answer,
-            }
-          : q,
-      ),
-    );
-
-    onUpdateQuestion(editingId, editForm.question, editForm.answer);
-    setEditingId(null);
+    setSavingId(editingId);
+    setItemError(null);
+    try {
+      await onUpdateQuestion(editingId, editForm.question, editForm.answer);
+      setLocalQuestions((prev) =>
+        prev.map((q) =>
+          q.id === editingId
+            ? {
+                ...q,
+                question: editForm.question,
+                answer: editForm.answer,
+              }
+            : q,
+        ),
+      );
+      setEditingId(null);
+    } catch (err) {
+      setItemError(err instanceof Error ? err.message : 'Failed to save question.');
+    } finally {
+      setSavingId(null);
+    }
   };
 
-  const handleDeleteQuestion = (id: string) => {
-    setLocalQuestions((prev) => prev.filter((q) => q.id !== id));
-    onDeleteQuestion(id);
+  const handleDeleteQuestion = async (id: string) => {
+    setDeletingId(id);
+    setItemError(null);
+    try {
+      await onDeleteQuestion(id);
+      setLocalQuestions((prev) => prev.filter((q) => q.id !== id));
+    } catch (err) {
+      setItemError(err instanceof Error ? err.message : 'Failed to delete question.');
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -79,16 +98,19 @@ export const ReviewKit = ({
           <p className="text-on-surface-variant text-lg leading-relaxed">Review the AI's interpretations before finalizing your study deck.</p>
         </div>
         <div className="flex gap-4">
-          <Button variant="outline" onClick={onDelete} className="text-error border-error/20 hover:bg-error/10">
+              <Button variant="outline" onClick={onDelete} className="text-error border-error/20 hover:bg-error/10">
             <Trash2 className="w-5 h-5" />
             Delete Kit
           </Button>
-          <Button size="lg" onClick={onStart}>
+              <Button size="lg" onClick={onStart}>
             <Play className="w-5 h-5" />
             Start Study Session
-          </Button>
-        </div>
-      </header>
+              </Button>
+            </div>
+          </header>
+          {itemError ? (
+            <div className="mt-4 rounded-xl border border-error/30 bg-error/10 p-3 text-sm text-error">{itemError}</div>
+          ) : null}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-6">
@@ -114,8 +136,10 @@ export const ReviewKit = ({
                       onChange={e => setEditForm({ ...editForm, answer: e.target.value })}
                     />
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={handleSaveEdit}>Save</Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>Cancel</Button>
+                      <Button size="sm" onClick={() => { void handleSaveEdit(); }} disabled={savingId === q.id}>
+                        {savingId === q.id ? 'Saving...' : 'Save'}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingId(null)} disabled={savingId === q.id}>Cancel</Button>
                     </div>
                   </div>
                 ) : (
@@ -128,16 +152,18 @@ export const ReviewKit = ({
                 )}
               </div>
               <div className="flex md:flex-col justify-end gap-2 shrink-0">
-                <button
-                  onClick={() => handleEdit(q)}
-                  className="p-3 bg-surface-container-lowest text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-full transition-all"
-                >
+                  <button
+                    onClick={() => handleEdit(q)}
+                    disabled={Boolean(savingId || deletingId)}
+                    className="p-3 bg-surface-container-lowest text-on-surface-variant hover:text-primary hover:bg-primary/10 rounded-full transition-all"
+                  >
                   <Edit3 className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={() => handleDeleteQuestion(q.id)}
-                  className="p-3 bg-surface-container-lowest text-on-surface-variant hover:text-error hover:bg-error/10 rounded-full transition-all"
-                >
+                  <button
+                    onClick={() => { void handleDeleteQuestion(q.id); }}
+                    disabled={Boolean(savingId || deletingId)}
+                    className="p-3 bg-surface-container-lowest text-on-surface-variant hover:text-error hover:bg-error/10 rounded-full transition-all"
+                  >
                   <Trash2 className="w-5 h-5" />
                 </button>
               </div>
@@ -175,7 +201,12 @@ export const ReviewKit = ({
             <div className="relative z-10">
               <h4 className="font-headline font-bold text-sm mb-2 text-on-primary">Rapid Mode</h4>
               <p className="text-xs text-on-primary/70 mb-4 leading-relaxed">Feeling confident? Enable Rapid Mode to reduce display time by 40%.</p>
-              <button className="bg-surface-bright/20 backdrop-blur-md border border-white/10 text-white text-[10px] font-bold py-2 px-4 rounded-full hover:bg-white/20 transition-colors">ENABLE NOW</button>
+              <button
+                onClick={onStartRapid}
+                className="bg-surface-bright/20 backdrop-blur-md border border-white/10 text-white text-[10px] font-bold py-2 px-4 rounded-full hover:bg-white/20 transition-colors"
+              >
+                ENABLE NOW
+              </button>
             </div>
             <div className="absolute -right-4 -bottom-4 opacity-20 group-hover:scale-110 transition-transform">
               <Zap className="w-24 h-24 rotate-12" />

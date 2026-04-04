@@ -19,7 +19,6 @@ interface SessionCompleteProps {
 
 export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompleteProps) => {
   const attempts = result.correctCount + result.incorrectCount;
-  const velocityDelta = Math.max(0, Math.min(30, Math.round((result.accuracy - 73) * 0.7)));
   const weakCount = result.weakQuestions.length;
 
   const insight = weakCount > 0
@@ -64,7 +63,7 @@ export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompl
               <span className="absolute text-3xl font-black text-on-surface">{result.accuracy}%</span>
             </div>
             <p className="mt-4 text-on-surface-variant text-sm">
-              Velocity was {velocityDelta}% higher than your baseline.
+              This reflects your performance in this completed session.
             </p>
           </div>
         </div>

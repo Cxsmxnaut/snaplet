@@ -3,9 +3,35 @@ import { Button } from '../components/Button';
 import { User, Moon, Sun, Timer, LogOut, Trash2, ShieldCheck } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export const SettingsPage = ({ onLogout }: { onLogout: () => void }) => {
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [sessionLength, setSessionLength] = useState(10);
+export const SettingsPage = ({
+  onLogout,
+  userProfile,
+}: {
+  onLogout: () => void;
+  userProfile: {
+    displayName: string;
+    email: string;
+    avatarUrl: string | null;
+  };
+}) => {
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const stored = window.localStorage.getItem('nimble_theme');
+    return stored === 'light' ? 'light' : 'dark';
+  });
+  const [sessionLength, setSessionLength] = useState(() => {
+    const stored = Number(window.localStorage.getItem('nimble_session_length') ?? 10);
+    return [5, 10, 15].includes(stored) ? stored : 10;
+  });
+
+  const setThemeAndPersist = (value: 'dark' | 'light') => {
+    setTheme(value);
+    window.localStorage.setItem('nimble_theme', value);
+  };
+
+  const setSessionLengthAndPersist = (value: number) => {
+    setSessionLength(value);
+    window.localStorage.setItem('nimble_session_length', String(value));
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-12">
@@ -18,8 +44,17 @@ export const SettingsPage = ({ onLogout }: { onLogout: () => void }) => {
         {/* Profile */}
         <section className="lg:col-span-2 bg-surface-container-low rounded-2xl p-8 border border-outline-variant/5">
           <div className="flex items-center gap-4 mb-8">
-            <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center">
-              <User className="text-primary w-8 h-8" />
+            <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
+              {userProfile.avatarUrl ? (
+                <img
+                  src={userProfile.avatarUrl}
+                  alt={userProfile.displayName}
+                  className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <User className="text-primary w-8 h-8" />
+              )}
             </div>
             <div>
               <h3 className="text-2xl font-bold font-headline text-on-surface">Profile Information</h3>
@@ -30,15 +65,15 @@ export const SettingsPage = ({ onLogout }: { onLogout: () => void }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/50 px-1">Full Name</label>
-                <input className="w-full bg-surface-container-lowest border-none rounded-xl p-4 focus:ring-2 focus:ring-primary/40 text-on-surface transition-all" type="text" defaultValue="Julian Thorne"/>
+                <input className="w-full bg-surface-container-lowest border-none rounded-xl p-4 focus:ring-2 focus:ring-primary/40 text-on-surface transition-all" type="text" defaultValue={userProfile.displayName}/>
               </div>
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/50 px-1">Email Address</label>
-                <input className="w-full bg-surface-container-lowest border-none rounded-xl p-4 focus:ring-2 focus:ring-primary/40 text-on-surface transition-all" type="email" defaultValue="julian.thorne@velocity.io"/>
+                <input className="w-full bg-surface-container-lowest border-none rounded-xl p-4 focus:ring-2 focus:ring-primary/40 text-on-surface transition-all" type="email" defaultValue={userProfile.email}/>
               </div>
             </div>
             <div className="flex justify-end pt-4">
-              <Button type="submit">Save Profile</Button>
+              <Button type="button" variant="outline" disabled>Profile managed by Google sign-in</Button>
             </div>
           </form>
         </section>
@@ -49,18 +84,18 @@ export const SettingsPage = ({ onLogout }: { onLogout: () => void }) => {
           <div className="space-y-4 flex-1">
             <ThemeOption 
               active={theme === 'dark'} 
-              onClick={() => setTheme('dark')}
+              onClick={() => setThemeAndPersist('dark')}
               icon={<Moon className="w-5 h-5" />}
               label="Dark Mode"
             />
             <ThemeOption 
               active={theme === 'light'} 
-              onClick={() => setTheme('light')}
+              onClick={() => setThemeAndPersist('light')}
               icon={<Sun className="w-5 h-5" />}
               label="Light Mode"
             />
           </div>
-          <p className="text-xs text-on-surface-variant mt-6 italic">Dark mode is optimized for high-concentration study sessions.</p>
+          <p className="text-xs text-on-surface-variant mt-6 italic">Theme preference is saved locally on this device.</p>
         </section>
 
         {/* Session Length */}
@@ -78,7 +113,7 @@ export const SettingsPage = ({ onLogout }: { onLogout: () => void }) => {
             {[5, 10, 15].map(val => (
               <button 
                 key={val}
-                onClick={() => setSessionLength(val)}
+                onClick={() => setSessionLengthAndPersist(val)}
                 className={cn(
                   "flex-1 min-w-[100px] py-4 rounded-2xl transition-all flex flex-col items-center justify-center gap-1 group",
                   sessionLength === val 
@@ -101,8 +136,8 @@ export const SettingsPage = ({ onLogout }: { onLogout: () => void }) => {
               <span>Sign Out</span>
               <LogOut className="w-5 h-5" />
             </button>
-            <button className="w-full text-left p-4 rounded-xl bg-error/10 hover:bg-error/20 text-error font-semibold flex items-center justify-between transition-colors">
-              <span>Delete Account</span>
+            <button disabled className="w-full text-left p-4 rounded-xl bg-error/10 text-error/60 font-semibold flex items-center justify-between transition-colors cursor-not-allowed">
+              <span>Delete Account (Coming Soon)</span>
               <Trash2 className="w-5 h-5" />
             </button>
           </div>

@@ -26,6 +26,7 @@ import {
   getProgress,
   listSourceQuestions,
   listSources,
+  uploadSourceFile,
   updateQuestion,
 } from './lib/api';
 import { logDebug, logError } from './lib/debug';
@@ -33,6 +34,49 @@ import { supabase } from './lib/supabase';
 
 const MASTERY_KEY = 'nimble_kit_mastery_map';
 const LAST_SESSION_KEY = 'nimble_kit_last_session_map';
+const USER_CACHE_PREFIX = 'nimble_user_cache_v1';
+const APP_TABS = new Set([
+  'dashboard',
+  'kits',
+  'progress',
+  'help',
+  'settings',
+  'create',
+  'processing',
+  'review',
+  'study-mode',
+  'study',
+  'complete',
+]);
+
+function readHashRoute(): { view: 'landing' | 'auth' | 'app'; tab: string } {
+  if (typeof window === 'undefined') {
+    return { view: 'landing', tab: 'dashboard' };
+  }
+
+  const raw = window.location.hash.replace(/^#\/?/, '').trim().toLowerCase();
+  if (!raw || raw === 'landing') {
+    return { view: 'landing', tab: 'dashboard' };
+  }
+  if (raw === 'auth') {
+    return { view: 'auth', tab: 'dashboard' };
+  }
+  if (APP_TABS.has(raw)) {
+    return { view: 'app', tab: raw };
+  }
+  return { view: 'landing', tab: 'dashboard' };
+}
+
+function writeHashRoute(view: 'landing' | 'auth' | 'app', activeTab: string): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const nextRoute = view === 'app' ? activeTab : view;
+  const nextHash = `#/${nextRoute}`;
+  if (window.location.hash !== nextHash) {
+    window.location.hash = nextHash;
+  }
+}
 
 function loadJsonMap(key: string): Record<string, number> {
   const raw = window.localStorage.getItem(key);
@@ -49,6 +93,56 @@ function loadJsonMap(key: string): Record<string, number> {
 
 function saveJsonMap(key: string, value: Record<string, number>): void {
   window.localStorage.setItem(key, JSON.stringify(value));
+}
+
+type SerializedKit = Omit<Kit, 'lastSession'> & {
+  lastSession?: string;
+};
+
+type UserCachePayload = {
+  kits: SerializedKit[];
+  progress: ProgressData | null;
+  currentKitId: string | null;
+  updatedAt: string;
+};
+
+function userCacheKey(userId: string): string {
+  return `${USER_CACHE_PREFIX}:${userId}`;
+}
+
+function serializeKits(kits: Kit[]): SerializedKit[] {
+  return kits.map((kit) => ({
+    ...kit,
+    lastSession: kit.lastSession ? kit.lastSession.toISOString() : undefined,
+  }));
+}
+
+function deserializeKits(kits: SerializedKit[]): Kit[] {
+  return kits.map((kit) => ({
+    ...kit,
+    lastSession: kit.lastSession ? new Date(kit.lastSession) : undefined,
+  }));
+}
+
+function loadUserCache(userId: string): UserCachePayload | null {
+  const raw = window.localStorage.getItem(userCacheKey(userId));
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as UserCachePayload;
+    if (!Array.isArray(parsed.kits)) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveUserCache(userId: string, payload: UserCachePayload): void {
+  window.localStorage.setItem(userCacheKey(userId), JSON.stringify(payload));
 }
 
 function guessIcon(source: BackendSource, idx: number): string {
@@ -98,10 +192,11 @@ function mapSourceToKit(
 }
 
 export default function App() {
-  const [view, setView] = useState<'landing' | 'auth' | 'app'>('landing');
+  const initialRoute = readHashRoute();
+  const [view, setView] = useState<'landing' | 'auth' | 'app'>(initialRoute.view);
   const [authReady, setAuthReady] = useState(false);
   const [authSession, setAuthSession] = useState<Session | null>(null);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(initialRoute.tab);
   const [kits, setKits] = useState<Kit[]>([]);
   const [currentKitId, setCurrentKitId] = useState<string | null>(null);
   const [selectedStudyMode, setSelectedStudyMode] = useState<StudyMode>('standard');
@@ -110,6 +205,42 @@ export default function App() {
   const [progress, setProgress] = useState<ProgressData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadedUserId, setLoadedUserId] = useState<string | null>(null);
+
+  const userProfile = useMemo(() => {
+    const user = authSession?.user;
+    if (!user) {
+      return {
+        displayName: 'Learner',
+        email: '',
+        avatarUrl: null as string | null,
+      };
+    }
+
+    const metadata = (user.user_metadata ?? {}) as Record<string, unknown>;
+    const displayNameCandidates = [
+      metadata.full_name,
+      metadata.name,
+      metadata.user_name,
+      metadata.preferred_username,
+      user.email?.split('@')[0],
+    ];
+    const avatarCandidates = [
+      metadata.avatar_url,
+      metadata.picture,
+    ];
+
+    const displayName =
+      displayNameCandidates.find((value): value is string => typeof value === 'string' && value.trim().length > 0)?.trim() ??
+      'Learner';
+    const avatarUrl =
+      avatarCandidates.find((value): value is string => typeof value === 'string' && value.trim().length > 0)?.trim() ?? null;
+
+    return {
+      displayName,
+      email: user.email ?? '',
+      avatarUrl,
+    };
+  }, [authSession]);
 
   useEffect(() => {
     logDebug('app', 'Mounted App');
@@ -148,6 +279,23 @@ export default function App() {
   useEffect(() => {
     logDebug('app', 'View changed', { view, activeTab });
   }, [view, activeTab]);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const route = readHashRoute();
+      if (route.view === 'app') {
+        setActiveTab(route.tab);
+        setView(authSession ? 'app' : 'auth');
+        return;
+      }
+      setView(route.view);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, [authSession]);
 
   useEffect(() => {
     logDebug('app', 'Kits/progress state updated', {
@@ -211,6 +359,22 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!authSession?.user?.id) {
+      return;
+    }
+    if (loadedUserId !== authSession.user.id) {
+      return;
+    }
+
+    saveUserCache(authSession.user.id, {
+      kits: serializeKits(kits),
+      progress,
+      currentKitId,
+      updatedAt: new Date().toISOString(),
+    });
+  }, [authSession?.user?.id, loadedUserId, kits, progress, currentKitId]);
+
+  useEffect(() => {
     if (!authReady) {
       return;
     }
@@ -226,9 +390,30 @@ export default function App() {
       return;
     }
 
+    const cache = loadUserCache(authSession.user.id);
+    if (cache) {
+      logDebug('app', 'Hydrating UI from user cache', {
+        userId: authSession.user.id,
+        kitCount: cache.kits.length,
+        hasProgress: Boolean(cache.progress),
+        updatedAt: cache.updatedAt,
+      });
+      const cachedKits = deserializeKits(cache.kits);
+      setKits(cachedKits);
+      setProgress(cache.progress);
+      setCurrentKitId(cache.currentKitId ?? cachedKits[0]?.id ?? null);
+    }
+
     setLoadedUserId(authSession.user.id);
     void enterApp();
   }, [authReady, authSession, loadedUserId]);
+
+  useEffect(() => {
+    if (!authReady) {
+      return;
+    }
+    writeHashRoute(view, activeTab);
+  }, [authReady, view, activeTab]);
 
   const handleLogout = async () => {
     logDebug('auth', 'Signing out');
@@ -263,6 +448,27 @@ export default function App() {
       logError('app', 'Failed creating kit', err);
       setError(err instanceof Error ? err.message : 'Failed to create kit.');
       setActiveTab('create');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleUploadKitFile = async (file: File) => {
+    logDebug('app', 'Uploading source file', { fileName: file.name, size: file.size });
+    setIsProcessing(true);
+    setActiveTab('processing');
+    setError(null);
+    try {
+      const source = await uploadSourceFile(file);
+      await refreshKits();
+      await refreshProgress();
+      setCurrentKitId(source.id);
+      setActiveTab('review');
+    } catch (err) {
+      logError('app', 'Failed uploading source file', err);
+      setError(err instanceof Error ? err.message : 'Failed to upload file.');
+      setActiveTab('create');
+      throw err;
     } finally {
       setIsProcessing(false);
     }
@@ -337,6 +543,11 @@ export default function App() {
     setActiveTab('study');
   };
 
+  const handleRetryWeakItems = () => {
+    setSelectedStudyMode('weak_review');
+    setActiveTab('study');
+  };
+
   const handleCompleteSession = (results: { correct: number; incorrect: number; weak: SessionResult['weakQuestions'] }) => {
     logDebug('app', 'Session completed', results);
     const attempts = results.correct + results.incorrect;
@@ -398,6 +609,7 @@ export default function App() {
           <TopBar
             onNavigate={setActiveTab}
             onLogout={() => { void handleLogout(); }}
+            userProfile={userProfile}
           />
         )}
 
@@ -418,6 +630,7 @@ export default function App() {
               onViewAll={() => setActiveTab('kits')}
               onTabChange={setActiveTab}
               progress={progress}
+              userProfile={userProfile}
             />
           )}
           {activeTab === 'kits' && (
@@ -433,23 +646,29 @@ export default function App() {
           )}
           {activeTab === 'progress' && <ProgressPage progress={progress} onRefresh={() => { void refreshProgress(); }} />}
           {activeTab === 'help' && <HelpPage onCreateKit={() => setActiveTab('create')} />}
-          {activeTab === 'settings' && <SettingsPage onLogout={() => { void handleLogout(); }} />}
-          {activeTab === 'create' && <CreateKit onGenerate={handleGenerateKit} />}
+          {activeTab === 'settings' && <SettingsPage onLogout={() => { void handleLogout(); }} userProfile={userProfile} />}
+          {activeTab === 'create' && <CreateKit onGenerate={handleGenerateKit} onUploadFile={handleUploadKitFile} />}
           {activeTab === 'processing' && isProcessing && <Processing />}
           {activeTab === 'review' && currentKit && (
             <ReviewKit
               kit={currentKit}
               onStart={() => handleStudyKit(currentKit.id)}
+              onStartRapid={() => {
+                setSelectedStudyMode('fast_drill');
+                setActiveTab('study');
+              }}
               onBack={() => setActiveTab('dashboard')}
               onDelete={() => { void handleDeleteKit(currentKit.id); }}
               onUpdateQuestion={(questionId, question, answer) => {
-                void handleEditQuestion(currentKit.id, questionId, question, answer).catch((err) => {
+                return handleEditQuestion(currentKit.id, questionId, question, answer).catch((err) => {
                   setError(err instanceof Error ? err.message : 'Failed to update question.');
+                  throw err;
                 });
               }}
               onDeleteQuestion={(questionId) => {
-                void handleDeleteQuestion(currentKit.id, questionId).catch((err) => {
+                return handleDeleteQuestion(currentKit.id, questionId).catch((err) => {
                   setError(err instanceof Error ? err.message : 'Failed to delete question.');
+                  throw err;
                 });
               }}
             />
@@ -474,7 +693,7 @@ export default function App() {
             <SessionComplete
               result={sessionResult}
               onBack={() => setActiveTab('dashboard')}
-              onRetry={() => setActiveTab('study-mode')}
+              onRetry={handleRetryWeakItems}
               onNew={() => setActiveTab('create')}
             />
           )}

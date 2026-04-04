@@ -45,6 +45,7 @@ function modeLabel(mode: StudyMode): string {
 export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProps) => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<ActiveQuestion | null>(null);
+  const [queuedNextQuestion, setQueuedNextQuestion] = useState<ActiveQuestion | null>(null);
   const [sessionQuestionCap, setSessionQuestionCap] = useState<number | null>(null);
   const [answer, setAnswer] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
@@ -71,6 +72,11 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
     let mounted = true;
 
     const begin = async () => {
+      if (kit.questions.length === 0) {
+        setRequestError('This kit has no questions yet. Add content or regenerate questions first.');
+        setLoading(false);
+        return;
+      }
       logDebug('study', 'Starting backend session', { sourceId: kit.id, mode });
       setLoading(true);
       setRequestError(null);
@@ -84,6 +90,7 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
         setSessionId(started.session.id);
         setSessionQuestionCap(started.session.questionCap);
         setCurrentQuestion(started.currentQuestion);
+        setQueuedNextQuestion(null);
         logDebug('study', 'Session started', {
           sessionId: started.session.id,
           hasCurrentQuestion: Boolean(started.currentQuestion),
@@ -181,7 +188,7 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
       }
 
       setNeedsRetry(false);
-      setCurrentQuestion(result.nextQuestion);
+      setQueuedNextQuestion(result.nextQuestion);
     } catch (err) {
       logError('study', 'Failed to submit attempt', err);
       setRequestError(err instanceof Error ? err.message : 'Failed to submit answer.');
@@ -198,6 +205,10 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
       return;
     }
 
+    if (queuedNextQuestion) {
+      setCurrentQuestion(queuedNextQuestion);
+      setQueuedNextQuestion(null);
+    }
     setShowFeedback(false);
     setLastOutcome(null);
     setAnswer('');
@@ -242,12 +253,13 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
         <div className="w-full max-w-2xl space-y-2 mt-12">
           <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-on-surface-variant px-1">
             <span>Session Warmup</span>
-            <span>84%</span>
+            <span>Preparing</span>
           </div>
           <div className="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
-              animate={{ width: '84%' }}
+              animate={{ width: ['15%', '75%', '25%'] }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
               className="h-full bg-gradient-to-r from-primary to-secondary rounded-full shadow-[0_0_12px_rgba(78,222,163,0.3)]"
             />
           </div>
@@ -258,9 +270,13 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
 
   if (!currentQuestion) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-        <p className="text-on-surface-variant">No question available for this session.</p>
-        <Button onClick={onQuit}>Back</Button>
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 text-center px-6">
+        <p className="text-on-surface-variant">
+          {requestError ?? 'No question available for this session.'}
+        </p>
+        <div className="flex items-center gap-3">
+          <Button onClick={onQuit}>Back to Review</Button>
+        </div>
       </div>
     );
   }

@@ -36,13 +36,14 @@ export const Processing = () => {
 
       <div className="w-full max-w-2xl space-y-2 mt-12">
         <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-on-surface-variant px-1">
-          <span>Processing Velocity</span>
-          <span>84%</span>
+          <span>Processing</span>
+          <span>In progress</span>
         </div>
         <div className="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
           <motion.div 
             initial={{ width: 0 }}
-            animate={{ width: '84%' }}
+            animate={{ width: ['20%', '80%', '30%'] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
             className="h-full bg-gradient-to-r from-primary to-secondary rounded-full shadow-[0_0_12px_rgba(78,222,163,0.3)]"
           />
         </div>

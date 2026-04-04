@@ -149,6 +149,16 @@ export async function createSourceFromText(title: string, content: string): Prom
   return data.source;
 }
 
+export async function uploadSourceFile(file: File): Promise<BackendSource> {
+  const form = new FormData();
+  form.append("file", file);
+  const data = await apiRequest<{ source: BackendSource }>("/api/import/upload", {
+    method: "POST",
+    body: form,
+  });
+  return data.source;
+}
+
 export async function deleteSource(sourceId: string): Promise<void> {
   await apiRequest(`/api/sources/${sourceId}`, {
     method: "DELETE",
