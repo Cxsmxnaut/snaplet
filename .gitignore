@@ -23,6 +23,10 @@
 # misc
 .DS_Store
 *.pem
+.snaplet/
+AGENTS.md
+CLAUDE.md
+design.md
 
 # debug
 npm-debug.log*
