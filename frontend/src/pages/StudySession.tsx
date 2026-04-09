@@ -289,14 +289,14 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
 
   return (
     <div className="min-h-screen flex flex-col pt-32 pb-24 px-6 relative">
-      <div className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex flex-col gap-4 bg-background/80 backdrop-blur-md">
+      <div className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex flex-col gap-4 bg-white/80 backdrop-blur-md border-b border-outline-variant/10">
         <nav className="flex justify-between items-center max-w-5xl mx-auto w-full">
           <div className="flex items-center gap-3">
             <span className="text-xl font-black text-primary tracking-tighter font-headline">Snaplet</span>
             <span className="h-4 w-[1px] bg-outline-variant/30"></span>
             <span className="text-sm font-medium text-on-surface-variant uppercase tracking-widest">{kit.title}</span>
           </div>
-          <button onClick={onQuit} className="group flex items-center gap-2 px-4 py-2 rounded-full bg-surface-container-low text-on-surface-variant hover:bg-error/20 hover:text-error transition-all duration-300">
+          <button onClick={onQuit} className="group flex items-center gap-2 px-4 py-2 rounded-full bg-surface-container-low text-on-surface-variant hover:bg-error-container hover:text-on-error-container transition-all duration-300">
             <X className="w-4 h-4" />
             <span className="text-sm font-semibold">Quit Session</span>
           </button>
@@ -314,13 +314,13 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
 
       <div className="flex-grow flex flex-col items-center justify-center relative z-10">
         <div className="w-full max-w-3xl flex flex-col gap-8">
-          <motion.div key={currentQuestion.questionId} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-surface-container-low rounded-2xl p-10 md:p-14 deep-bloom border border-outline-variant/10 flex flex-col gap-10">
+          <motion.div key={currentQuestion.questionId} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-surface-container-lowest rounded-xl p-10 md:p-14 ambient-shadow flex flex-col gap-10">
             <div className="space-y-4">
               <span className="text-primary text-xs font-bold tracking-[0.2em] uppercase">Active Recall</span>
               <h1 className="text-3xl md:text-4xl font-headline font-bold leading-tight text-on-surface tracking-tight">{currentQuestion.prompt}</h1>
             </div>
             <div className="flex flex-col gap-6">
-              <textarea value={answer} onChange={(e) => setAnswer(e.target.value)} disabled={showFeedback || submitting} className="w-full bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/30 border-none rounded-xl p-6 text-lg md:text-xl resize-none focus:ring-2 focus:ring-primary/40 focus:outline-none transition-all" placeholder="Type your answer here..." rows={4} />
+              <textarea value={answer} onChange={(e) => setAnswer(e.target.value)} disabled={showFeedback || submitting} className="w-full bg-surface-container-low text-on-surface placeholder:text-on-surface-variant/30 border border-outline-variant/25 rounded-xl p-6 text-lg md:text-xl resize-none focus:ring-4 focus:ring-primary/5 focus:border-primary/40 focus:bg-surface-container-lowest focus:outline-none transition-all" placeholder="Type your answer here..." rows={4} />
               {!showFeedback && <Button size="lg" className="w-full py-5" onClick={() => { void handleSubmit(); }} disabled={!answer.trim() || submitting}>{submitting ? 'Submitting...' : 'Submit Answer'} <ArrowRight className="w-5 h-5" /></Button>}
             </div>
           </motion.div>
@@ -385,14 +385,14 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
 
       <footer className="fixed bottom-0 left-0 right-0 px-8 py-6 pointer-events-none">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
-          <div className="bg-surface-container-low/80 backdrop-blur-md px-5 py-3 rounded-full flex items-center gap-3 border border-outline-variant/10 pointer-events-auto">
+          <div className="bg-surface-container-lowest/80 backdrop-blur-md px-5 py-3 rounded-full flex items-center gap-3 border border-outline-variant/10 pointer-events-auto ambient-shadow">
             <div className="flex items-center justify-center h-8 w-8 rounded-full bg-surface-container"><Timer className="text-primary w-4 h-4" /></div>
             <div className="flex flex-col">
               <span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">Mode</span>
               <span className="text-sm font-headline font-bold text-on-surface">{modeLabel(mode)}</span>
             </div>
           </div>
-          <div className="bg-surface-container-low/80 backdrop-blur-md px-5 py-3 rounded-full flex items-center gap-3 border border-outline-variant/10 pointer-events-auto">
+          <div className="bg-surface-container-lowest/80 backdrop-blur-md px-5 py-3 rounded-full flex items-center gap-3 border border-outline-variant/10 pointer-events-auto ambient-shadow">
             <div className="flex flex-col items-end"><span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">Correct</span><span className="text-sm font-headline font-bold text-secondary">{results.correct} streak</span></div>
             <div aria-hidden="true" className="flex items-center justify-center h-8 w-8 rounded-full bg-surface-container"><Flame className="text-secondary w-4 h-4 fill-secondary" /></div>
           </div>

@@ -29,15 +29,6 @@ import { supabase } from './lib/supabase';
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    if (typeof window === 'undefined') {
-      return 'light';
-    }
-
-    const explicitChoice = window.localStorage.getItem('snaplet_theme_explicit');
-    const stored = window.localStorage.getItem('snaplet_theme');
-    return explicitChoice === 'true' && stored === 'dark' ? 'dark' : 'light';
-  });
   const route = useMemo(() => deriveRoute(location.pathname), [location.pathname]);
   const routeMode = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -70,16 +61,6 @@ export default function App() {
   useEffect(() => {
     logDebug('app', 'Mounted App');
   }, []);
-
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem('snaplet_theme', theme);
-  }, [theme]);
-
-  const handleThemeChange = (value: 'dark' | 'light') => {
-    window.localStorage.setItem('snaplet_theme_explicit', 'true');
-    setTheme(value);
-  };
 
   useEffect(() => {
     logDebug('app', 'Route changed', {
@@ -328,8 +309,6 @@ export default function App() {
             void handleLogout();
           }}
           userProfile={userProfile}
-          theme={theme}
-          onThemeChange={handleThemeChange}
         />
       )}
       {route.tab === 'create' && <CreateKit onGenerate={handleGenerateKit} onUploadFile={handleUploadKitFile} />}

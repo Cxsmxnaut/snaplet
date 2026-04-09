@@ -47,18 +47,18 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
     <div className="space-y-12">
       <header className="flex justify-between items-end">
         <div>
-          <h2 className="text-3xl font-headline font-extrabold tracking-tight text-on-surface">Welcome back</h2>
-          <p className="text-on-surface-variant font-medium mt-1">Track progress across your live study kits.</p>
+          <h2 className="text-4xl font-headline font-extrabold tracking-tight text-on-surface">Welcome back</h2>
+          <p className="text-on-surface-variant font-medium mt-2">Ready to continue your curation of knowledge today?</p>
         </div>
       </header>
 
       {/* Hero Action */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 group relative overflow-hidden bg-surface-container rounded-2xl p-8 flex items-center justify-between border border-outline-variant/5">
+        <div className="lg:col-span-2 group relative overflow-hidden bg-surface-container-lowest rounded-xl p-8 flex items-center justify-between ambient-shadow">
           <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <div className="z-10">
-            <span className="text-xs font-bold uppercase tracking-widest text-primary mb-2 block font-headline">Recent Progress</span>
-            <h3 className="text-2xl font-headline font-bold mb-4 text-on-surface">{recentKit?.title || "No kits yet"}</h3>
+            <span className="px-3 py-1 bg-primary-container text-primary text-[10px] font-bold uppercase tracking-[0.16em] rounded-full mb-3 inline-block">Most Recent</span>
+            <h3 className="text-3xl font-headline font-extrabold mb-4 text-on-surface">{recentKit?.title || "No kits yet"}</h3>
             <div className="flex items-center gap-3 text-on-surface-variant text-sm mb-6">
               <Clock className="w-4 h-4" />
               <span>Last session: {lastSessionLabel}</span>
@@ -88,8 +88,8 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
           </div>
         </div>
 
-        <div className="bg-surface-container-high rounded-2xl p-8 flex flex-col justify-center items-center text-center border border-outline-variant/10">
-          <div className="w-16 h-16 bg-primary/20 rounded-2xl flex items-center justify-center mb-4">
+        <div className="bg-surface-container-low rounded-xl p-8 flex flex-col justify-center items-center text-center border-2 border-dashed border-outline-variant/40">
+          <div className="w-16 h-16 bg-surface-container-lowest rounded-full flex items-center justify-center mb-4 ambient-shadow">
             <Plus className="text-primary w-8 h-8" />
           </div>
           <h3 className="text-xl font-headline font-bold mb-2">New Learning Kit</h3>
@@ -110,7 +110,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {kits.map((kit) => (
-            <div key={kit.id} className="bg-surface-container rounded-2xl p-6 hover:scale-[1.02] hover:bg-surface-container-high transition-all duration-300 flex flex-col group border border-outline-variant/5">
+            <div key={kit.id} className="bg-surface-container-lowest p-6 rounded-xl border-l-4 border-primary ambient-shadow flex flex-col group">
               {(() => {
                 const KitIcon = resolveKitIcon(kit.icon);
                 return (
@@ -119,7 +119,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
                   </div>
                 );
               })()}
-              <h4 className="text-lg font-headline font-bold mb-1 text-on-surface group-hover:text-primary">{kit.title}</h4>
+              <h4 className="text-lg font-headline font-bold mb-1 text-on-surface">{kit.title}</h4>
               <p className="text-xs text-on-surface-variant font-medium mb-6">
                 {kit.cardCount} Cards • {kit.lastSession ? kit.lastSession.toLocaleDateString() : 'No sessions yet'}
               </p>
@@ -127,7 +127,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
                 <Button variant="ghost" className="flex-1 bg-surface-container-highest" onClick={() => onStudyKit(kit.id)}>Study</Button>
                 <button 
                   onClick={() => onEditKit(kit.id)}
-                  className="p-2 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors"
+                  className="p-2 bg-surface-container-high rounded-lg flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
@@ -148,7 +148,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
             <StatCard label="Questions" value={String(progress?.totals.questions ?? 0)} />
             <StatCard label="Sessions" value={String(progress?.totals.sessions ?? 0)} />
           </div>
-          <div className="glass-panel rounded-2xl p-6 h-48 flex items-end gap-3 justify-between border border-outline-variant/10">
+          <div className="bg-surface-container-lowest rounded-xl p-6 h-48 flex items-end gap-3 justify-between ambient-shadow">
             {chartBars.map((h, i) => (
               <div key={i} className="flex-1 bg-primary/20 rounded-t-sm transition-all hover:bg-primary/40" style={{ height: `${h}%` }}></div>
             ))}

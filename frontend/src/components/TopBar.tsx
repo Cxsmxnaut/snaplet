@@ -32,14 +32,16 @@ export const TopBar = ({
   }, []);
 
   return (
-    <header className="fixed top-0 left-64 right-0 z-30 bg-background px-4 md:px-8 py-4 flex justify-between items-center gap-3">
-      <div className="flex items-center gap-4 min-w-0" />
+    <header className="fixed top-0 left-64 right-0 z-30 h-16 bg-white/80 backdrop-blur-md border-b border-outline-variant/10 px-6 md:px-10 flex justify-between items-center gap-3">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant/60">Workspace</span>
+      </div>
 
       <div className="flex items-center gap-2 md:gap-6 min-w-0">
         <div className="flex items-center gap-1 sm:gap-3 shrink-0">
           <button
             onClick={() => onNavigate('progress')}
-            className="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-all relative"
+            className="p-2 text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-all relative"
             title="Open progress"
           >
             <Bell className="w-5 h-5" />
@@ -47,7 +49,7 @@ export const TopBar = ({
           </button>
           <button
             onClick={() => onNavigate('create')}
-            className="hidden sm:inline-flex p-2 text-on-surface-variant hover:bg-surface-container-high rounded-full transition-all"
+            className="hidden sm:inline-flex p-2 text-on-surface-variant hover:bg-surface-container-high rounded-xl transition-all"
             title="Create new kit"
           >
             <Zap className="w-5 h-5" />
@@ -85,7 +87,7 @@ export const TopBar = ({
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="absolute right-0 mt-2 w-56 bg-surface-container-low border border-outline-variant/10 rounded-2xl shadow-2xl overflow-hidden py-2 z-50"
+                  className="absolute right-0 mt-2 w-56 bg-surface-container-lowest border border-outline-variant/10 rounded-xl ambient-shadow overflow-hidden py-2 z-50"
                 >
                   <div className="px-4 py-3 border-b border-outline-variant/5 mb-2">
                     <p className="text-sm font-bold text-on-surface">{userProfile.displayName}</p>

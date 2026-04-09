@@ -29,8 +29,8 @@ export function AppShell({
       <main className={!hideShell ? 'ml-64' : ''}>
         {!hideShell && <TopBar onNavigate={onTabChange} onLogout={onLogout} userProfile={userProfile} />}
 
-        <div className={!hideShell ? 'pt-22 pb-12 px-10' : ''}>
-          {error ? <div className="mb-6 rounded-xl border border-error/30 bg-error/10 p-4 text-sm text-error">{error}</div> : null}
+        <div className={!hideShell ? 'pt-24 pb-12 px-8 lg:px-10' : ''}>
+          {error ? <div className="mb-6 rounded-xl border border-error/20 bg-error-container px-4 py-3 text-sm text-on-error-container ambient-shadow">{error}</div> : null}
           {children}
         </div>
       </main>

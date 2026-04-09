@@ -45,7 +45,7 @@ export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompl
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Accuracy */}
-        <div className="md:col-span-4 bg-surface-container rounded-2xl p-8 flex flex-col items-center justify-center text-center relative overflow-hidden border border-outline-variant/5">
+        <div className="md:col-span-4 bg-surface-container-lowest rounded-xl p-8 flex flex-col items-center justify-center text-center relative overflow-hidden ambient-shadow">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none"></div>
           <div className="relative z-10">
             <p className="text-on-surface-variant font-bold text-sm uppercase tracking-widest mb-4">Accuracy</p>
@@ -69,7 +69,7 @@ export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompl
         </div>
 
         {/* Stats */}
-        <div className="md:col-span-8 bg-surface-container rounded-2xl p-8 grid grid-cols-2 gap-8 border border-outline-variant/5">
+        <div className="md:col-span-8 bg-surface-container-lowest rounded-xl p-8 grid grid-cols-2 gap-8 ambient-shadow">
           <div className="flex flex-col justify-center border-r border-outline-variant/20">
             <CheckCircle2 className="text-4xl text-secondary mb-2 w-10 h-10 fill-secondary/10" />
             <h3 className="text-5xl font-black text-on-surface">{result.correctCount}</h3>
@@ -101,13 +101,13 @@ export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompl
           </div>
           
           {weakCount === 0 ? (
-            <div className="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/5">
+            <div className="bg-surface-container-lowest p-6 rounded-xl ambient-shadow">
               <p className="text-on-surface font-semibold">No weak questions in this run.</p>
               <p className="text-on-surface-variant text-sm mt-1">Start another session to keep the streak.</p>
             </div>
           ) : (
             result.weakQuestions.map((item, i) => (
-              <div key={i} className="bg-surface-container-low hover:bg-surface-container transition-all p-6 rounded-2xl border border-outline-variant/5">
+              <div key={i} className="bg-surface-container-lowest hover:bg-surface-container-low transition-all p-6 rounded-xl ambient-shadow">
                 <div className="flex gap-4">
                   <div className="w-10 h-10 rounded-full bg-tertiary/10 flex-shrink-0 flex items-center justify-center">
                     <span className="text-tertiary font-bold">{i + 1}</span>
@@ -133,7 +133,7 @@ export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompl
 
         {/* Actions */}
         <div className="md:col-span-4">
-          <div className="bg-surface-container-high rounded-2xl p-8 sticky top-28 border border-outline-variant/10">
+          <div className="bg-surface-container-low rounded-xl p-8 sticky top-28 ambient-shadow">
             <h3 className="text-xl font-bold mb-6">Next Steps</h3>
             <div className="space-y-4">
               <Button className="w-full py-4" onClick={onRetry}>

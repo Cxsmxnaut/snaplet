@@ -19,24 +19,24 @@ export const Button = ({
   ...props 
 }: ButtonProps) => {
   const variants = {
-    primary: 'gradient-primary text-on-primary-container shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95',
-    secondary: 'bg-secondary text-on-secondary hover:brightness-110 active:scale-95',
-    tertiary: 'bg-tertiary text-on-tertiary hover:brightness-110 active:scale-95',
-    ghost: 'hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface',
-    outline: 'border border-outline-variant/30 hover:bg-surface-bright text-on-surface',
+    primary: 'gradient-primary text-on-primary shadow-sm shadow-primary/10 hover:-translate-y-px active:translate-y-0 active:scale-[0.99]',
+    secondary: 'bg-surface-container-lowest border border-outline-variant/20 text-on-surface hover:bg-surface-container-low active:scale-[0.99]',
+    tertiary: 'bg-transparent text-primary hover:text-primary-strong active:scale-[0.99]',
+    ghost: 'bg-transparent text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface',
+    outline: 'bg-surface-container-lowest border border-outline-variant/20 text-on-surface hover:bg-surface-container-low active:scale-[0.99]',
   };
 
   const sizes = {
-    sm: 'px-4 py-2 text-sm rounded-full',
-    md: 'px-6 py-2.5 text-base rounded-full font-bold',
-    lg: 'px-8 py-3.5 text-lg rounded-xl font-bold',
-    xl: 'px-10 py-4 text-xl rounded-xl font-black',
+    sm: 'px-4 py-2.5 text-sm rounded-lg',
+    md: 'px-5 py-2.5 text-sm rounded-lg font-bold',
+    lg: 'px-7 py-3.5 text-base rounded-xl font-bold',
+    xl: 'px-9 py-4 text-lg rounded-xl font-black',
   };
 
   return (
     <button 
       className={cn(
-        'transition-all duration-300 flex items-center justify-center gap-2 font-headline',
+        'transition-all duration-200 flex items-center justify-center gap-2 font-headline',
         variants[variant],
         sizes[size],
         className

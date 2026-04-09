@@ -69,12 +69,11 @@ export const KitsPage = ({ kits, onStudyKit, onCreateKit, onEditKit }: KitsPageP
 
   return (
     <div className="max-w-7xl mx-auto space-y-10">
-      {/* Header */}
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="flex-1 max-w-2xl">
           <div className="flex items-center gap-4 mb-4">
-            <h2 className="text-4xl font-headline font-black tracking-tight text-on-surface">My Kits</h2>
-            <span className="px-3 py-1 bg-surface-container-high rounded-full text-xs font-bold text-primary">
+            <h2 className="text-4xl font-headline font-black tracking-tight text-on-surface">My Library</h2>
+            <span className="px-3 py-1 bg-primary-container rounded-full text-xs font-bold text-primary">
               {kits.length} Kits
             </span>
           </div>
@@ -84,8 +83,8 @@ export const KitsPage = ({ kits, onStudyKit, onCreateKit, onEditKit }: KitsPageP
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-surface-container-low border-none text-on-surface rounded-full py-4 pl-12 pr-6 focus:ring-2 focus:ring-primary/40 text-sm transition-all placeholder:text-on-surface-variant/30"
-              placeholder="Search your kits..."
+              className="w-full bg-surface-container-low border border-outline-variant/20 text-on-surface rounded-xl py-4 pl-12 pr-6 focus:ring-4 focus:ring-primary/5 focus:border-primary/30 text-sm transition-all placeholder:text-on-surface-variant/30"
+              placeholder="Search your library..."
             />
           </div>
         </div>
@@ -139,7 +138,6 @@ export const KitsPage = ({ kits, onStudyKit, onCreateKit, onEditKit }: KitsPageP
         </button>
       </section>
 
-      {/* Recommended Section */}
       <section className="bg-surface-container-low rounded-3xl p-10 flex flex-col md:flex-row items-center gap-12 border border-outline-variant/10 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-primary/5 to-transparent pointer-events-none"></div>
         <div className="flex-1 relative z-10">
@@ -164,7 +162,7 @@ export const KitsPage = ({ kits, onStudyKit, onCreateKit, onEditKit }: KitsPageP
             {recommendation?.cta ?? 'Create Kit'}
           </Button>
         </div>
-        <div className="w-full md:w-5/12 aspect-[4/3] rounded-2xl overflow-hidden shadow-2xl relative group border border-outline-variant/20">
+        <div className="w-full md:w-5/12 aspect-[4/3] rounded-2xl overflow-hidden ambient-shadow relative group border border-outline-variant/20">
           <img 
             className="w-full h-full object-cover opacity-60" 
             src="https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?auto=format&fit=crop&q=80&w=800" 
@@ -182,9 +180,9 @@ const FilterButton = ({ active, onClick, label }: { active: boolean; onClick: ()
   <button 
     onClick={onClick}
     className={cn(
-      "px-8 py-2.5 rounded-full text-sm font-bold transition-all border",
+      "px-5 py-2.5 rounded-full text-sm font-bold transition-all border",
       active 
-        ? "bg-primary/20 text-primary border-primary/30" 
+        ? "bg-primary-container text-primary border-primary/10" 
         : "text-on-surface-variant hover:text-on-surface border-transparent hover:bg-surface-container-high"
     )}
   >
@@ -198,7 +196,7 @@ const KitCard = ({ kit, onStudy, onEdit }: { kit: Kit; onStudy: () => void; onEd
   return (
     <motion.div 
       whileHover={{ y: -5 }}
-      className="bg-surface-container-low rounded-2xl p-6 hover:bg-surface-container-high transition-all duration-300 flex flex-col group border border-outline-variant/5 shadow-sm"
+      className="bg-surface-container-lowest p-6 rounded-xl hover:bg-surface-container-low transition-all duration-300 flex flex-col group ambient-shadow"
     >
       <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center mb-5", kit.color)}>
         <Icon className="w-6 h-6" />
@@ -226,7 +224,7 @@ const KitCard = ({ kit, onStudy, onEdit }: { kit: Kit; onStudy: () => void; onEd
         <button 
           onClick={onStudy}
           className={cn(
-            "flex-1 py-3 px-4 rounded-full font-bold text-sm transition-all",
+            "flex-1 py-3 px-4 rounded-lg font-bold text-sm transition-all",
             kit.mastery === 100 
               ? "bg-secondary text-on-secondary hover:brightness-110" 
               : "bg-surface-container-highest text-on-surface hover:bg-primary hover:text-on-primary"

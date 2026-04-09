@@ -25,10 +25,10 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
-      {/* Nav */}
-      <nav className="fixed top-0 w-full z-50 bg-background/60 backdrop-blur-md flex justify-between items-center px-4 sm:px-6 lg:px-8 h-20 border-b border-outline-variant/5">
+      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md flex justify-between items-center px-4 sm:px-6 lg:px-10 h-16 border-b border-outline-variant/10">
         <div className="flex items-center gap-4 min-w-0">
-          <span className="text-2xl font-black text-primary tracking-tighter font-headline">Snaplet</span>
+          <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center text-on-primary font-black">S</div>
+          <span className="text-xl font-black text-primary tracking-tighter font-headline">Snaplet AI</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <button onClick={onGetStarted} className="hidden sm:inline text-on-surface-variant font-bold hover:text-on-surface transition-colors">Sign In</button>
@@ -36,25 +36,25 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
         </div>
       </nav>
 
-      <main className="pt-32 pb-20">
-        {/* Hero */}
-        <section className="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
+      <main className="pt-28 pb-24 px-6 lg:px-10 max-w-7xl mx-auto">
+        <section className="grid lg:grid-cols-2 gap-16 items-center mb-28">
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             className="flex flex-col gap-8"
           >
-            <div className="inline-flex self-start bg-surface-container-high px-4 py-1.5 rounded-full border border-outline-variant/20">
-              <span className="text-secondary text-sm font-semibold tracking-wide uppercase">New: Flashcard AI 2.0</span>
+            <div className="inline-flex self-start bg-surface-container-high px-4 py-2 rounded-full text-primary text-xs font-semibold tracking-[0.16em] uppercase">
+              Optimized Learning
             </div>
-            <h1 className="text-6xl md:text-7xl font-black font-headline text-on-surface tracking-tight leading-[1.1]">
-              Study Fast.<br />Recall <span className="text-primary italic">Better.</span>
+            <h1 className="text-5xl md:text-7xl font-black font-headline text-on-surface tracking-tight leading-[1.05]">
+              Master Any Subject with <span className="text-primary">AI Precision</span>
             </h1>
             <p className="text-on-surface-variant text-lg md:text-xl max-w-xl leading-relaxed">
-              Paste your notes. Master them faster. The AI-powered study platform for students who want to master their material in record time.
+              Transform notes, documents, and source material into intelligent study kits built for active recall, precision feedback, and real retention.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Button size="lg" onClick={onGetStarted}>Get Started</Button>
+              <Button size="lg" onClick={onGetStarted}>Get Started for Free</Button>
+              <Button size="lg" variant="outline">View Methodology</Button>
             </div>
           </motion.div>
 
@@ -64,20 +64,19 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
             className="relative"
           >
             <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full opacity-50"></div>
-            <div className="relative glass-panel rounded-xl border border-outline-variant/20 overflow-hidden deep-bloom p-8">
+            <div className="relative glass-panel rounded-2xl border border-outline-variant/20 overflow-hidden ambient-shadow p-8">
               <div className="flex justify-between items-end mb-8">
                 <div className="space-y-1">
-                  <p className="text-xs text-on-surface-variant uppercase tracking-widest font-bold">Current Kit</p>
-                  <h3 className="text-2xl font-headline font-bold">Molecular Biology</h3>
+                  <p className="text-xs text-primary uppercase tracking-[0.2em] font-bold">Active Session</p>
+                  <h3 className="text-2xl font-headline font-bold text-on-surface">Biology: Molecular Basics</h3>
                 </div>
                 <div className="text-right">
-                  <p className="text-3xl font-headline font-black text-secondary">88%</p>
-                  <p className="text-[10px] text-on-surface-variant uppercase">Mastery</p>
+                  <p className="text-sm font-semibold text-on-surface-variant">4 / 25 Questions</p>
                 </div>
               </div>
               <div className="space-y-4">
                 <div className="bg-surface-container-high p-4 rounded-lg border border-outline-variant/10">
-                  <p className="text-sm text-primary mb-2 font-bold uppercase tracking-tighter">Question 14</p>
+                  <p className="text-sm text-primary mb-2 font-bold uppercase tracking-tighter">Question</p>
                   <p className="text-on-surface font-medium mb-4">How many colors are in a rainbow?</p>
                   <div className="space-y-3">
                     <input
@@ -89,18 +88,14 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
                         }
                       }}
                       placeholder="Type your answer (try: 7 or seven)"
-                      className="w-full bg-surface-container-low p-3 rounded-lg border border-primary/40 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      className="w-full bg-surface-container-low p-4 rounded-xl border border-outline-variant/20 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                     <div className="flex items-center gap-3">
                       <Button size="sm" onClick={evaluatePreviewAnswer} disabled={!previewAnswer.trim()}>
                         Check Answer
                       </Button>
-                      {previewResult === 'correct' ? (
-                        <p className="text-secondary text-sm font-semibold">Correct. Nice start.</p>
-                      ) : null}
-                      {previewResult === 'incorrect' ? (
-                        <p className="text-tertiary text-sm font-semibold">Not quite. Try 7 or seven.</p>
-                      ) : null}
+                      {previewResult === 'correct' ? <p className="text-secondary text-sm font-semibold">Correct. AI verified your understanding.</p> : null}
+                      {previewResult === 'incorrect' ? <p className="text-tertiary text-sm font-semibold">Not quite. Try 7 or seven.</p> : null}
                     </div>
                   </div>
                 </div>
@@ -109,12 +104,11 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
           </motion.div>
         </section>
 
-        {/* Features */}
-        <section className="max-w-7xl mx-auto px-6 mt-40">
+        <section className="mt-28">
           <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl md:text-5xl font-black font-headline tracking-tight">Built for Performance</h2>
+            <h2 className="text-4xl md:text-5xl font-black font-headline tracking-tight text-on-surface">Built for Focused Performance</h2>
             <p className="text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
-              We've combined cognitive science with modern AI to build a system that adapts to your brain.
+              Snaplet blends editorial clarity, active recall, and intelligent curation into a workflow that feels rigorous and calm.
             </p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
@@ -136,21 +130,18 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
           </div>
         </section>
 
-        {/* CTA */}
-        <section className="max-w-4xl mx-auto px-6 mt-40 text-center">
-          <h2 className="text-5xl md:text-6xl font-black font-headline tracking-tighter mb-8 italic">Ready to master your material?</h2>
-          <p className="text-on-surface-variant text-xl mb-12">Join 10,000+ students already using Snaplet to ace their finals.</p>
+        <section className="mt-28 rounded-[28px] gradient-primary p-12 lg:p-20 text-center text-on-primary">
+          <h2 className="text-5xl md:text-6xl font-black font-headline tracking-tighter mb-8">Start Studying Smarter Today</h2>
+          <p className="text-primary-container text-xl mb-12 max-w-3xl mx-auto">Create a study system that feels organized, precise, and fast enough to keep up with serious learning.</p>
           <div className="flex flex-col md:flex-row gap-6 justify-center items-center">
-            <Button size="xl" onClick={onGetStarted}>Create Your First Kit</Button>
-            <div className="flex items-center gap-2 text-on-surface-variant font-medium">
-              <ShieldCheck className="text-secondary w-5 h-5" />
-              No credit card required
-            </div>
+            <button onClick={onGetStarted} className="bg-white text-primary px-10 py-4 rounded-xl font-headline font-extrabold text-lg ambient-shadow">Create Your Free Account</button>
+            <div className="flex items-center gap-2 text-primary-container font-medium"><ShieldCheck className="w-5 h-5" />No credit card required</div>
           </div>
         </section>
+
       </main>
 
-      <footer className="bg-surface-container-low py-12 px-8 mt-40">
+      <footer className="bg-surface-container-low py-12 px-8 mt-20">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex flex-col items-center md:items-start gap-2">
             <span className="text-2xl font-black text-primary font-headline">Snaplet</span>
@@ -169,7 +160,7 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
 };
 
 const FeatureCard = ({ icon, title, description }: any) => (
-  <div className="group bg-surface-container-low p-8 rounded-2xl border border-outline-variant/10 hover:bg-surface-container transition-all hover:scale-[1.02] deep-bloom">
+  <div className="group bg-surface-container-lowest p-8 rounded-2xl ghost-border hover:ambient-shadow transition-all">
     <div className="w-14 h-14 bg-surface-container-high rounded-xl flex items-center justify-center mb-6">
       {icon}
     </div>

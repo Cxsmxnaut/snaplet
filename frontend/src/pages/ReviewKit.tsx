@@ -201,10 +201,7 @@ export const ReviewKit = ({
             <div className="relative z-10">
               <h4 className="font-headline font-bold text-sm mb-2 text-on-primary">Rapid Mode</h4>
               <p className="text-xs text-on-primary/70 mb-4 leading-relaxed">Feeling confident? Enable Rapid Mode to reduce display time by 40%.</p>
-              <button
-                onClick={onStartRapid}
-                className="bg-surface-bright/30 backdrop-blur-md border border-on-primary/15 text-on-primary text-[10px] font-bold py-2 px-4 rounded-full hover:bg-surface-bright/45 transition-colors"
-              >
+              <button onClick={onStartRapid} className="bg-white/70 border border-white/60 text-primary text-[10px] font-bold py-2 px-4 rounded-full hover:bg-white transition-colors">
                 ENABLE NOW
               </button>
             </div>

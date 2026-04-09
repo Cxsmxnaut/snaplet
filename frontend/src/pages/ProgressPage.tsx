@@ -48,7 +48,7 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 bg-surface-container-low rounded-2xl p-8 border border-outline-variant/5">
+        <div className="lg:col-span-8 bg-surface-container-lowest rounded-xl p-8 ambient-shadow">
           <div className="flex justify-between items-center mb-10">
             <div>
               <h2 className="text-xl font-bold font-headline mb-1">Learning Velocity</h2>
@@ -61,7 +61,7 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
                 <motion.div 
                   initial={{ height: 0 }}
                   animate={{ height: `${h}%` }}
-                  className="absolute inset-x-0 bottom-0 bg-glow-primary rounded-t-lg transition-all duration-500 group-hover:brightness-110"
+                  className="absolute inset-x-0 bottom-0 bg-primary rounded-t-lg transition-all duration-500 group-hover:brightness-110"
                 />
               </div>
             ))}
@@ -71,7 +71,7 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
           </div>
         </div>
 
-        <div className="lg:col-span-4 bg-surface-container-low rounded-2xl p-8 border border-outline-variant/5">
+        <div className="lg:col-span-4 bg-surface-container-lowest rounded-xl p-8 ambient-shadow">
           <h2 className="text-xl font-bold font-headline mb-1">Focus Vulnerabilities</h2>
           <p className="text-on-surface-variant text-sm mb-8">Topics requiring immediate review</p>
           <div className="space-y-6">
@@ -93,7 +93,7 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
         </div>
       </div>
 
-      <div className="bg-surface-container-low rounded-2xl overflow-hidden border border-outline-variant/5">
+      <div className="bg-surface-container-lowest rounded-xl overflow-hidden ambient-shadow">
         <div className="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center">
           <h2 className="text-xl font-bold font-headline">Recent Study Sessions</h2>
           <span className="text-on-surface-variant text-xs font-semibold">Session history preview</span>
@@ -124,14 +124,14 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
 };
 
 const StatCard = ({ label, value, unit, trend, progress, icon }: any) => (
-  <div className="bg-surface-container-low p-6 rounded-2xl relative overflow-hidden group hover:bg-surface-container transition-colors border border-outline-variant/5">
+  <div className="bg-surface-container-lowest p-6 rounded-xl relative overflow-hidden group hover:bg-surface-container-low transition-colors ambient-shadow">
     <div className="relative z-10">
       <p className="text-on-surface-variant text-sm font-semibold mb-1">{label}</p>
       <h3 className="text-3xl font-bold text-on-surface">{value}{unit && <span className="text-lg text-primary ml-1">{unit}</span>}</h3>
       {trend && <p className="mt-4 text-secondary text-sm font-bold">{trend}</p>}
       {progress !== undefined && (
         <div className="mt-4 w-full bg-surface-container-highest h-2 rounded-full overflow-hidden">
-          <div className="h-full bg-glow-primary" style={{ width: `${progress}%` }}></div>
+          <div className="h-full bg-primary" style={{ width: `${progress}%` }}></div>
         </div>
       )}
     </div>

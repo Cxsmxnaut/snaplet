@@ -18,14 +18,14 @@ export const Processing = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-16 w-full max-w-2xl text-left">
-        <div className="bg-surface-container-low p-6 rounded-2xl deep-bloom border border-outline-variant/10">
+        <div className="bg-surface-container-lowest p-6 rounded-xl ambient-shadow">
           <div className="flex items-center gap-3 mb-4">
             <CheckCircle2 className="text-secondary w-5 h-5" />
             <span className="text-xs font-bold uppercase tracking-widest text-secondary">Phase 1 Complete</span>
           </div>
           <p className="text-on-surface-variant text-sm leading-relaxed">Parsing semantic structure and identifying key conceptual anchors from your source files.</p>
         </div>
-        <div className="bg-surface-container-low p-6 rounded-2xl deep-bloom border border-outline-variant/10">
+        <div className="bg-surface-container-lowest p-6 rounded-xl ambient-shadow">
           <div className="flex items-center gap-3 mb-4">
             <Loader2 className="text-primary w-5 h-5 animate-spin" />
             <span className="text-xs font-bold uppercase tracking-widest text-primary">Phase 2 Active</span>
