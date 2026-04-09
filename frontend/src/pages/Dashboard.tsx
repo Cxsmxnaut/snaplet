@@ -58,7 +58,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
           <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <div className="z-10">
             <span className="text-xs font-bold uppercase tracking-widest text-primary mb-2 block font-headline">Recent Progress</span>
-            <h3 className="text-2xl font-headline font-bold mb-4 text-white">{recentKit?.title || "No kits yet"}</h3>
+            <h3 className="text-2xl font-headline font-bold mb-4 text-on-surface">{recentKit?.title || "No kits yet"}</h3>
             <div className="flex items-center gap-3 text-on-surface-variant text-sm mb-6">
               <Clock className="w-4 h-4" />
               <span>Last session: {lastSessionLabel}</span>
@@ -82,7 +82,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
                 ></circle>
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-black font-headline text-white">{recentKit?.mastery || 0}%</span>
+                <span className="text-2xl font-black font-headline text-on-surface">{recentKit?.mastery || 0}%</span>
               </div>
             </div>
           </div>
@@ -103,7 +103,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
       {/* My Kits */}
       <section>
         <div className="flex justify-between items-center mb-8">
-          <h3 className="text-2xl font-headline font-bold text-white">My Kits</h3>
+          <h3 className="text-2xl font-headline font-bold text-on-surface">My Kits</h3>
           <button onClick={onViewAll} className="text-primary font-semibold hover:text-primary-container flex items-center gap-2 transition-colors">
             View All <ArrowRight className="w-4 h-4" />
           </button>
@@ -119,7 +119,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
                   </div>
                 );
               })()}
-              <h4 className="text-lg font-headline font-bold mb-1 text-on-surface group-hover:text-white">{kit.title}</h4>
+              <h4 className="text-lg font-headline font-bold mb-1 text-on-surface group-hover:text-primary">{kit.title}</h4>
               <p className="text-xs text-on-surface-variant font-medium mb-6">
                 {kit.cardCount} Cards • {kit.lastSession ? kit.lastSession.toLocaleDateString() : 'No sessions yet'}
               </p>
@@ -127,7 +127,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
                 <Button variant="ghost" className="flex-1 bg-surface-container-highest" onClick={() => onStudyKit(kit.id)}>Study</Button>
                 <button 
                   onClick={() => onEditKit(kit.id)}
-                  className="p-2 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant hover:text-white transition-colors"
+                  className="p-2 bg-surface-container-highest rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
@@ -140,7 +140,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
       {/* Stats and Weak Focus */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <h3 className="text-xl font-headline font-bold text-white flex items-center gap-2">
+          <h3 className="text-xl font-headline font-bold text-on-surface flex items-center gap-2">
             <BarChart className="text-primary w-5 h-5" /> Activity Summary
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -156,7 +156,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
         </div>
 
         <div>
-          <h3 className="text-xl font-headline font-bold text-white mb-6 flex items-center gap-2">
+          <h3 className="text-xl font-headline font-bold text-on-surface mb-6 flex items-center gap-2">
             <AlertCircle className="text-tertiary w-5 h-5" /> Weak Focus
           </h3>
           <div className="bg-surface-container-high rounded-2xl p-8 border border-outline-variant/10">
@@ -182,7 +182,7 @@ const StatCard = ({ label, value, trend }: any) => (
   <div className="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/5 shadow-sm">
     <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">{label}</p>
     <div className="flex items-end gap-2">
-      <p className="text-3xl font-black font-headline text-white">{value}</p>
+      <p className="text-3xl font-black font-headline text-on-surface">{value}</p>
       {trend && <p className="text-secondary text-xs font-bold mb-1">{trend}</p>}
     </div>
   </div>
@@ -192,7 +192,7 @@ const WeakItem = ({ label, rate }: any) => (
   <li className="flex items-center gap-4 p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/5">
     <div className="h-2 w-2 rounded-full bg-tertiary"></div>
     <div className="flex-1">
-      <p className="text-sm font-bold text-white">{label}</p>
+      <p className="text-sm font-bold text-on-surface">{label}</p>
       <p className="text-xs text-on-surface-variant">Success rate: {rate}</p>
     </div>
   </li>

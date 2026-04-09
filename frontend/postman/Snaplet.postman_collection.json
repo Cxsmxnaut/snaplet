@@ -1,0 +1,958 @@
+{
+  "info": {
+    "name": "Snaplet API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Basic Newman/Postman coverage for the frontend/api runtime in Snaplet."
+  },
+  "item": [
+    {
+      "name": "Sources",
+      "item": [
+        {
+          "name": "List Sources",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('list sources responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sources",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sources"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Text Source",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('create source responds', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const responseType = pm.response.headers.get('content-type') || '';",
+                  "const payload = responseType.includes('application/json') ? pm.response.json() : null;",
+                  "if (payload?.source?.id) {",
+                  "  pm.environment.set('sourceId', payload.source.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sources",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sources"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"{{sampleSourceTitle}}\",\n  \"content\": \"{{sampleSourceContent}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get Source By Id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('get source responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sources/{{sourceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sources",
+                "{{sourceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Source Questions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('list source questions responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const responseType = pm.response.headers.get('content-type') || '';",
+                  "const payload = responseType.includes('application/json') ? pm.response.json() : null;",
+                  "if (payload?.questions && payload.questions.length > 0) {",
+                  "  pm.environment.set('sourceQuestionId', payload.questions[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sources/{{sourceId}}/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sources",
+                "{{sourceId}}",
+                "questions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Source Question",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('create source question responds', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const responseType = pm.response.headers.get('content-type') || '';",
+                  "const payload = responseType.includes('application/json') ? pm.response.json() : null;",
+                  "if (payload?.question?.id) {",
+                  "  pm.environment.set('manualQuestionId', payload.question.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sources/{{sourceId}}/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sources",
+                "{{sourceId}}",
+                "questions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Postman manual prompt\",\n  \"answer\": \"Postman manual answer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Duplicate Source",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('duplicate source responds', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const responseType = pm.response.headers.get('content-type') || '';",
+                  "const payload = responseType.includes('application/json') ? pm.response.json() : null;",
+                  "if (payload?.source?.id) {",
+                  "  pm.environment.set('duplicateSourceId', payload.source.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sources/{{sourceId}}/duplicate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sources",
+                "{{sourceId}}",
+                "duplicate"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Generate Source Questions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('generate source questions responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sources/{{sourceId}}/generate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sources",
+                "{{sourceId}}",
+                "generate"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Questions",
+      "item": [
+        {
+          "name": "Patch Question",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('patch question responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions/{{manualQuestionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions",
+                "{{manualQuestionId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"prompt\": \"Updated manual prompt\",\n  \"answer\": \"Updated manual answer\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Bulk Delete Questions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('bulk delete questions responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/questions/bulk",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "questions",
+                "bulk"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionIds\": [\n    \"{{manualQuestionId}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Import",
+      "item": [
+        {
+          "name": "Preview CSV Import",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('preview csv responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/import/csv",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "import",
+                "csv"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"preview\",\n  \"title\": \"{{sampleCsvTitle}}\",\n  \"csvText\": \"{{sampleCsvText}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Import CSV",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('import csv responds', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const responseType = pm.response.headers.get('content-type') || '';",
+                  "const payload = responseType.includes('application/json') ? pm.response.json() : null;",
+                  "if (payload?.source?.id) {",
+                  "  pm.environment.set('importedSourceId', payload.source.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/import/csv",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "import",
+                "csv"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"import\",\n  \"title\": \"{{sampleCsvTitle}}\",\n  \"csvText\": \"{{sampleCsvText}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Upload Source File",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('upload source responds', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const responseType = pm.response.headers.get('content-type') || '';",
+                  "const payload = responseType.includes('application/json') ? pm.response.json() : null;",
+                  "if (payload?.source?.id) {",
+                  "  pm.environment.set('uploadedSourceId', payload.source.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/import/upload",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "import",
+                "upload"
+              ]
+            },
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "{{uploadFixturePath}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Study",
+      "item": [
+        {
+          "name": "List Imported Source Questions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('list imported questions responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const responseType = pm.response.headers.get('content-type') || '';",
+                  "const payload = responseType.includes('application/json') ? pm.response.json() : null;",
+                  "if (payload?.questions && payload.questions.length > 0) {",
+                  "  pm.environment.set('importedQuestionId', payload.questions[0].id);",
+                  "  pm.environment.set('importedAnswer', payload.questions[0].answer);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sources/{{importedSourceId}}/questions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sources",
+                "{{importedSourceId}}",
+                "questions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Start Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('start session responds', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const responseType = pm.response.headers.get('content-type') || '';",
+                  "const payload = responseType.includes('application/json') ? pm.response.json() : null;",
+                  "if (payload?.session?.id) {",
+                  "  pm.environment.set('sessionId', payload.session.id);",
+                  "}",
+                  "if (payload?.currentQuestion) {",
+                  "  pm.environment.set('currentQuestionId', payload.currentQuestion.questionId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sessions"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sourceId\": \"{{importedSourceId}}\",\n  \"mode\": \"standard\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Submit Attempt",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('submit attempt responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sessions/{{sessionId}}/attempts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sessions",
+                "{{sessionId}}",
+                "attempts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"questionId\": \"{{currentQuestionId}}\",\n  \"answer\": \"{{importedAnswer}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get Progress",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('get progress responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "progress"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cleanup",
+      "item": [
+        {
+          "name": "Delete Duplicate Source",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('delete duplicate source responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sources/{{duplicateSourceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sources",
+                "{{duplicateSourceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Uploaded Source",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('delete uploaded source responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sources/{{uploadedSourceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sources",
+                "{{uploadedSourceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Imported Source",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('delete imported source responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sources/{{importedSourceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sources",
+                "{{importedSourceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Text Source",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('delete text source responds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-snaplet-user-id",
+                "value": "{{xSnapletUserId}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sources/{{sourceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sources",
+                "{{sourceId}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

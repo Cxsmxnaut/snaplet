@@ -28,7 +28,7 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
       {/* Nav */}
       <nav className="fixed top-0 w-full z-50 bg-background/60 backdrop-blur-md flex justify-between items-center px-4 sm:px-6 lg:px-8 h-20 border-b border-outline-variant/5">
         <div className="flex items-center gap-4 min-w-0">
-          <span className="text-2xl font-black text-primary tracking-tighter font-headline">Nimble</span>
+          <span className="text-2xl font-black text-primary tracking-tighter font-headline">Snaplet</span>
         </div>
         <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <button onClick={onGetStarted} className="hidden sm:inline text-on-surface-variant font-bold hover:text-on-surface transition-colors">Sign In</button>
@@ -139,7 +139,7 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
         {/* CTA */}
         <section className="max-w-4xl mx-auto px-6 mt-40 text-center">
           <h2 className="text-5xl md:text-6xl font-black font-headline tracking-tighter mb-8 italic">Ready to master your material?</h2>
-          <p className="text-on-surface-variant text-xl mb-12">Join 10,000+ students already using Nimble to ace their finals.</p>
+          <p className="text-on-surface-variant text-xl mb-12">Join 10,000+ students already using Snaplet to ace their finals.</p>
           <div className="flex flex-col md:flex-row gap-6 justify-center items-center">
             <Button size="xl" onClick={onGetStarted}>Create Your First Kit</Button>
             <div className="flex items-center gap-2 text-on-surface-variant font-medium">
@@ -153,7 +153,7 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
       <footer className="bg-surface-container-low py-12 px-8 mt-40">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
           <div className="flex flex-col items-center md:items-start gap-2">
-            <span className="text-2xl font-black text-primary font-headline">Nimble</span>
+            <span className="text-2xl font-black text-primary font-headline">Snaplet</span>
             <p className="text-on-surface-variant text-sm">© 2026 Kinetic Intelligence Inc.</p>
           </div>
           <div className="flex gap-8 text-sm font-medium text-on-surface-variant">

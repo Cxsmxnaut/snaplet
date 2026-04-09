@@ -3,9 +3,13 @@ import { Button } from '../components/Button';
 import { User, Moon, Sun, Timer, LogOut, Trash2, ShieldCheck } from 'lucide-react';
 import { cn } from '../lib/utils';
 
+type ThemeMode = 'dark' | 'light';
+
 export const SettingsPage = ({
   onLogout,
   userProfile,
+  theme,
+  onThemeChange,
 }: {
   onLogout: () => void;
   userProfile: {
@@ -13,24 +17,21 @@ export const SettingsPage = ({
     email: string;
     avatarUrl: string | null;
   };
+  theme: ThemeMode;
+  onThemeChange: (value: ThemeMode) => void;
 }) => {
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    const stored = window.localStorage.getItem('nimble_theme');
-    return stored === 'light' ? 'light' : 'dark';
-  });
   const [sessionLength, setSessionLength] = useState(() => {
-    const stored = Number(window.localStorage.getItem('nimble_session_length') ?? 10);
+    const stored = Number(window.localStorage.getItem('snaplet_session_length') ?? 10);
     return [5, 10, 15].includes(stored) ? stored : 10;
   });
 
-  const setThemeAndPersist = (value: 'dark' | 'light') => {
-    setTheme(value);
-    window.localStorage.setItem('nimble_theme', value);
+  const setThemeAndPersist = (value: ThemeMode) => {
+    onThemeChange(value);
   };
 
   const setSessionLengthAndPersist = (value: number) => {
     setSessionLength(value);
-    window.localStorage.setItem('nimble_session_length', String(value));
+    window.localStorage.setItem('snaplet_session_length', String(value));
   };
 
   return (

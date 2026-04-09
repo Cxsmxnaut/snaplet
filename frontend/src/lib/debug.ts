@@ -1,4 +1,4 @@
-const DEBUG_PREFIX = "[nimble-debug]";
+const DEBUG_PREFIX = "[snaplet-debug]";
 
 function now(): string {
   return new Date().toISOString();

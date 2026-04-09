@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { resolveUserId } from "./_lib/server/auth";
-import { badRequest, ok, serverError } from "./_lib/server/http";
-import { createPasteSource, listSources } from "./_lib/server/service";
-import { sendWebResponse, toWebRequest } from "./_lib/vercel-bridge";
+import { resolveUserId } from "./_lib/server/auth.js";
+import { badRequest, ok, serverError } from "./_lib/server/http.js";
+import { createPasteSource, listSources } from "./_lib/server/service.js";
+import { sendWebResponse, toWebRequest } from "./_lib/vercel-bridge.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {

@@ -1,0 +1,2 @@
+Snaplet upload fixture
+Binary-star system: two stars orbiting a common center of mass

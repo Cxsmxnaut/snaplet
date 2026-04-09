@@ -20,7 +20,7 @@ export const AuthPage = () => {
     }
 
     // Username mode: map to deterministic internal email key.
-    return `${trimmed}@nimble.local`;
+    return `${trimmed}@snaplet.local`;
   };
 
   const startOAuth = async (provider: 'google' | 'apple') => {
@@ -166,7 +166,7 @@ export const AuthPage = () => {
         <div className="w-full max-w-md relative z-10">
           <header className="mb-10 text-center lg:text-left">
             <h1 className="text-4xl sm:text-5xl font-black font-headline tracking-tight text-on-surface mb-3">
-              Welcome to Nimble
+              Welcome to Snaplet
             </h1>
             <p className="text-on-surface-variant text-lg">
               Enter your flow state.
@@ -185,7 +185,7 @@ export const AuthPage = () => {
             <button 
               onClick={() => { void startOAuth('apple'); }}
               disabled={pending !== null}
-              className="w-full flex items-center justify-center gap-4 bg-on-background py-4 rounded-xl deep-bloom hover:opacity-90 transition-all active:scale-[0.98]"
+              className="w-full flex items-center justify-center gap-4 bg-on-surface py-4 rounded-xl deep-bloom hover:opacity-90 transition-all active:scale-[0.98]"
             >
               <Apple className="text-surface w-6 h-6 fill-surface" />
               <span className="font-semibold text-surface">{pending === 'apple' ? 'Redirecting...' : 'Continue with Apple'}</span>

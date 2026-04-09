@@ -1,20 +1,57 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Snaplet Frontend
 
-# Run and deploy your AI Studio app
-
-This contains everything you need to run your app locally.
-
-View your app in AI Studio: https://ai.studio/apps/54923aa9-63f1-4e79-8327-8851b8303455
+This directory contains the full Snaplet application runtime:
+- Vite + React frontend in `src/`
+- Vercel serverless backend in `api/`
+- Postman/Newman assets in `postman/`
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+Prerequisites:
+- Node.js
 
+Steps:
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+```bash
+npm install
+npm run dev
+```
+
+## Build
+
+```bash
+npm run build
+```
+
+## API Testing
+
+Initialize and run the API collection:
+
+```bash
+npm run postman:init
+npm run test:api
+```
+
+## Environment
+
+Core frontend/runtime variables:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `APP_URL`
+- `NEXT_PUBLIC_SITE_URL`
+
+AI and evaluation variables:
+- `OLLAMA_API_KEY`
+- `OLLAMA_BASE_URL`
+- `OLLAMA_MODEL`
+- `OCR_SPACE_API_KEY`
+- `ANSWER_CHECK_PROVIDERS`
+- `GROQ_API_KEYS`
+- `OPENROUTER_API_KEYS`
+
+## Notes
+
+- Keep `api/` intact to preserve route compatibility.
+- Use `../Snaplet_NorthStar.md` as the project memory and architecture reference.

@@ -24,8 +24,8 @@ class DebugErrorBoundary extends React.Component<{ children: React.ReactNode }, 
       logError('error-boundary', 'Rendering fallback after crash');
       return (
         <div style={{ padding: 24, color: 'white', background: '#100', minHeight: '100vh' }}>
-          <h1>Nimble crashed while rendering.</h1>
-          <p>Open browser console and look for [nimble-debug] logs.</p>
+          <h1>Snaplet crashed while rendering.</h1>
+          <p>Open browser console and look for [snaplet-debug] logs.</p>
         </div>
       );
     }

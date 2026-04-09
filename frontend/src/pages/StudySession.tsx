@@ -292,7 +292,7 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
       <div className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex flex-col gap-4 bg-background/80 backdrop-blur-md">
         <nav className="flex justify-between items-center max-w-5xl mx-auto w-full">
           <div className="flex items-center gap-3">
-            <span className="text-xl font-black text-primary tracking-tighter font-headline">Nimble</span>
+            <span className="text-xl font-black text-primary tracking-tighter font-headline">Snaplet</span>
             <span className="h-4 w-[1px] bg-outline-variant/30"></span>
             <span className="text-sm font-medium text-on-surface-variant uppercase tracking-widest">{kit.title}</span>
           </div>

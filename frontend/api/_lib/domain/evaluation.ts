@@ -1,11 +1,11 @@
-import { type AttemptEvaluation } from "../domain/types";
+import { type AttemptEvaluation } from "../domain/types.js";
 import {
   damerauLevenshtein,
   normalizeForCompare,
   similarityScore,
   stripDiacritics,
   toGraphemes,
-} from "../domain/normalize";
+} from "../domain/normalize.js";
 
 const MIN_SIMILARITY = 0.88;
 const TOKEN_SYNONYM_GROUPS: string[][] = [

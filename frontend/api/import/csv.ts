@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { resolveUserId } from "../_lib/server/auth";
-import { badRequest, ok, serverError } from "../_lib/server/http";
-import { importCsvFromText, previewCsv } from "../_lib/server/service";
-import { sendWebResponse, toWebRequest } from "../_lib/vercel-bridge";
-import type { CSVMapping } from "../_lib/domain/types";
+import { resolveUserId } from "../_lib/server/auth.js";
+import { badRequest, ok, serverError } from "../_lib/server/http.js";
+import { importCsvFromText, previewCsv } from "../_lib/server/service.js";
+import { sendWebResponse, toWebRequest } from "../_lib/vercel-bridge.js";
+import type { CSVMapping } from "../_lib/domain/types.js";
 
 interface CsvRequest {
   mode?: "preview" | "import";

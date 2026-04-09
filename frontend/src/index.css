@@ -1,7 +1,38 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
-@theme {
+:root {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-headline: "Plus Jakarta Sans", sans-serif;
+
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-container: #f6f7fb;
+  --color-surface-container-low: #f1f3f8;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-high: #e9ecf5;
+  --color-surface-container-highest: #dde3f0;
+  --color-surface-bright: #ffffff;
+
+  --color-primary: #4255ff;
+  --color-primary-container: #e8ebff;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #25317a;
+
+  --color-secondary: #22c55e;
+  --color-on-secondary: #ffffff;
+
+  --color-tertiary: #f59e0b;
+  --color-on-tertiary: #ffffff;
+
+  --color-on-surface: #282e3e;
+  --color-on-surface-variant: #586380;
+  --color-outline-variant: #c9d0e3;
+
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-headline: "Plus Jakarta Sans", sans-serif;
 
@@ -9,6 +40,7 @@
   --color-surface: #0b1326;
   --color-surface-container: #171f33;
   --color-surface-container-low: #131b2e;
+  --color-surface-container-lowest: #0d1528;
   --color-surface-container-high: #222a3d;
   --color-surface-container-highest: #2d3449;
   --color-surface-bright: #31394d;
@@ -27,7 +59,38 @@
   --color-on-surface: #dae2fd;
   --color-on-surface-variant: #c7c4d7;
   --color-outline-variant: #464554;
-  
+
+  color-scheme: dark;
+}
+
+@theme {
+  --font-sans: var(--font-sans);
+  --font-headline: var(--font-headline);
+
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-surface-container: var(--color-surface-container);
+  --color-surface-container-low: var(--color-surface-container-low);
+  --color-surface-container-lowest: var(--color-surface-container-lowest);
+  --color-surface-container-high: var(--color-surface-container-high);
+  --color-surface-container-highest: var(--color-surface-container-highest);
+  --color-surface-bright: var(--color-surface-bright);
+
+  --color-primary: var(--color-primary);
+  --color-primary-container: var(--color-primary-container);
+  --color-on-primary: var(--color-on-primary);
+  --color-on-primary-container: var(--color-on-primary-container);
+
+  --color-secondary: var(--color-secondary);
+  --color-on-secondary: var(--color-on-secondary);
+
+  --color-tertiary: var(--color-tertiary);
+  --color-on-tertiary: var(--color-on-tertiary);
+
+  --color-on-surface: var(--color-on-surface);
+  --color-on-surface-variant: var(--color-on-surface-variant);
+  --color-outline-variant: var(--color-outline-variant);
+
   --radius-lg: 2rem;
   --radius-xl: 3rem;
 }
@@ -47,6 +110,5 @@
 }
 
 .gradient-primary {
-  background: linear-gradient(135deg, #c0c1ff 0%, #8083ff 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-container) 100%);
 }
-

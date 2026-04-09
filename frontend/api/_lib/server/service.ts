@@ -8,14 +8,14 @@ import {
   type Session,
   type SessionQuestion,
   type StudySource,
-} from "../domain/types";
-import { mapCsvRows, parseCsv, suggestCsvMapping, toPreviewRows } from "../domain/csv";
-import { evaluateAnswer, isLexicalSemanticEquivalent } from "../domain/evaluation";
-import { extractTextFromUpload } from "../domain/extraction";
-import { generateQuestionPairs, generateStudyTitle } from "../domain/generation";
-import { buildSessionQueue, pickRevisitOffset } from "../domain/queue";
-import { semanticCheckAnswer, semanticPassesThreshold } from "./semantic-check";
-import { createId, mutateUserBucket, readUserBucket } from "./store";
+} from "../domain/types.js";
+import { mapCsvRows, parseCsv, suggestCsvMapping, toPreviewRows } from "../domain/csv.js";
+import { evaluateAnswer, isLexicalSemanticEquivalent } from "../domain/evaluation.js";
+import { extractTextFromUpload } from "../domain/extraction.js";
+import { generateQuestionPairs, generateStudyTitle } from "../domain/generation.js";
+import { buildSessionQueue, pickRevisitOffset } from "../domain/queue.js";
+import { semanticCheckAnswer, semanticPassesThreshold } from "./semantic-check.js";
+import { createId, mutateUserBucket, readUserBucket } from "./store.js";
 
 function nowIso(): string {
   return new Date().toISOString();

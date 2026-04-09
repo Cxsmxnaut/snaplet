@@ -3,9 +3,19 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 async function readBody(req: VercelRequest): Promise<Buffer | undefined> {
   if (req.method === "GET" || req.method === "HEAD") return undefined;
 
+  const contentType = req.headers["content-type"] ?? "";
+  const rawBody = (req as VercelRequest & { rawBody?: Buffer | string }).rawBody;
+
+  if (Buffer.isBuffer(rawBody)) return rawBody;
+  if (typeof rawBody === "string") return Buffer.from(rawBody);
   if (Buffer.isBuffer(req.body)) return req.body;
   if (typeof req.body === "string") return Buffer.from(req.body);
-  if (req.body && typeof req.body === "object" && !(req.body instanceof Uint8Array)) {
+  if (
+    req.body &&
+    typeof req.body === "object" &&
+    !(req.body instanceof Uint8Array) &&
+    !String(contentType).toLowerCase().startsWith("multipart/form-data")
+  ) {
     return Buffer.from(JSON.stringify(req.body));
   }
 

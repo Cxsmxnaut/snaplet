@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import { type CSVMapping, type CSVPreviewRow } from "../domain/types";
+import { type CSVMapping, type CSVPreviewRow } from "../domain/types.js";
 
 const PROMPT_KEYS = ["prompt", "question", "term", "front"];
 const ANSWER_KEYS = ["answer", "definition", "back", "translation"];

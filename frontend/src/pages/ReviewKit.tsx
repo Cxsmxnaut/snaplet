@@ -203,7 +203,7 @@ export const ReviewKit = ({
               <p className="text-xs text-on-primary/70 mb-4 leading-relaxed">Feeling confident? Enable Rapid Mode to reduce display time by 40%.</p>
               <button
                 onClick={onStartRapid}
-                className="bg-surface-bright/20 backdrop-blur-md border border-white/10 text-white text-[10px] font-bold py-2 px-4 rounded-full hover:bg-white/20 transition-colors"
+                className="bg-surface-bright/30 backdrop-blur-md border border-on-primary/15 text-on-primary text-[10px] font-bold py-2 px-4 rounded-full hover:bg-surface-bright/45 transition-colors"
               >
                 ENABLE NOW
               </button>

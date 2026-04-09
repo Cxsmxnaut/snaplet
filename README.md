@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Snaplet
 
-## Getting Started
+Snaplet is an AI-assisted study platform built around active recall, adaptive review, and fast source-to-question generation.
 
-First, run the development server:
+## Repo Layout
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+```text
+snaplet/
+└── frontend/
+    ├── api/        # Vercel serverless backend
+    ├── postman/    # Newman/Postman collections and fixtures
+    ├── scripts/    # automation helpers
+    └── src/        # Vite + React frontend
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Local Development
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Prerequisites:
+- Node.js
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Run locally:
 
-## Learn More
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+The frontend runs with Vite, and the backend lives under `frontend/api` for Vercel-compatible serverless execution.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Environment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Key local environment variables live in:
+- `.env.local`
+- `frontend/.env.local`
+- `frontend/.env.example`
 
-## Deploy on Vercel
+Important values include:
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `OLLAMA_API_KEY`
+- `OCR_SPACE_API_KEY`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## API Testing
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Newman/Postman assets live in `frontend/postman`.
+
+Useful commands:
+
+```bash
+PATH="$PWD/.tools/bin:$PATH" ./frontend/scripts/run-newman.sh
+```
+
+```bash
+PATH="$PWD/.tools/bin:$PATH" ./.tools/bin/npm --prefix frontend run test:api
+```
+
+## Deployment
+
+Snaplet is structured to deploy from `frontend/` on Vercel with:
+- a Vite frontend
+- serverless endpoints in `frontend/api`
+- route behavior defined in `frontend/vercel.json`
+
+## Project Memory
+
+The canonical long-lived project reference is:
+- `Snaplet_NorthStar.md`

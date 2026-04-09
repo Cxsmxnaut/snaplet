@@ -1,9 +1,23 @@
 import { promises as fs } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { type SnapletState, type UserBucket } from "../domain/types";
+import { type SnapletState, type UserBucket } from "../domain/types.js";
 
-const STATE_DIRECTORY = path.join(process.cwd(), ".snaplet");
+function resolveStateDirectory(): string {
+  const configured = process.env.SNAPLET_STATE_DIR?.trim();
+  if (configured) {
+    return configured;
+  }
+
+  if (process.env.VERCEL) {
+    return path.join(os.tmpdir(), "snaplet", ".snaplet");
+  }
+
+  return path.join(process.cwd(), ".snaplet");
+}
+
+const STATE_DIRECTORY = resolveStateDirectory();
 const STATE_FILE = path.join(STATE_DIRECTORY, "state.json");
 
 let cachedState: SnapletState | null = null;

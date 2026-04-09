@@ -1,4 +1,4 @@
-import { generateQuestionPairsWithOllama, generateTitleWithOllama } from "../server/ollama";
+import { generateQuestionPairsWithOllama, generateTitleWithOllama } from "../server/ollama.js";
 
 function linePairs(text: string): Array<{ prompt: string; answer: string }> {
   return text

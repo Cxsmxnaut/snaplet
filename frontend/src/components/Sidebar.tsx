@@ -21,7 +21,7 @@ export const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
   return (
     <aside className="h-screen w-64 fixed left-0 top-0 bg-background flex flex-col py-6 z-40">
       <div className="px-6 mb-10">
-        <h1 className="text-2xl font-black text-primary tracking-tighter font-headline">Nimble</h1>
+        <h1 className="text-2xl font-black text-primary tracking-tighter font-headline">Snaplet</h1>
         <p className="text-[10px] uppercase tracking-widest text-on-surface-variant/50 font-bold">Adaptive Learning</p>
       </div>
 

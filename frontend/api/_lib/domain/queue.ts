@@ -4,7 +4,7 @@ import {
   type ReviewQueueConfig,
   type ReviewState,
   type SessionQueueItem,
-} from "../domain/types";
+} from "../domain/types.js";
 
 const DEFAULT_CONFIG: ReviewQueueConfig = {
   questionCap: 10,

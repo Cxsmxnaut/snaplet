@@ -33,7 +33,7 @@ export const HelpPage = ({ onCreateKit, onGoDashboard }: { onCreateKit: () => vo
           description="Send us a message with what happened and what you expected."
           cta="Email Support"
           onClick={() => {
-            window.location.href = 'mailto:support@nimble.app?subject=Nimble%20Support%20Request';
+            window.location.href = 'mailto:support@snaplet.app?subject=Snaplet%20Support%20Request';
           }}
         />
       </section>
@@ -54,7 +54,7 @@ export const HelpPage = ({ onCreateKit, onGoDashboard }: { onCreateKit: () => vo
           />
           <FaqItem
             question="How does auto-review kit generation work?"
-            answer="When repeated mistakes accumulate in a topic, Nimble creates a separate auto-review kit for that topic. Topics do not mix."
+            answer="When repeated mistakes accumulate in a topic, Snaplet creates a separate auto-review kit for that topic. Topics do not mix."
           />
         </div>
       </section>
