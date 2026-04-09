@@ -10,11 +10,15 @@ function resolveStateDirectory(): string {
     return configured;
   }
 
-  if (process.env.VERCEL) {
+  const cwd = process.cwd();
+
+  // Vercel/Serverless bundles are mounted read-only under /var/task, so any
+  // fallback state has to live in the writable temp directory instead.
+  if (process.env.VERCEL || cwd.startsWith("/var/task")) {
     return path.join(os.tmpdir(), "snaplet", ".snaplet");
   }
 
-  return path.join(process.cwd(), ".snaplet");
+  return path.join(cwd, ".snaplet");
 }
 
 const STATE_DIRECTORY = resolveStateDirectory();

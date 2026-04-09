@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import Busboy from "busboy";
 import { resolveUserId } from "../_lib/server/auth.js";
 import { badRequest, ok, serverError } from "../_lib/server/http.js";
-import { uploadSource } from "../_lib/server/service.js";
+import { listSourceQuestions, uploadSource } from "../_lib/server/service.js";
 import { sendWebResponse } from "../_lib/vercel-bridge.js";
 
 const ACCEPTED_EXTENSIONS = ["pdf", "docx", "txt", "md", "csv"];
@@ -102,7 +102,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendWebResponse(badRequest("File size exceeds 8MB limit."), res);
     }
 
-    return sendWebResponse(ok({ source: await uploadSource(userId, file) }, 201), res);
+    const source = await uploadSource(userId, file);
+    const questions = await listSourceQuestions(userId, source.id);
+    return sendWebResponse(ok({ source, questions }, 201), res);
   } catch (error) {
     return sendWebResponse(serverError(error), res);
   }

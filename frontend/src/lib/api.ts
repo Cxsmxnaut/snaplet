@@ -23,6 +23,11 @@ export type BackendQuestion = {
   updatedAt: string;
 };
 
+type SourceCreateResponse = {
+  source: BackendSource;
+  questions?: BackendQuestion[];
+};
+
 export type BackendProgress = {
   totals: {
     sources: number;
@@ -72,6 +77,73 @@ export type BackendAttemptResult = {
 
 const USER_KEY = "snaplet_backend_user_id";
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
+const SOURCE_CACHE_KEY = "snaplet_backend_sources_cache_v1";
+const QUESTION_CACHE_KEY = "snaplet_backend_questions_cache_v1";
+
+function readSourceCache(): Record<string, BackendSource> {
+  try {
+    return JSON.parse(window.localStorage.getItem(SOURCE_CACHE_KEY) ?? "{}") as Record<string, BackendSource>;
+  } catch {
+    return {};
+  }
+}
+
+function writeSourceCache(cache: Record<string, BackendSource>): void {
+  window.localStorage.setItem(SOURCE_CACHE_KEY, JSON.stringify(cache));
+}
+
+function cacheSource(source: BackendSource): void {
+  const cache = readSourceCache();
+  cache[source.id] = source;
+  writeSourceCache(cache);
+}
+
+function mergeSourcesWithCache(sources: BackendSource[]): BackendSource[] {
+  const cache = readSourceCache();
+  const merged = new Map<string, BackendSource>();
+
+  for (const source of Object.values(cache)) {
+    merged.set(source.id, source);
+  }
+  for (const source of sources) {
+    merged.set(source.id, source);
+  }
+
+  return [...merged.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+function removeCachedSource(sourceId: string): void {
+  const sourceCache = readSourceCache();
+  delete sourceCache[sourceId];
+  writeSourceCache(sourceCache);
+
+  const questionCache = readQuestionCache();
+  delete questionCache[sourceId];
+  writeQuestionCache(questionCache);
+}
+
+function readQuestionCache(): Record<string, BackendQuestion[]> {
+  try {
+    return JSON.parse(window.localStorage.getItem(QUESTION_CACHE_KEY) ?? "{}") as Record<string, BackendQuestion[]>;
+  } catch {
+    return {};
+  }
+}
+
+function writeQuestionCache(cache: Record<string, BackendQuestion[]>): void {
+  window.localStorage.setItem(QUESTION_CACHE_KEY, JSON.stringify(cache));
+}
+
+function cacheQuestions(sourceId: string, questions: BackendQuestion[]): void {
+  const cache = readQuestionCache();
+  cache[sourceId] = questions;
+  writeQuestionCache(cache);
+}
+
+function getCachedQuestions(sourceId: string): BackendQuestion[] {
+  const cache = readQuestionCache();
+  return cache[sourceId] ?? [];
+}
 
 function getUserId(): string {
   const existing = window.localStorage.getItem(USER_KEY);
@@ -151,29 +223,44 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function listSources(): Promise<BackendSource[]> {
   const data = await apiRequest<{ sources: BackendSource[] }>("/api/sources");
-  return data.sources;
+  for (const source of data.sources) {
+    cacheSource(source);
+  }
+  return mergeSourcesWithCache(data.sources);
 }
 
 export async function listSourceQuestions(sourceId: string): Promise<BackendQuestion[]> {
   const data = await apiRequest<{ questions: BackendQuestion[] }>(`/api/sources/${sourceId}/questions`);
-  return data.questions;
+  if (data.questions.length > 0) {
+    cacheQuestions(sourceId, data.questions);
+    return data.questions;
+  }
+  return getCachedQuestions(sourceId);
 }
 
 export async function createSourceFromText(title: string, content: string): Promise<BackendSource> {
-  const data = await apiRequest<{ source: BackendSource }>("/api/sources", {
+  const data = await apiRequest<SourceCreateResponse>("/api/sources", {
     method: "POST",
     body: JSON.stringify({ title, content }),
   });
+  cacheSource(data.source);
+  if (Array.isArray(data.questions) && data.questions.length > 0) {
+    cacheQuestions(data.source.id, data.questions);
+  }
   return data.source;
 }
 
 export async function uploadSourceFile(file: File): Promise<BackendSource> {
   const form = new FormData();
   form.append("file", file);
-  const data = await apiRequest<{ source: BackendSource }>("/api/import/upload", {
+  const data = await apiRequest<SourceCreateResponse>("/api/import/upload", {
     method: "POST",
     body: form,
   });
+  cacheSource(data.source);
+  if (Array.isArray(data.questions) && data.questions.length > 0) {
+    cacheQuestions(data.source.id, data.questions);
+  }
   return data.source;
 }
 
@@ -181,6 +268,7 @@ export async function deleteSource(sourceId: string): Promise<void> {
   await apiRequest(`/api/sources/${sourceId}`, {
     method: "DELETE",
   });
+  removeCachedSource(sourceId);
 }
 
 export async function updateQuestion(questionId: string, prompt: string, answer: string): Promise<BackendQuestion> {
@@ -188,6 +276,13 @@ export async function updateQuestion(questionId: string, prompt: string, answer:
     method: "PATCH",
     body: JSON.stringify({ prompt, answer }),
   });
+  const questionCache = readQuestionCache();
+  for (const sourceId of Object.keys(questionCache)) {
+    questionCache[sourceId] = questionCache[sourceId].map((question) =>
+      question.id === questionId ? data.question : question,
+    );
+  }
+  writeQuestionCache(questionCache);
   return data.question;
 }
 
@@ -196,6 +291,11 @@ export async function deleteQuestion(questionId: string): Promise<void> {
     method: "POST",
     body: JSON.stringify({ questionIds: [questionId] }),
   });
+  const questionCache = readQuestionCache();
+  for (const sourceId of Object.keys(questionCache)) {
+    questionCache[sourceId] = questionCache[sourceId].filter((question) => question.id !== questionId);
+  }
+  writeQuestionCache(questionCache);
 }
 
 export async function startSession(sourceId: string, mode: StudyMode): Promise<BackendSessionStart> {

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { resolveUserId } from "./_lib/server/auth.js";
 import { badRequest, ok, serverError } from "./_lib/server/http.js";
-import { createPasteSource, listSources } from "./_lib/server/service.js";
+import { createPasteSource, listSourceQuestions, listSources } from "./_lib/server/service.js";
 import { sendWebResponse, toWebRequest } from "./_lib/vercel-bridge.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -18,7 +18,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!payload.content || payload.content.trim().length < 8) {
         return sendWebResponse(badRequest("Paste at least a few lines of study material."), res);
       }
-      return sendWebResponse(ok({ source: await createPasteSource(userId, payload.title ?? "", payload.content) }, 201), res);
+      const source = await createPasteSource(userId, payload.title ?? "", payload.content);
+      const questions = await listSourceQuestions(userId, source.id);
+      return sendWebResponse(ok({ source, questions }, 201), res);
     }
 
     return sendWebResponse(badRequest("Method not allowed"), res);
