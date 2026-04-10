@@ -20,6 +20,12 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
 
   return (
     <div className="max-w-7xl mx-auto space-y-10">
+      <header className="px-1">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-3">Progress</p>
+        <h1 className="text-4xl md:text-5xl font-headline font-black tracking-tight text-on-surface">See what&apos;s sticking and what needs another pass</h1>
+        <p className="mt-3 text-on-surface-variant text-lg leading-relaxed max-w-3xl">A quieter view of your sessions, retention, and the prompts that still need attention.</p>
+      </header>
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatCard 
           label="Learning Velocity" 
@@ -35,20 +41,20 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
           progress={retention} 
         />
         <StatCard 
-          label="Total Focus Time" 
+          label="Study Sessions" 
           value={String(progress?.totals.sessions ?? 0)} 
           unit="sessions" 
-          trend="From backend session history" 
+          trend="Tracked from completed sessions" 
           icon={<Clock className="w-8 h-8 text-tertiary/20" />}
         />
         <StatCard 
-          label="Knowledge Points" 
+          label="Questions in Rotation" 
           value={String(progress?.totals.questions ?? 0)}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-8 bg-surface-container-lowest rounded-xl p-8 ambient-shadow">
+        <div className="lg:col-span-8 bg-surface-container-low rounded-[28px] p-8">
           <div className="flex justify-between items-center mb-10">
             <div>
               <h2 className="text-xl font-bold font-headline mb-1">Learning Velocity</h2>
@@ -71,7 +77,7 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
           </div>
         </div>
 
-        <div className="lg:col-span-4 bg-surface-container-lowest rounded-xl p-8 ambient-shadow">
+        <div className="lg:col-span-4 bg-surface-container-low rounded-[28px] p-8">
           <h2 className="text-xl font-bold font-headline mb-1">Focus Vulnerabilities</h2>
           <p className="text-on-surface-variant text-sm mb-8">Topics requiring immediate review</p>
           <div className="space-y-6">
@@ -93,8 +99,8 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
         </div>
       </div>
 
-      <div className="bg-surface-container-lowest rounded-xl overflow-hidden ambient-shadow">
-        <div className="px-8 py-6 border-b border-outline-variant/10 flex justify-between items-center">
+      <div className="bg-surface-container-low rounded-[28px] overflow-hidden">
+        <div className="px-8 py-6 flex justify-between items-center">
           <h2 className="text-xl font-bold font-headline">Recent Study Sessions</h2>
           <span className="text-on-surface-variant text-xs font-semibold">Session history preview</span>
         </div>
@@ -124,7 +130,7 @@ export const ProgressPage = ({ progress, onRefresh }: { progress: ProgressData |
 };
 
 const StatCard = ({ label, value, unit, trend, progress, icon }: any) => (
-  <div className="bg-surface-container-lowest p-6 rounded-xl relative overflow-hidden group hover:bg-surface-container-low transition-colors ambient-shadow">
+  <div className="bg-surface-container-low p-6 rounded-xl relative overflow-hidden group hover:bg-surface-container transition-colors">
     <div className="relative z-10">
       <p className="text-on-surface-variant text-sm font-semibold mb-1">{label}</p>
       <h3 className="text-3xl font-bold text-on-surface">{value}{unit && <span className="text-lg text-primary ml-1">{unit}</span>}</h3>

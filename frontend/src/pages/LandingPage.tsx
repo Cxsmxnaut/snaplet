@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../components/Button';
-import { CheckCircle, Zap, Brain, MousePointer2, ArrowRight, ShieldCheck } from 'lucide-react';
 
 export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
   const [previewAnswer, setPreviewAnswer] = useState('');
@@ -23,126 +22,191 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
     setPreviewResult(accepted.has(normalized) ? 'correct' : 'incorrect');
   };
 
+  const scrollToFeatures = () => {
+    document.getElementById('landing-features')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
-      <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md flex justify-between items-center px-4 sm:px-6 lg:px-10 h-16 border-b border-outline-variant/10">
-        <div className="flex items-center gap-4 min-w-0">
-          <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center text-on-primary font-black">S</div>
-          <span className="text-xl font-black text-primary tracking-tighter font-headline">Snaplet AI</span>
+      <nav className="fixed top-0 w-full z-50 bg-surface/95 backdrop-blur-md flex justify-between items-center px-5 sm:px-6 lg:px-8 h-14 border-b border-outline-variant/10">
+        <div className="flex items-center min-w-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full gradient-primary flex items-center justify-center text-on-primary font-black text-sm">S</div>
+            <span className="text-2xl font-black text-primary tracking-tighter font-headline">Snaplet</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-          <button onClick={onGetStarted} className="hidden sm:inline text-on-surface-variant font-bold hover:text-on-surface transition-colors">Sign In</button>
-          <Button onClick={onGetStarted} size="sm" className="sm:px-6 sm:py-2.5">Get Started</Button>
+        <div className="flex items-center gap-5 shrink-0">
+          <button onClick={onGetStarted} className="h-10 px-5 rounded-full gradient-primary text-on-primary text-sm font-bold">Log in</button>
         </div>
       </nav>
 
-      <main className="pt-28 pb-24 px-6 lg:px-10 max-w-7xl mx-auto">
-        <section className="grid lg:grid-cols-2 gap-16 items-center mb-28">
+      <main className="pt-24 pb-24 px-6 lg:px-10 max-w-7xl mx-auto">
+        <section className="flex flex-col items-center text-center mb-20">
           <motion.div 
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex flex-col gap-8"
+            className="flex flex-col gap-6 items-center"
           >
-            <div className="inline-flex self-start bg-surface-container-high px-4 py-2 rounded-full text-primary text-xs font-semibold tracking-[0.16em] uppercase">
-              Optimized Learning
-            </div>
-            <h1 className="text-5xl md:text-7xl font-black font-headline text-on-surface tracking-tight leading-[1.05]">
-              Master Any Subject with <span className="text-primary">AI Precision</span>
+            <h1 className="text-5xl md:text-7xl max-w-4xl font-black font-headline text-on-surface tracking-tight leading-[1.05]">
+              Build a study system that actually sticks.
             </h1>
-            <p className="text-on-surface-variant text-lg md:text-xl max-w-xl leading-relaxed">
-              Transform notes, documents, and source material into intelligent study kits built for active recall, precision feedback, and real retention.
+            <p className="text-on-surface-variant text-lg md:text-2xl max-w-3xl leading-relaxed">
+              Turn notes, readings, and raw source material into study kits, review AI-generated
+              questions, and run focused sessions that surface what still needs work.
             </p>
-            <div className="flex flex-wrap gap-4">
-              <Button size="lg" onClick={onGetStarted}>Get Started for Free</Button>
-              <Button size="lg" variant="outline">View Methodology</Button>
-            </div>
+            <Button size="lg" onClick={onGetStarted} className="rounded-full px-10">Start studying free</Button>
+            <button onClick={scrollToFeatures} className="text-primary font-semibold">See how Snaplet works</button>
           </motion.div>
+        </section>
 
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="relative"
-          >
-            <div className="absolute -inset-4 bg-primary/20 blur-3xl rounded-full opacity-50"></div>
-            <div className="relative glass-panel rounded-2xl border border-outline-variant/20 overflow-hidden ambient-shadow p-8">
-              <div className="flex justify-between items-end mb-8">
-                <div className="space-y-1">
-                  <p className="text-xs text-primary uppercase tracking-[0.2em] font-bold">Active Session</p>
-                  <h3 className="text-2xl font-headline font-bold text-on-surface">Biology: Molecular Basics</h3>
+        <section id="landing-features" className="grid md:grid-cols-2 xl:grid-cols-4 gap-6 mb-28 scroll-mt-28">
+          <StudyPanel title="Build from source" tone="bg-primary text-on-primary">
+            <div className="bg-surface rounded-[28px] p-5 text-on-surface rotate-[-4deg] ambient-shadow space-y-4 select-none pointer-events-none" aria-hidden="true">
+              <div className="rounded-2xl bg-surface-container-low p-4">
+                <p className="text-sm font-bold text-primary mb-2">Source material</p>
+                <p className="text-lg font-semibold leading-snug">Paste lecture notes, readings, or a study guide.</p>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-primary mb-1">Output</p>
+                  <p className="text-2xl font-bold">A ready-to-review study kit</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-on-surface-variant">4 / 25 Questions</p>
+                <div className="w-16 h-16 rounded-full bg-primary-container/40" />
+              </div>
+            </div>
+          </StudyPanel>
+          <StudyPanel title="Review the questions" tone="bg-[#FBC887] text-on-surface">
+            <div className="bg-surface rounded-[28px] p-5 ambient-shadow space-y-3 select-none pointer-events-none" aria-hidden="true">
+              <div className="grid grid-cols-3 gap-3 text-sm font-bold">
+                <div><p className="text-on-surface-variant font-medium">Items</p><p>24</p></div>
+                <div><p className="text-on-surface-variant font-medium">Edited</p><p>6</p></div>
+                <div><p className="text-on-surface-variant font-medium">Ready</p><p>18</p></div>
+              </div>
+              <div className="space-y-2">
+                <div className="h-3 rounded-full bg-secondary/70 w-full" />
+                <div className="h-3 rounded-full bg-surface-container-highest w-4/5" />
+                <div className="h-3 rounded-full bg-tertiary/70 w-3/5" />
+                <div className="h-3 rounded-full bg-surface-container-highest w-5/6" />
+              </div>
+            </div>
+          </StudyPanel>
+          <StudyPanel title="Choose a study mode" tone="bg-[#A8DDF8] text-on-surface">
+            <div className="bg-surface rounded-[28px] p-5 ambient-shadow select-none pointer-events-none" aria-hidden="true">
+              <p className="text-primary font-bold mb-4">Session setup</p>
+              <div className="bg-surface-container-low rounded-2xl p-4 mb-4">
+                <p className="text-2xl font-bold leading-tight">Switch between Standard, Focus, Weak Review, and Fast Drill.</p>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-on-surface-variant">Adaptive pacing built in</span>
+                <button onClick={onGetStarted} className="rounded-full bg-primary px-5 py-2 text-on-primary font-bold">Study</button>
+              </div>
+            </div>
+          </StudyPanel>
+          <StudyPanel title="Track what needs work" tone="bg-[#F9DD76] text-on-surface">
+            <div className="relative h-full min-h-[220px] select-none pointer-events-none" aria-hidden="true">
+              <div className="absolute left-5 top-5 h-24 w-28 rounded-2xl bg-surface ambient-shadow p-4">
+                <div className="h-3 w-full rounded-full bg-secondary/60 mb-3" />
+                <div className="h-3 w-4/5 rounded-full bg-surface-container-highest mb-3" />
+                <div className="h-3 w-3/5 rounded-full bg-tertiary/75" />
+              </div>
+              <div className="absolute right-8 top-16 h-28 w-36 rounded-2xl bg-surface-container-highest ambient-shadow p-4">
+                <p className="text-sm font-bold">Weak areas</p>
+                <div className="mt-4 space-y-3">
+                  <div className="h-3 rounded-full bg-surface w-4/5" />
+                  <div className="h-3 rounded-full bg-surface w-2/3" />
+                  <div className="h-3 rounded-full bg-surface w-3/4" />
                 </div>
               </div>
-              <div className="space-y-4">
-                <div className="bg-surface-container-high p-4 rounded-lg border border-outline-variant/10">
-                  <p className="text-sm text-primary mb-2 font-bold uppercase tracking-tighter">Question</p>
-                  <p className="text-on-surface font-medium mb-4">How many colors are in a rainbow?</p>
-                  <div className="space-y-3">
-                    <input
-                      value={previewAnswer}
-                      onChange={(e) => setPreviewAnswer(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          evaluatePreviewAnswer();
-                        }
-                      }}
-                      placeholder="Type your answer (try: 7 or seven)"
-                      className="w-full bg-surface-container-low p-4 rounded-xl border border-outline-variant/20 text-on-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                    <div className="flex items-center gap-3">
-                      <Button size="sm" onClick={evaluatePreviewAnswer} disabled={!previewAnswer.trim()}>
-                        Check Answer
-                      </Button>
-                      {previewResult === 'correct' ? <p className="text-secondary text-sm font-semibold">Correct. AI verified your understanding.</p> : null}
-                      {previewResult === 'incorrect' ? <p className="text-tertiary text-sm font-semibold">Not quite. Try 7 or seven.</p> : null}
+              <div className="absolute left-14 bottom-5 h-24 w-32 rounded-2xl bg-surface ambient-shadow border border-outline-variant/10 p-4">
+                <p className="text-sm font-bold">Accuracy</p>
+                <p className="mt-1 text-3xl font-black">84%</p>
+              </div>
+            </div>
+          </StudyPanel>
+        </section>
+
+        <section className="space-y-24">
+          <MarketingSplit
+            title="Show up prepared, not scattered"
+            description="Pull your material into one place, generate better prompts, and review with a rhythm that keeps your next exam from sneaking up on you."
+            imageTone="bg-[#7CCAF7]"
+            buttonLabel="Build a kit"
+            onClick={onGetStarted}
+          >
+            <div className="h-full rounded-[30px] bg-surface p-6 ambient-shadow select-none pointer-events-none" aria-hidden="true">
+              <div className="h-5 w-48 rounded-full bg-surface-container-low mb-6" />
+              <div className="grid grid-cols-[1.3fr_1fr] gap-4">
+                <div className="rounded-[26px] bg-surface-container-low p-6 rotate-[-5deg]">
+                  <div className="h-28 rounded-2xl bg-surface" />
+                </div>
+                <div className="rounded-[26px] bg-surface p-4">
+                  <div className="h-36 rounded-2xl bg-surface-container-low" />
+                </div>
+              </div>
+            </div>
+          </MarketingSplit>
+          <MarketingSplit
+            title="Study with real recall, not passive rereading"
+            description="Use typed answers, retries, and weak-item review to turn passive notes into knowledge you can actually retrieve under pressure."
+            imageTone="bg-[#F9DC76]"
+            buttonLabel="See the method"
+            reverse
+            onClick={scrollToFeatures}
+          >
+            <div className="rounded-[30px] bg-surface p-6 ambient-shadow select-none pointer-events-none" aria-hidden="true">
+              <div className="flex items-center gap-2 mb-5">
+                <div className="h-3 flex-1 rounded-full bg-tertiary" />
+                <div className="h-8 w-8 rounded-full bg-[#FFB95F] flex items-center justify-center text-[10px] font-black text-on-tertiary">15</div>
+                <div className="h-3 flex-1 rounded-full bg-surface-container-highest" />
+              </div>
+              <div className="rounded-[22px] bg-surface-container-low p-5">
+                <p className="text-xl mb-4">the environmental transition zone between two biomes</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="h-14 rounded-2xl bg-surface" />
+                  <div className="h-14 rounded-2xl bg-secondary-container border border-secondary/30 flex items-center justify-center font-bold text-secondary">ecotone</div>
+                  <div className="h-14 rounded-2xl bg-surface" />
+                  <div className="h-14 rounded-2xl bg-surface" />
+                </div>
+              </div>
+            </div>
+          </MarketingSplit>
+          <MarketingSplit
+            title="See your kits, sessions, and weak spots in one place"
+            description="Stay organized with a workspace that surfaces your current kits, recent sessions, and the topics that need attention next."
+            imageTone="bg-[#F6A34A]"
+            buttonLabel="Open your workspace"
+            onClick={onGetStarted}
+          >
+            <div className="h-full rounded-[30px] bg-surface p-6 ambient-shadow select-none pointer-events-none" aria-hidden="true">
+              <div className="grid grid-cols-[0.9fr_1.1fr] gap-5 h-full">
+                <div className="rounded-[26px] bg-[#243D76] p-4">
+                  <div className="rounded-[18px] bg-surface p-4 h-full">
+                    <p className="text-on-surface-variant mb-3">Jump back in</p>
+                    <div className="rounded-2xl bg-primary-container/45 p-4">
+                      <p className="font-bold text-on-surface">Bio 1b practice midterm</p>
+                      <div className="mt-4 h-3 rounded-full bg-secondary/60 w-4/5" />
+                      <button onClick={onGetStarted} className="mt-5 rounded-full bg-primary px-5 py-2 text-on-primary font-bold">Continue</button>
                     </div>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="rounded-[24px] bg-surface p-5 ambient-shadow">
+                    <p className="font-bold text-on-surface">Microbiology: Exam 1</p>
+                    <p className="text-sm text-on-surface-variant">28 cards • by Quantumquest</p>
+                  </div>
+                  <div className="rounded-[24px] bg-surface p-5 ambient-shadow">
+                    <p className="font-bold text-on-surface">Fundamentals of nursing midterm 2</p>
+                    <p className="text-sm text-on-surface-variant">Match as fast as you can</p>
                   </div>
                 </div>
               </div>
             </div>
-          </motion.div>
+          </MarketingSplit>
         </section>
-
-        <section className="mt-28">
-          <div className="text-center mb-16 space-y-4">
-            <h2 className="text-4xl md:text-5xl font-black font-headline tracking-tight text-on-surface">Built for Focused Performance</h2>
-            <p className="text-on-surface-variant max-w-2xl mx-auto leading-relaxed">
-              Snaplet blends editorial clarity, active recall, and intelligent curation into a workflow that feels rigorous and calm.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard 
-              icon={<Zap className="text-primary" />}
-              title="AI-Powered Kits"
-              description="Turn any material—lecture notes, PDFs, or messy scribbles—into high-quality questions in seconds."
-            />
-            <FeatureCard 
-              icon={<Brain className="text-secondary" />}
-              title="Adaptive Learning"
-              description="Our algorithm identifies your knowledge gaps and focuses on what you're struggling with most."
-            />
-            <FeatureCard 
-              icon={<MousePointer2 className="text-tertiary" />}
-              title="Active Recall"
-              description="Master everything through typed answers and smart validation that understands context, not just keywords."
-            />
-          </div>
-        </section>
-
-        <section className="mt-28 rounded-[28px] gradient-primary p-12 lg:p-20 text-center text-on-primary">
-          <h2 className="text-5xl md:text-6xl font-black font-headline tracking-tighter mb-8">Start Studying Smarter Today</h2>
-          <p className="text-primary-container text-xl mb-12 max-w-3xl mx-auto">Create a study system that feels organized, precise, and fast enough to keep up with serious learning.</p>
-          <div className="flex flex-col md:flex-row gap-6 justify-center items-center">
-            <button onClick={onGetStarted} className="bg-white text-primary px-10 py-4 rounded-xl font-headline font-extrabold text-lg ambient-shadow">Create Your Free Account</button>
-            <div className="flex items-center gap-2 text-primary-container font-medium"><ShieldCheck className="w-5 h-5" />No credit card required</div>
-          </div>
-        </section>
-
       </main>
 
-      <footer className="bg-surface-container-low py-12 px-8 mt-20">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+      <footer className="bg-surface-container-low py-12 px-8 mt-16">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-sm">
           <div className="flex flex-col items-center md:items-start gap-2">
             <span className="text-2xl font-black text-primary font-headline">Snaplet</span>
             <p className="text-on-surface-variant text-sm">© 2026 Kinetic Intelligence Inc.</p>
@@ -159,12 +223,22 @@ export const LandingPage = ({ onGetStarted }: { onGetStarted: () => void }) => {
   );
 };
 
-const FeatureCard = ({ icon, title, description }: any) => (
-  <div className="group bg-surface-container-lowest p-8 rounded-2xl ghost-border hover:ambient-shadow transition-all">
-    <div className="w-14 h-14 bg-surface-container-high rounded-xl flex items-center justify-center mb-6">
-      {icon}
+const StudyPanel = ({ title, tone, children }: any) => (
+  <div className={`rounded-[28px] p-6 min-h-[350px] ${tone}`}>
+    <h3 className="text-4xl font-headline font-black tracking-tight mb-6">{title}</h3>
+    {children}
+  </div>
+);
+
+const MarketingSplit = ({ title, description, imageTone, buttonLabel, children, reverse = false, onClick }: any) => (
+  <div className={`grid lg:grid-cols-2 gap-12 items-center ${reverse ? 'lg:[&>*:first-child]:order-2' : ''}`}>
+    <div className="space-y-8">
+      <h2 className="text-5xl font-black font-headline tracking-tight text-on-surface leading-[1.08]">{title}</h2>
+      <p className="text-2xl text-on-surface-variant leading-relaxed max-w-2xl">{description}</p>
+      <button onClick={onClick} className="rounded-full gradient-primary text-on-primary px-10 py-4 font-bold text-lg">{buttonLabel}</button>
     </div>
-    <h3 className="text-2xl font-headline font-bold mb-4">{title}</h3>
-    <p className="text-on-surface-variant leading-relaxed">{description}</p>
+    <div className={`${imageTone} rounded-[32px] p-8 min-h-[320px] flex items-center`}>
+      {children}
+    </div>
   </div>
 );

@@ -26,6 +26,13 @@ export default defineConfig(({ mode }) => {
     rootEnv.VITE_API_BASE_URL ||
     '';
 
+  const proxyTarget =
+    localEnv.VITE_PROXY_TARGET ||
+    rootEnv.VITE_PROXY_TARGET ||
+    process.env.VITE_PROXY_TARGET ||
+    apiBaseUrl ||
+    'http://localhost:3000';
+
   return {
     plugins: [react(), tailwindcss()],
     define: {
@@ -44,7 +51,7 @@ export default defineConfig(({ mode }) => {
       hmr: process.env.DISABLE_HMR !== 'true',
       proxy: {
         '/api': {
-          target: localEnv.VITE_PROXY_TARGET || rootEnv.VITE_PROXY_TARGET || process.env.VITE_PROXY_TARGET || 'http://localhost:3000',
+          target: proxyTarget,
           changeOrigin: true,
         },
       },

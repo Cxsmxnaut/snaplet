@@ -23,14 +23,14 @@ export function AppShell({
   children,
 }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative overflow-x-hidden">
       {!hideShell && <Sidebar activeTab={activeTab} onTabChange={onTabChange} />}
 
-      <main className={!hideShell ? 'ml-64' : ''}>
+      <main className={!hideShell ? 'ml-56' : ''}>
         {!hideShell && <TopBar onNavigate={onTabChange} onLogout={onLogout} userProfile={userProfile} />}
 
-        <div className={!hideShell ? 'pt-24 pb-12 px-8 lg:px-10' : ''}>
-          {error ? <div className="mb-6 rounded-xl border border-error/20 bg-error-container px-4 py-3 text-sm text-on-error-container ambient-shadow">{error}</div> : null}
+        <div className={!hideShell ? 'relative pt-24 pb-16 px-8 lg:px-12' : ''}>
+          {error ? <div className="mb-6 rounded-2xl border border-error/20 bg-error-container/90 px-4 py-3 text-sm text-on-error-container ambient-shadow">{error}</div> : null}
           {children}
         </div>
       </main>

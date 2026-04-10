@@ -301,7 +301,7 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
 
   return (
     <div className="min-h-screen flex flex-col pt-32 pb-24 px-6 relative">
-      <div className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex flex-col gap-4 bg-white/80 backdrop-blur-md border-b border-outline-variant/10">
+      <div className="fixed top-0 left-0 right-0 z-50 px-6 py-4 flex flex-col gap-4 bg-surface/80 backdrop-blur-md border-b border-outline-variant/10">
         <nav className="flex justify-between items-center max-w-5xl mx-auto w-full">
           <div className="flex items-center gap-3">
             <span className="text-xl font-black text-primary tracking-tighter font-headline">Snaplet</span>

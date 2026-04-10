@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
-@theme {
+:root {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-headline: "Plus Jakarta Sans", sans-serif;
 
@@ -38,6 +38,95 @@
   --color-on-surface-variant: #586380;
   --color-outline: #282e3e;
   --color-outline-variant: #d9dee9;
+  --color-scheme: light;
+  --surface-stack-start: #ffffff;
+  --surface-stack-end: #fbfcff;
+  --ambient-shadow-elevation: 0px 12px 32px rgba(40, 46, 62, 0.06);
+  --deep-shadow-elevation: 0px 24px 48px -12px rgba(6, 14, 32, 0.24);
+
+  color-scheme: light;
+}
+
+[data-theme="dark"] {
+  --color-background: #0b1326;
+  --color-surface: #0b1326;
+  --color-surface-container-lowest: #10192e;
+  --color-surface-container-low: #15203a;
+  --color-surface-container: #1a243f;
+  --color-surface-container-high: #24304b;
+  --color-surface-container-highest: #313d59;
+  --color-surface-bright: #364361;
+
+  --color-primary: #c0c1ff;
+  --color-primary-strong: #8083ff;
+  --color-primary-container: #8083ff;
+  --color-on-primary: #1000a9;
+  --color-on-primary-container: #0d0096;
+
+  --color-secondary: #4edea3;
+  --color-on-secondary: #003824;
+  --color-secondary-container: #0f3b2f;
+  --color-on-secondary-container: #cbfbe4;
+
+  --color-tertiary: #ffb95f;
+  --color-on-tertiary: #472a00;
+  --color-tertiary-container: #5b421f;
+
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+
+  --color-on-surface: #dae2fd;
+  --color-on-surface-variant: #c7c4d7;
+  --color-outline: #dae2fd;
+  --color-outline-variant: #55607d;
+  --color-scheme: dark;
+  --surface-stack-start: #1b2540;
+  --surface-stack-end: #10182d;
+  --ambient-shadow-elevation: 0px 18px 48px rgba(0, 0, 0, 0.3);
+  --deep-shadow-elevation: 0px 28px 60px -18px rgba(0, 0, 0, 0.55);
+
+  color-scheme: dark;
+}
+
+@theme {
+  --font-sans: var(--font-sans);
+  --font-headline: var(--font-headline);
+
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-surface-container-lowest: var(--color-surface-container-lowest);
+  --color-surface-container-low: var(--color-surface-container-low);
+  --color-surface-container: var(--color-surface-container);
+  --color-surface-container-high: var(--color-surface-container-high);
+  --color-surface-container-highest: var(--color-surface-container-highest);
+  --color-surface-bright: var(--color-surface-bright);
+
+  --color-primary: var(--color-primary);
+  --color-primary-strong: var(--color-primary-strong);
+  --color-primary-container: var(--color-primary-container);
+  --color-on-primary: var(--color-on-primary);
+  --color-on-primary-container: var(--color-on-primary-container);
+
+  --color-secondary: var(--color-secondary);
+  --color-on-secondary: var(--color-on-secondary);
+  --color-secondary-container: var(--color-secondary-container);
+  --color-on-secondary-container: var(--color-on-secondary-container);
+
+  --color-tertiary: var(--color-tertiary);
+  --color-on-tertiary: var(--color-on-tertiary);
+  --color-tertiary-container: var(--color-tertiary-container);
+
+  --color-error: var(--color-error);
+  --color-on-error: var(--color-on-error);
+  --color-error-container: var(--color-error-container);
+  --color-on-error-container: var(--color-on-error-container);
+
+  --color-on-surface: var(--color-on-surface);
+  --color-on-surface-variant: var(--color-on-surface-variant);
+  --color-outline: var(--color-outline);
+  --color-outline-variant: var(--color-outline-variant);
 
   --radius-default: 0.5rem;
   --radius-lg: 0.75rem;
@@ -46,7 +135,7 @@
 
 @layer base {
   html {
-    color-scheme: light;
+    color-scheme: var(--color-scheme, light);
   }
 
   body {
@@ -55,32 +144,32 @@
 }
 
 .glass-panel {
-  background: rgba(255, 255, 255, 0.8);
+  background: color-mix(in srgb, var(--color-surface) 80%, transparent);
   backdrop-filter: blur(20px);
 }
 
 .ambient-shadow {
-  box-shadow: 0px 12px 32px rgba(40, 46, 62, 0.06);
+  box-shadow: var(--ambient-shadow-elevation);
 }
 
 .deep-bloom {
-  box-shadow: 0px 12px 32px rgba(40, 46, 62, 0.06);
+  box-shadow: var(--deep-shadow-elevation);
 }
 
 .ghost-border {
-  border: 1px solid rgba(217, 222, 233, 0.2);
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 20%, transparent);
 }
 
 .gradient-primary {
-  background: linear-gradient(135deg, #4255ff 0%, #2a3bff 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-strong) 100%);
 }
 
 .surface-stack {
-  background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+  background: linear-gradient(180deg, var(--surface-stack-start) 0%, var(--surface-stack-end) 100%);
 }
 
 .ink-muted {
-  color: #586380;
+  color: var(--color-on-surface-variant);
 }
 
 .active-rail::before {
@@ -91,5 +180,5 @@
   bottom: 14px;
   width: 4px;
   border-radius: 999px;
-  background: #4255ff;
+  background: var(--color-primary);
 }

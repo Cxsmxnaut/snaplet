@@ -1,11 +1,7 @@
-import { motion } from 'motion/react';
 import { Button } from '../components/Button';
 import { 
-  Play, 
   Plus, 
   Clock, 
-  CheckCircle2, 
-  History, 
   Edit3, 
   ArrowRight,
   AlertCircle,
@@ -44,73 +40,76 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
     : 'No sessions yet';
 
   return (
-    <div className="space-y-12">
-      <header className="flex justify-between items-end">
-        <div>
-          <h2 className="text-4xl font-headline font-extrabold tracking-tight text-on-surface">Welcome back</h2>
-          <p className="text-on-surface-variant font-medium mt-2">Ready to continue your curation of knowledge today?</p>
+    <div className="space-y-10">
+      <header className="space-y-4 px-1">
+        <div className="max-w-3xl">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-3">Today&apos;s workspace</p>
+          <h2 className="text-4xl md:text-5xl font-headline font-extrabold tracking-tight text-on-surface leading-[1.04]">Pick up where your learning left off</h2>
+          <p className="mt-3 text-on-surface-variant text-lg leading-relaxed">Your active kits, recent sessions, and weak areas all live in one place so you can restart fast.</p>
         </div>
       </header>
 
-      {/* Hero Action */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 group relative overflow-hidden bg-surface-container-lowest rounded-xl p-8 flex items-center justify-between ambient-shadow">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-          <div className="z-10">
-            <span className="px-3 py-1 bg-primary-container text-primary text-[10px] font-bold uppercase tracking-[0.16em] rounded-full mb-3 inline-block">Most Recent</span>
-            <h3 className="text-3xl font-headline font-extrabold mb-4 text-on-surface">{recentKit?.title || "No kits yet"}</h3>
-            <div className="flex items-center gap-3 text-on-surface-variant text-sm mb-6">
-              <Clock className="w-4 h-4" />
-              <span>Last session: {lastSessionLabel}</span>
-              <span className="mx-2">•</span>
-              <span>{recentKit?.cardCount || 0} cards</span>
-            </div>
-            <Button onClick={() => recentKit && onStudyKit(recentKit.id)} disabled={!recentKit}>
-              Continue Last Session
-            </Button>
-          </div>
-          <div className="hidden md:block z-10">
-            <div className="relative w-32 h-32">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle className="text-surface-container-highest" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" strokeWidth="8"></circle>
-                <circle 
-                  className="text-secondary" 
-                  cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" 
-                  strokeWidth="8"
-                  strokeDasharray="364.4"
-                  strokeDashoffset={364.4 * (1 - (recentKit?.mastery || 0) / 100)}
-                ></circle>
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-black font-headline text-on-surface">{recentKit?.mastery || 0}%</span>
+      <section className="py-2">
+        <div className="grid lg:grid-cols-[1.25fr_0.95fr] gap-6 items-stretch">
+          <div className="rounded-[28px] bg-surface p-7 ambient-shadow">
+            <div className="flex items-start justify-between gap-6">
+              <div>
+                <span className="px-3 py-1 bg-primary-container text-primary text-[10px] font-bold uppercase tracking-[0.16em] rounded-full mb-3 inline-block">Most Recent</span>
+                <h3 className="text-4xl font-headline font-extrabold mb-4 text-on-surface">{recentKit?.title || "No kits yet"}</h3>
+                <div className="flex items-center gap-3 text-on-surface-variant text-sm mb-6">
+                  <Clock className="w-4 h-4" />
+                  <span>Last session: {lastSessionLabel}</span>
+                  <span className="mx-2">•</span>
+                  <span>{recentKit?.cardCount || 0} cards</span>
+                </div>
+                <Button onClick={() => recentKit && onStudyKit(recentKit.id)} disabled={!recentKit} className="rounded-full px-8">
+                  Continue Last Session
+                </Button>
+              </div>
+              <div className="hidden md:block shrink-0">
+                <div className="relative w-32 h-32">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle className="text-surface-container-highest" cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" strokeWidth="8"></circle>
+                    <circle 
+                      className="text-secondary" 
+                      cx="64" cy="64" fill="transparent" r="58" stroke="currentColor" 
+                      strokeWidth="8"
+                      strokeDasharray="364.4"
+                      strokeDashoffset={364.4 * (1 - (recentKit?.mastery || 0) / 100)}
+                    ></circle>
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-2xl font-black font-headline text-on-surface">{recentKit?.mastery || 0}%</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-
-        <div className="bg-surface-container-low rounded-xl p-8 flex flex-col justify-center items-center text-center border-2 border-dashed border-outline-variant/40">
-          <div className="w-16 h-16 bg-surface-container-lowest rounded-full flex items-center justify-center mb-4 ambient-shadow">
-            <Plus className="text-primary w-8 h-8" />
+          <div className="rounded-[28px] bg-surface-container-low p-8 flex flex-col justify-between">
+            <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mb-5">
+              <Plus className="text-primary w-8 h-8" />
+            </div>
+            <div>
+              <h3 className="text-3xl font-headline font-bold mb-2 text-on-surface">Create a fresh study kit</h3>
+              <p className="text-on-surface-variant text-base mb-6">Start from notes, documents, or pasted content and generate a new review flow in minutes.</p>
+            </div>
+            <Button className="w-full rounded-full" onClick={onCreateKit}>
+              Create a kit
+            </Button>
           </div>
-          <h3 className="text-xl font-headline font-bold mb-2">New Learning Kit</h3>
-          <p className="text-on-surface-variant text-sm mb-6 px-4">Generate cards from PDFs, URLs, or notes in seconds.</p>
-          <Button variant="outline" className="w-full" onClick={onCreateKit}>
-            Create New Kit
-          </Button>
         </div>
       </section>
 
-      {/* My Kits */}
       <section>
         <div className="flex justify-between items-center mb-8">
-          <h3 className="text-2xl font-headline font-bold text-on-surface">My Kits</h3>
+          <h3 className="text-2xl font-headline font-bold text-on-surface">Your kits</h3>
           <button onClick={onViewAll} className="text-primary font-semibold hover:text-primary-container flex items-center gap-2 transition-colors">
             View All <ArrowRight className="w-4 h-4" />
           </button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {kits.map((kit) => (
-            <div key={kit.id} className="bg-surface-container-lowest p-6 rounded-xl border-l-4 border-primary ambient-shadow flex flex-col group">
+            <div key={kit.id} className="bg-surface-container-low rounded-[28px] p-6 flex flex-col group">
               {(() => {
                 const KitIcon = resolveKitIcon(kit.icon);
                 return (
@@ -124,10 +123,10 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
                 {kit.cardCount} Cards • {kit.lastSession ? kit.lastSession.toLocaleDateString() : 'No sessions yet'}
               </p>
               <div className="mt-auto flex gap-3">
-                <Button variant="ghost" className="flex-1 bg-surface-container-highest" onClick={() => onStudyKit(kit.id)}>Study</Button>
+                <Button variant="ghost" className="flex-1 bg-surface-container-low" onClick={() => onStudyKit(kit.id)}>Study</Button>
                 <button 
                   onClick={() => onEditKit(kit.id)}
-                  className="p-2 bg-surface-container-high rounded-lg flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors"
+                  className="p-2 bg-surface-container-low rounded-lg flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors"
                 >
                   <Edit3 className="w-4 h-4" />
                 </button>
@@ -137,7 +136,6 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
         </div>
       </section>
 
-      {/* Stats and Weak Focus */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <h3 className="text-xl font-headline font-bold text-on-surface flex items-center gap-2">
@@ -148,7 +146,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
             <StatCard label="Questions" value={String(progress?.totals.questions ?? 0)} />
             <StatCard label="Sessions" value={String(progress?.totals.sessions ?? 0)} />
           </div>
-          <div className="bg-surface-container-lowest rounded-xl p-6 h-48 flex items-end gap-3 justify-between ambient-shadow">
+          <div className="bg-surface-container-low rounded-[28px] p-6 h-48 flex items-end gap-3 justify-between">
             {chartBars.map((h, i) => (
               <div key={i} className="flex-1 bg-primary/20 rounded-t-sm transition-all hover:bg-primary/40" style={{ height: `${h}%` }}></div>
             ))}
@@ -159,7 +157,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
           <h3 className="text-xl font-headline font-bold text-on-surface mb-6 flex items-center gap-2">
             <AlertCircle className="text-tertiary w-5 h-5" /> Weak Focus
           </h3>
-          <div className="bg-surface-container-high rounded-2xl p-8 border border-outline-variant/10">
+          <div className="bg-surface-container-low rounded-[28px] p-8">
             <p className="text-sm text-on-surface-variant mb-6">These items need immediate attention based on your recent outcomes.</p>
             <ul className="space-y-4 mb-8">
               {weakItems.length === 0 ? (
@@ -179,7 +177,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
 };
 
 const StatCard = ({ label, value, trend }: any) => (
-  <div className="bg-surface-container-low p-6 rounded-2xl border border-outline-variant/5 shadow-sm">
+  <div className="bg-surface-container-low rounded-[24px] p-6">
     <p className="text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2">{label}</p>
     <div className="flex items-end gap-2">
       <p className="text-3xl font-black font-headline text-on-surface">{value}</p>
@@ -189,7 +187,7 @@ const StatCard = ({ label, value, trend }: any) => (
 );
 
 const WeakItem = ({ label, rate }: any) => (
-  <li className="flex items-center gap-4 p-4 rounded-xl bg-surface-container-lowest border border-outline-variant/5">
+  <li className="flex items-center gap-4 p-4 rounded-xl bg-surface">
     <div className="h-2 w-2 rounded-full bg-tertiary"></div>
     <div className="flex-1">
       <p className="text-sm font-bold text-on-surface">{label}</p>

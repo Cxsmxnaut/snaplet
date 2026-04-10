@@ -5,7 +5,8 @@ import React from 'react';
 export const HelpPage = ({ onCreateKit, onGoDashboard }: { onCreateKit: () => void; onGoDashboard: () => void }) => {
   return (
     <div className="max-w-6xl mx-auto space-y-10">
-      <header className="space-y-3">
+      <header className="space-y-3 px-1">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Support</p>
         <h1 className="text-4xl font-headline font-black tracking-tight text-on-surface">Help Center</h1>
         <p className="text-on-surface-variant text-lg">
           Quick fixes and usage guidance for kits, sessions, and sign-in.
@@ -38,7 +39,7 @@ export const HelpPage = ({ onCreateKit, onGoDashboard }: { onCreateKit: () => vo
         />
       </section>
 
-      <section className="bg-surface-container-low rounded-2xl p-8 border border-outline-variant/10">
+      <section className="bg-surface-container-low rounded-[28px] p-8">
         <div className="flex items-center gap-2 mb-6">
           <CircleHelp className="text-primary w-5 h-5" />
           <h2 className="text-2xl font-headline font-bold text-on-surface">Frequently Asked Questions</h2>
@@ -53,13 +54,13 @@ export const HelpPage = ({ onCreateKit, onGoDashboard }: { onCreateKit: () => vo
             answer="Retries happen on near-miss answers. The session engine gives you one quick correction chance before marking final correctness."
           />
           <FaqItem
-            question="How does auto-review kit generation work?"
-            answer="When repeated mistakes accumulate in a topic, Snaplet creates a separate auto-review kit for that topic. Topics do not mix."
+            question="How should I review weak topics?"
+            answer="Use the Weak Review study mode or revisit the Progress page to find prompts that need another pass."
           />
         </div>
       </section>
 
-      <section className="bg-surface-container-low rounded-2xl p-8 border border-outline-variant/10">
+      <section className="bg-surface-container-low rounded-[28px] p-8">
         <div className="flex items-center gap-2 mb-6">
           <MessageSquareWarning className="text-tertiary w-5 h-5" />
           <h2 className="text-2xl font-headline font-bold text-on-surface">Troubleshooting Checklist</h2>
@@ -88,7 +89,7 @@ const ActionCard = ({
   cta: string;
   onClick: () => void;
 }) => (
-  <div className="bg-surface-container-low rounded-2xl p-6 border border-outline-variant/10 flex flex-col gap-4">
+  <div className="bg-surface-container-low rounded-[28px] p-6 flex flex-col gap-4">
     <div className="h-10 w-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center">{icon}</div>
     <h3 className="text-xl font-headline font-bold text-on-surface">{title}</h3>
     <p className="text-sm text-on-surface-variant leading-relaxed">{description}</p>
@@ -99,7 +100,7 @@ const ActionCard = ({
 );
 
 const FaqItem = ({ question, answer }: { question: string; answer: string }) => (
-  <div className="rounded-xl bg-surface-container p-5 border border-outline-variant/10">
+  <div className="rounded-[22px] bg-surface p-5">
     <h3 className="text-on-surface font-bold mb-2">{question}</h3>
     <p className="text-on-surface-variant text-sm leading-relaxed">{answer}</p>
   </div>

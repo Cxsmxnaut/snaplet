@@ -1,11 +1,23 @@
 import { useState } from 'react';
-import { Button } from '../components/Button';
-import { User, Moon, Sun, Timer, LogOut, Trash2, ShieldCheck } from 'lucide-react';
+import { ChevronDown, Globe, LogOut, Moon, ShieldCheck, Sun, Timer, Trash2, User } from 'lucide-react';
 import { cn } from '../lib/utils';
+
+type ThemeMode = 'dark' | 'light';
+
+const AVATAR_SWATCHES = [
+  'from-[#4255FF] to-[#7A88FF]',
+  'from-[#FFB95F] to-[#FFD98B]',
+  'from-[#4EDEA3] to-[#8BEAC2]',
+  'from-[#D78BFF] to-[#F0B8FF]',
+  'from-[#6CCBFF] to-[#B1E6FF]',
+  'from-[#FF8FA5] to-[#FFC2CF]',
+];
 
 export const SettingsPage = ({
   onLogout,
   userProfile,
+  theme,
+  onThemeChange,
 }: {
   onLogout: () => void;
   userProfile: {
@@ -13,161 +25,316 @@ export const SettingsPage = ({
     email: string;
     avatarUrl: string | null;
   };
+  theme: ThemeMode;
+  onThemeChange: (value: ThemeMode) => void;
 }) => {
-  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    const stored = window.localStorage.getItem('snaplet_theme');
-    return stored === 'light' ? 'light' : 'dark';
-  });
   const [sessionLength, setSessionLength] = useState(() => {
     const stored = Number(window.localStorage.getItem('snaplet_session_length') ?? 10);
     return [5, 10, 15].includes(stored) ? stored : 10;
   });
-
-  const setThemeAndPersist = (value: 'dark' | 'light') => {
-    setTheme(value);
-    window.localStorage.setItem('snaplet_theme', value);
-  };
+  const [studyUpdates, setStudyUpdates] = useState(() => window.localStorage.getItem('snaplet_notify_study_updates') !== 'false');
+  const [reviewReminders, setReviewReminders] = useState(() => window.localStorage.getItem('snaplet_notify_review_reminders') !== 'false');
+  const [privateProfile, setPrivateProfile] = useState(() => window.localStorage.getItem('snaplet_private_profile') === 'true');
 
   const setSessionLengthAndPersist = (value: number) => {
     setSessionLength(value);
     window.localStorage.setItem('snaplet_session_length', String(value));
   };
 
+  const updateStudyUpdates = (value: boolean) => {
+    setStudyUpdates(value);
+    window.localStorage.setItem('snaplet_notify_study_updates', String(value));
+  };
+
+  const updateReviewReminders = (value: boolean) => {
+    setReviewReminders(value);
+    window.localStorage.setItem('snaplet_notify_review_reminders', String(value));
+  };
+
+  const updatePrivateProfile = (value: boolean) => {
+    setPrivateProfile(value);
+    window.localStorage.setItem('snaplet_private_profile', String(value));
+  };
+
   return (
-    <div className="max-w-4xl mx-auto space-y-12">
-      <header>
-        <h2 className="text-4xl md:text-5xl font-black text-on-surface tracking-tight mb-2 font-headline">Settings</h2>
-        <p className="text-on-surface-variant text-lg">Personalize your high-velocity learning environment.</p>
+    <div className="max-w-4xl mx-auto px-1 pb-12">
+      <header className="mb-10">
+        <h1 className="text-4xl md:text-5xl font-headline font-black tracking-tight text-on-surface mb-2">Settings</h1>
+        <p className="text-base md:text-lg text-on-surface-variant">Manage how Snaplet feels, what it reminds you about, and how your account behaves.</p>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Profile */}
-        <section className="lg:col-span-2 bg-surface-container-low rounded-2xl p-8 border border-outline-variant/5">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center overflow-hidden">
-              {userProfile.avatarUrl ? (
-                <img
-                  src={userProfile.avatarUrl}
-                  alt={userProfile.displayName}
-                  className="w-full h-full object-cover"
-                  referrerPolicy="no-referrer"
-                />
-              ) : (
-                <User className="text-primary w-8 h-8" />
-              )}
-            </div>
-            <div>
-              <h3 className="text-2xl font-bold font-headline text-on-surface">Profile Information</h3>
-              <p className="text-sm text-on-surface-variant">Update your account identity</p>
-            </div>
-          </div>
-          <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/50 px-1">Full Name</label>
-                <input className="w-full bg-surface-container-lowest border-none rounded-xl p-4 focus:ring-2 focus:ring-primary/40 text-on-surface transition-all" type="text" defaultValue={userProfile.displayName}/>
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant/50 px-1">Email Address</label>
-                <input className="w-full bg-surface-container-lowest border-none rounded-xl p-4 focus:ring-2 focus:ring-primary/40 text-on-surface transition-all" type="email" defaultValue={userProfile.email}/>
+      <section className="mb-8 rounded-[28px] bg-[#15113A] text-white px-6 py-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-white/65 mb-2">Subscription</p>
+          <p className="text-2xl font-headline font-black tracking-tight">Level up your study flow</p>
+        </div>
+        <button className="h-11 rounded-full bg-[#FFCD3C] px-5 text-sm font-black text-[#241A00] shrink-0">
+          Upgrade now
+        </button>
+      </section>
+
+      <div className="space-y-8">
+        <SettingsSection label="Personal information">
+          <div className="px-6 py-6 border-b border-outline-variant/35">
+            <div className="mb-4">
+              <p className="text-sm font-bold text-on-surface mb-3">Profile picture</p>
+              <div className="flex flex-wrap items-center gap-3">
+                <AvatarCircle image={userProfile.avatarUrl} initials={userProfile.displayName.slice(0, 1)} large />
+                {AVATAR_SWATCHES.map((gradient, index) => (
+                  <DecorativeAvatar key={gradient} gradient={gradient} label={`Preset avatar ${index + 1}`} />
+                ))}
+                <button
+                  type="button"
+                  className="h-10 w-10 rounded-full border border-outline-variant/40 bg-surface text-on-surface-variant text-xl font-light"
+                  title="Profile images are managed by your sign-in provider"
+                >
+                  +
+                </button>
               </div>
             </div>
-            <div className="flex justify-end pt-4">
-              <Button type="button" variant="outline" disabled>Profile managed by Google sign-in</Button>
-            </div>
-          </form>
-        </section>
-
-        {/* Theme */}
-        <section className="bg-surface-container rounded-2xl p-8 border border-outline-variant/5 flex flex-col">
-          <h3 className="text-xl font-bold font-headline text-on-surface mb-6">App Theme</h3>
-          <div className="space-y-4 flex-1">
-            <ThemeOption 
-              active={theme === 'dark'} 
-              onClick={() => setThemeAndPersist('dark')}
-              icon={<Moon className="w-5 h-5" />}
-              label="Dark Mode"
-            />
-            <ThemeOption 
-              active={theme === 'light'} 
-              onClick={() => setThemeAndPersist('light')}
-              icon={<Sun className="w-5 h-5" />}
-              label="Light Mode"
-            />
+            <p className="text-sm text-on-surface-variant">Profile photos and account identity are managed by your sign-in provider.</p>
           </div>
-          <p className="text-xs text-on-surface-variant mt-6 italic">Theme preference is saved locally on this device.</p>
-        </section>
 
-        {/* Session Length */}
-        <section className="lg:col-span-2 bg-surface-container rounded-2xl p-8 border border-outline-variant/5">
-          <div className="flex items-center gap-4 mb-8">
-            <div className="w-12 h-12 rounded-xl bg-tertiary/10 flex items-center justify-center">
-              <Timer className="text-tertiary w-6 h-6" />
-            </div>
+          <SettingRow label="Name" value={userProfile.displayName} meta="Provider-managed" />
+          <SettingRow label="Email" value={userProfile.email || 'No email available'} meta="Provider-managed" />
+        </SettingsSection>
+
+        <SettingsSection label="Appearance">
+          <div className="px-6 py-5 border-b border-outline-variant/35 flex items-center justify-between gap-6">
             <div>
-              <h3 className="text-xl font-bold font-headline text-on-surface">Study Session Length</h3>
-              <p className="text-sm text-on-surface-variant">Default number of questions per kit</p>
+              <p className="text-sm font-bold text-on-surface">Theme</p>
+              <p className="text-sm text-on-surface-variant">Choose how the signed-in app looks.</p>
             </div>
+            <ThemeSelect value={theme} onChange={onThemeChange} />
           </div>
-          <div className="flex flex-wrap gap-4">
-            {[5, 10, 15].map(val => (
-              <button 
-                key={val}
-                onClick={() => setSessionLengthAndPersist(val)}
-                className={cn(
-                  "flex-1 min-w-[100px] py-4 rounded-2xl transition-all flex flex-col items-center justify-center gap-1 group",
-                  sessionLength === val 
-                    ? "bg-tertiary text-on-tertiary font-black scale-105 shadow-xl" 
-                    : "bg-surface-container-low border-2 border-outline-variant hover:border-tertiary text-on-surface font-bold"
-                )}
-              >
-                <span className="text-2xl">{val}</span>
-                <span className="text-[10px] uppercase tracking-widest opacity-70">Questions</span>
-              </button>
-            ))}
+          <div className="px-6 py-5 flex items-center justify-between gap-6">
+            <div>
+              <p className="text-sm font-bold text-on-surface">Session length</p>
+              <p className="text-sm text-on-surface-variant">Default number of questions per study run.</p>
+            </div>
+            <SessionLengthSelect value={sessionLength} onChange={setSessionLengthAndPersist} />
           </div>
-        </section>
+        </SettingsSection>
 
-        {/* Danger Zone */}
-        <section className="bg-surface-container-low rounded-2xl p-8 border border-error/10">
-          <h3 className="text-xl font-bold font-headline text-error mb-6">Account Actions</h3>
-          <div className="space-y-3">
-            <button onClick={onLogout} className="w-full text-left p-4 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-semibold flex items-center justify-between transition-colors">
-              <span>Sign Out</span>
-              <LogOut className="w-5 h-5" />
-            </button>
-            <button disabled className="w-full text-left p-4 rounded-xl bg-error/10 text-error/60 font-semibold flex items-center justify-between transition-colors cursor-not-allowed">
-              <span>Delete Account (Coming Soon)</span>
-              <Trash2 className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="mt-8 pt-6 border-t border-outline-variant/10">
-            <div className="flex items-center gap-2 text-on-surface-variant text-sm">
-              <ShieldCheck className="w-4 h-4" />
-              <span>Data is encrypted and private.</span>
+        <SettingsSection label="Notifications">
+          <ToggleRow
+            label="Personalized study updates"
+            description="Get nudges when a kit or practice pattern needs attention."
+            checked={studyUpdates}
+            onChange={updateStudyUpdates}
+          />
+          <ToggleRow
+            label="Study reminders"
+            description="Stay on track with reminders to return and review weaker kits."
+            checked={reviewReminders}
+            onChange={updateReviewReminders}
+            withDivider={false}
+          />
+        </SettingsSection>
+
+        <SettingsSection label="Account and privacy">
+          <div className="px-6 py-5 border-b border-outline-variant/35 flex items-center justify-between gap-6">
+            <div>
+              <p className="text-sm font-bold text-on-surface">Sign out</p>
+              <p className="text-sm text-on-surface-variant">End this session on the current device.</p>
             </div>
+            <button
+              onClick={onLogout}
+              className="h-10 rounded-full bg-surface-container-low px-4 text-sm font-bold text-on-surface inline-flex items-center gap-2"
+            >
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
           </div>
-        </section>
+
+          <ToggleRow
+            label="Private profile"
+            description="Keep your name and study activity visible only to you on this device."
+            checked={privateProfile}
+            onChange={updatePrivateProfile}
+          />
+
+          <div className="px-6 py-5 flex items-center justify-between gap-6">
+            <div>
+              <p className="text-sm font-bold text-on-surface">Delete account</p>
+              <p className="text-sm text-on-surface-variant">This workflow is not available yet, so the action stays disabled.</p>
+            </div>
+            <button
+              disabled
+              className="h-10 rounded-full bg-error/12 px-4 text-sm font-bold text-error/55 inline-flex items-center gap-2 cursor-not-allowed"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete account
+            </button>
+          </div>
+        </SettingsSection>
+
+        <div className="flex items-center gap-2 text-sm text-on-surface-variant">
+          <ShieldCheck className="w-4 h-4" />
+          <span>Your preferences are stored safely and theme choices stay local to this device.</span>
+        </div>
       </div>
     </div>
   );
 };
 
-const ThemeOption = ({ active, onClick, icon, label }: any) => (
-  <div 
+const SettingsSection = ({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) => (
+  <section>
+    <p className="text-xs font-black uppercase tracking-[0.18em] text-on-surface-variant/65 mb-3">{label}</p>
+    <div className="rounded-[24px] bg-surface overflow-hidden">{children}</div>
+  </section>
+);
+
+const SettingRow = ({
+  label,
+  value,
+  meta,
+}: {
+  label: string;
+  value: string;
+  meta: string;
+}) => (
+  <div className="px-6 py-5 border-b last:border-b-0 border-outline-variant/35 flex items-center justify-between gap-6">
+    <div>
+      <p className="text-sm font-bold text-on-surface">{label}</p>
+      <p className="text-sm text-on-surface-variant">{value}</p>
+    </div>
+    <span className="text-xs font-bold uppercase tracking-[0.16em] text-primary">{meta}</span>
+  </div>
+);
+
+const ToggleRow = ({
+  label,
+  description,
+  checked,
+  onChange,
+  withDivider = true,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  withDivider?: boolean;
+}) => (
+  <div className={cn('px-6 py-5 flex items-center justify-between gap-6', withDivider && 'border-b border-outline-variant/35')}>
+    <div>
+      <p className="text-sm font-bold text-on-surface">{label}</p>
+      <p className="text-sm text-on-surface-variant">{description}</p>
+    </div>
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      aria-pressed={checked}
+      className={cn(
+        'relative h-7 w-12 rounded-full transition-colors shrink-0',
+        checked ? 'bg-primary' : 'bg-surface-container-high'
+      )}
+    >
+      <span
+        className={cn(
+          'absolute top-1 h-5 w-5 rounded-full bg-white transition-transform',
+          checked ? 'translate-x-6' : 'translate-x-1'
+        )}
+      />
+    </button>
+  </div>
+);
+
+const ThemeSelect = ({
+  value,
+  onChange,
+}: {
+  value: ThemeMode;
+  onChange: (value: ThemeMode) => void;
+}) => (
+  <div className="flex items-center rounded-full bg-surface-container-low p-1">
+    <ThemePill active={value === 'light'} onClick={() => onChange('light')} icon={<Sun className="w-4 h-4" />} label="Light" />
+    <ThemePill active={value === 'dark'} onClick={() => onChange('dark')} icon={<Moon className="w-4 h-4" />} label="Dark" />
+  </div>
+);
+
+const ThemePill = ({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+}) => (
+  <button
+    type="button"
     onClick={onClick}
     className={cn(
-      "cursor-pointer rounded-xl p-4 flex items-center justify-between border-2 transition-all",
-      active ? "bg-surface-container-high border-primary" : "bg-surface-container-low border-transparent hover:bg-surface-container-high"
+      'h-10 rounded-full px-4 inline-flex items-center gap-2 text-sm font-bold transition-colors',
+      active ? 'bg-surface text-on-surface' : 'text-on-surface-variant'
     )}
   >
-    <div className={cn("flex items-center gap-3", active ? "text-primary" : "text-on-surface-variant")}>
-      {icon}
-      <span className="font-bold">{label}</span>
-    </div>
-    <div className={cn(
-      "w-5 h-5 rounded-full border-2",
-      active ? "border-primary bg-primary" : "border-outline-variant"
-    )}></div>
+    {icon}
+    {label}
+  </button>
+);
+
+const SessionLengthSelect = ({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (value: number) => void;
+}) => (
+  <div className="relative">
+    <select
+      value={value}
+      onChange={(event) => onChange(Number(event.target.value))}
+      className="h-10 appearance-none rounded-full bg-surface-container-low pl-4 pr-10 text-sm font-bold text-on-surface focus:outline-none"
+    >
+      <option value={5}>5 questions</option>
+      <option value={10}>10 questions</option>
+      <option value={15}>15 questions</option>
+    </select>
+    <Timer className="pointer-events-none absolute left-3 top-1/2 hidden -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
+    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-variant" />
   </div>
+);
+
+const AvatarCircle = ({
+  image,
+  initials,
+  large = false,
+}: {
+  image: string | null;
+  initials: string;
+  large?: boolean;
+}) => (
+  <div
+    className={cn(
+      'rounded-full overflow-hidden border border-outline-variant/30 bg-surface-container-low flex items-center justify-center',
+      large ? 'h-14 w-14' : 'h-9 w-9'
+    )}
+  >
+    {image ? (
+      <img src={image} alt="Profile avatar" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+    ) : (
+      <User className={cn('text-primary', large ? 'w-7 h-7' : 'w-4 h-4')} />
+    )}
+    {!image && <span className="sr-only">{initials}</span>}
+  </div>
+);
+
+const DecorativeAvatar = ({
+  gradient,
+  label,
+}: {
+  gradient: string;
+  label: string;
+}) => (
+  <div className={cn('h-9 w-9 rounded-full bg-gradient-to-br ring-2 ring-white', gradient)} aria-label={label} />
 );

@@ -469,11 +469,17 @@ export async function startSession(
       body: JSON.stringify({ sourceId, mode }),
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "";
-    if (!message.includes("No active questions available")) {
+    if (questions.length === 0) {
       throw error;
     }
 
+    const message = error instanceof Error ? error.message : "";
+    logError("api", "Falling back to local study session", {
+      sourceId,
+      mode,
+      questionCount: questions.length,
+      message,
+    });
     return buildLocalSession(sourceId, mode, questions);
   }
 }
