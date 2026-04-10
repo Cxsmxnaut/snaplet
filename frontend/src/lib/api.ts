@@ -28,6 +28,25 @@ type SourceCreateResponse = {
   questions?: BackendQuestion[];
 };
 
+type LocalSessionQuestion = {
+  sessionId: string;
+  questionId: string;
+  prompt: string;
+  answer: string;
+  position: number;
+  kind: "new" | "review" | "revisit";
+};
+
+type LocalSessionState = {
+  id: string;
+  sourceId: string;
+  mode: StudyMode;
+  questionCap: number;
+  pointer: number;
+  retryQuestionId: string | null;
+  questions: LocalSessionQuestion[];
+};
+
 export type BackendProgress = {
   totals: {
     sources: number;
@@ -79,6 +98,7 @@ const USER_KEY = "snaplet_backend_user_id";
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 const SOURCE_CACHE_KEY = "snaplet_backend_sources_cache_v1";
 const QUESTION_CACHE_KEY = "snaplet_backend_questions_cache_v1";
+const SESSION_CACHE_KEY = "snaplet_local_sessions_v1";
 
 function readSourceCache(): Record<string, BackendSource> {
   try {
@@ -143,6 +163,146 @@ function cacheQuestions(sourceId: string, questions: BackendQuestion[]): void {
 function getCachedQuestions(sourceId: string): BackendQuestion[] {
   const cache = readQuestionCache();
   return cache[sourceId] ?? [];
+}
+
+function readSessionCache(): Record<string, LocalSessionState> {
+  try {
+    return JSON.parse(window.localStorage.getItem(SESSION_CACHE_KEY) ?? "{}") as Record<string, LocalSessionState>;
+  } catch {
+    return {};
+  }
+}
+
+function writeSessionCache(cache: Record<string, LocalSessionState>): void {
+  window.localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(cache));
+}
+
+function normalizeAnswer(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s-]/gu, "")
+    .replace(/\s+/g, " ");
+}
+
+function buildLocalSession(
+  sourceId: string,
+  mode: StudyMode,
+  questions: BackendQuestion[],
+): BackendSessionStart {
+  const activeQuestions = questions.filter((question) => question.status === "active");
+  if (activeQuestions.length === 0) {
+    throw new Error("This kit has no questions yet. Add content or regenerate questions first.");
+  }
+
+  const questionCap = mode === "fast_drill" ? Math.min(16, activeQuestions.length) : Math.min(10, activeQuestions.length);
+  const sessionId = `local_${crypto.randomUUID()}`;
+  const localQuestions: LocalSessionQuestion[] = activeQuestions.slice(0, questionCap).map((question, index) => ({
+    sessionId,
+    questionId: question.id,
+    prompt: question.prompt,
+    answer: question.answer,
+    position: index + 1,
+    kind: "new",
+  }));
+
+  const session: LocalSessionState = {
+    id: sessionId,
+    sourceId,
+    mode,
+    questionCap,
+    pointer: 0,
+    retryQuestionId: null,
+    questions: localQuestions,
+  };
+
+  const cache = readSessionCache();
+  cache[sessionId] = session;
+  writeSessionCache(cache);
+
+  const first = localQuestions[0] ?? null;
+  return {
+    session: { id: sessionId, questionCap },
+    currentQuestion: first
+      ? {
+          sessionId,
+          questionId: first.questionId,
+          prompt: first.prompt,
+          position: first.position,
+          kind: first.kind,
+        }
+      : null,
+  };
+}
+
+function submitLocalAttempt(
+  sessionId: string,
+  payload: { questionId: string; answer: string; isRetry?: boolean },
+): BackendAttemptResult {
+  const cache = readSessionCache();
+  const session = cache[sessionId];
+  if (!session) {
+    throw new Error("Study session expired. Start a new session.");
+  }
+
+  const current = session.questions[session.pointer];
+  if (!current || current.questionId !== payload.questionId) {
+    throw new Error("Question not found in current session.");
+  }
+
+  const isCorrect = normalizeAnswer(payload.answer) === normalizeAnswer(current.answer);
+  const isRetry = Boolean(payload.isRetry || session.retryQuestionId === current.questionId);
+
+  if (!isCorrect && !isRetry) {
+    session.retryQuestionId = current.questionId;
+    cache[sessionId] = session;
+    writeSessionCache(cache);
+    return {
+      needsRetry: true,
+      outcome: "incorrect",
+      feedback: "Not quite. Try once more before we move on.",
+      correctAnswer: current.answer,
+      sessionEnded: false,
+      nextQuestion: null,
+    };
+  }
+
+  const outcome = isCorrect ? (isRetry ? "correct_after_retry" : "exact") : "incorrect";
+  const feedback = isCorrect
+    ? isRetry
+      ? "Correct after retry. Nice recovery."
+      : "Correct."
+    : "Incorrect.";
+
+  session.pointer += 1;
+  session.retryQuestionId = null;
+
+  const next = session.questions[session.pointer] ?? null;
+  const sessionEnded = next === null;
+
+  if (sessionEnded) {
+    delete cache[sessionId];
+  } else {
+    cache[sessionId] = session;
+  }
+  writeSessionCache(cache);
+
+  return {
+    needsRetry: false,
+    outcome,
+    feedback,
+    correctAnswer: current.answer,
+    sessionEnded,
+    nextQuestion: next
+      ? {
+          sessionId,
+          questionId: next.questionId,
+          prompt: next.prompt,
+          position: next.position,
+          kind: next.kind,
+        }
+      : null,
+  };
 }
 
 function getUserId(): string {
@@ -298,17 +458,34 @@ export async function deleteQuestion(questionId: string): Promise<void> {
   writeQuestionCache(questionCache);
 }
 
-export async function startSession(sourceId: string, mode: StudyMode): Promise<BackendSessionStart> {
-  return apiRequest<BackendSessionStart>("/api/sessions", {
-    method: "POST",
-    body: JSON.stringify({ sourceId, mode }),
-  });
+export async function startSession(
+  sourceId: string,
+  mode: StudyMode,
+  questions: BackendQuestion[] = getCachedQuestions(sourceId),
+): Promise<BackendSessionStart> {
+  try {
+    return await apiRequest<BackendSessionStart>("/api/sessions", {
+      method: "POST",
+      body: JSON.stringify({ sourceId, mode }),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (!message.includes("No active questions available")) {
+      throw error;
+    }
+
+    return buildLocalSession(sourceId, mode, questions);
+  }
 }
 
 export async function submitAttempt(
   sessionId: string,
   payload: { questionId: string; answer: string; isRetry?: boolean },
 ): Promise<BackendAttemptResult> {
+  if (sessionId.startsWith("local_")) {
+    return submitLocalAttempt(sessionId, payload);
+  }
+
   return apiRequest<BackendAttemptResult>(`/api/sessions/${sessionId}/attempts`, {
     method: "POST",
     body: JSON.stringify(payload),

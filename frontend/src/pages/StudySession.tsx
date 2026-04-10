@@ -79,7 +79,19 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
     setRequestError(null);
 
     try {
-      const started = await startSession(kit.id, mode);
+      const started = await startSession(
+        kit.id,
+        mode,
+        kit.questions.map((question) => ({
+          id: question.id,
+          sourceId: kit.id,
+          prompt: question.question,
+          answer: question.answer,
+          status: 'active',
+          createdAt: '',
+          updatedAt: '',
+        })),
+      );
       setSessionId(started.session.id);
       setSessionQuestionCap(started.session.questionCap);
       setCurrentQuestion(started.currentQuestion);
