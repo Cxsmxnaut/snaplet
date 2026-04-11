@@ -1,14 +1,16 @@
-import React, {StrictMode} from 'react';
+import React, { StrictMode } from 'react';
 import {createRoot} from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import './index.css';
 import { logDebug, logError } from './lib/debug';
 
-class DebugErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean }> {
+class DebugErrorBoundary extends (React.Component as new (
+  props: { children: React.ReactNode }
+) => React.Component<{ children: React.ReactNode }, { hasError: boolean }>) {
   constructor(props: { children: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false };
+    (this as any).state = { hasError: false };
   }
 
   static getDerivedStateFromError(): { hasError: boolean } {
@@ -20,7 +22,7 @@ class DebugErrorBoundary extends React.Component<{ children: React.ReactNode }, 
   }
 
   render(): React.ReactNode {
-    if (this.state.hasError) {
+    if ((this as any).state.hasError) {
       logError('error-boundary', 'Rendering fallback after crash');
       return (
         <div style={{ padding: 24, color: 'white', background: '#100', minHeight: '100vh' }}>
@@ -30,7 +32,7 @@ class DebugErrorBoundary extends React.Component<{ children: React.ReactNode }, 
       );
     }
 
-    return this.props.children;
+    return (this as any).props.children;
   }
 }
 

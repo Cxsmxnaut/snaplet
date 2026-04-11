@@ -267,25 +267,25 @@ export const ProgressPage = ({
   );
 };
 
-const HeroMetricCard = ({
-  label,
-  value,
-  delta,
-  tone,
-}: {
+interface HeroMetricCardProps {
+  key?: string;
   label: string;
   value: string;
   delta: number;
   tone: 'primary' | 'secondary' | 'tertiary';
-}) => (
-  <div className="rounded-[24px] bg-surface px-5 py-5">
-    <p className="text-sm font-semibold text-on-surface-variant mb-2">{label}</p>
-    <div className="flex items-end justify-between gap-4">
-      <span className="text-3xl font-headline font-black text-on-surface">{value}</span>
-      <span className={cn('text-sm font-bold', toneAccent(tone), deltaClass(delta))}>{formatDelta(delta)}</span>
+}
+
+function HeroMetricCard({ label, value, delta, tone }: HeroMetricCardProps) {
+  return (
+    <div className="rounded-[24px] bg-surface px-5 py-5">
+      <p className="text-sm font-semibold text-on-surface-variant mb-2">{label}</p>
+      <div className="flex items-end justify-between gap-4">
+        <span className="text-3xl font-headline font-black text-on-surface">{value}</span>
+        <span className={cn('text-sm font-bold', toneAccent(tone), deltaClass(delta))}>{formatDelta(delta)}</span>
+      </div>
     </div>
-  </div>
-);
+  );
+}
 
 const TrendChart = ({
   data,
@@ -344,11 +344,12 @@ const ComparisonCard = ({
   </div>
 );
 
-const WeakFocusRow = ({
-  item,
-}: {
+interface WeakFocusRowProps {
+  key?: string;
   item: ProgressData['weakQuestions'][number];
-}) => {
+}
+
+function WeakFocusRow({ item }: WeakFocusRowProps) {
   const severity = item.recentErrorCount >= 2 ? 'Critical' : item.nearMissCount >= 2 ? 'Watchlist' : 'Recovering';
   const bar = Math.min(100, Math.round(item.recentErrorCount * 28 + item.nearMissCount * 14 + 18));
   const summary = item.recentErrorCount >= 2
@@ -373,37 +374,39 @@ const WeakFocusRow = ({
       </div>
     </div>
   );
-};
+}
 
-const KitBreakdownRow = ({
-  kit,
-  index,
-}: {
+interface KitBreakdownRowProps {
+  key?: string;
   kit: ProgressData['kitBreakdown'][number];
   index: number;
-}) => (
-  <div className="rounded-[24px] bg-surface-container-low px-5 py-5">
-    <div className="flex items-start justify-between gap-4 mb-4">
-      <div className="flex items-start gap-4">
-        <div className="h-9 w-9 rounded-full bg-primary-container/60 flex items-center justify-center text-sm font-black text-primary shrink-0">
-          {index + 1}
+}
+
+function KitBreakdownRow({ kit, index }: KitBreakdownRowProps) {
+  return (
+    <div className="rounded-[24px] bg-surface-container-low px-5 py-5">
+      <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="flex items-start gap-4">
+          <div className="h-9 w-9 rounded-full bg-primary-container/60 flex items-center justify-center text-sm font-black text-primary shrink-0">
+            {index + 1}
+          </div>
+          <div>
+            <p className="font-bold text-on-surface">{kit.sourceTitle}</p>
+            <p className="text-sm text-on-surface-variant mt-1">
+              {kit.attempts} attempts · {kit.sessionCount} sessions · last active {kit.lastStudiedAt ? relativeDate(kit.lastStudiedAt) : 'recently'}
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="font-bold text-on-surface">{kit.sourceTitle}</p>
-          <p className="text-sm text-on-surface-variant mt-1">
-            {kit.attempts} attempts · {kit.sessionCount} sessions · last active {kit.lastStudiedAt ? relativeDate(kit.lastStudiedAt) : 'recently'}
-          </p>
-        </div>
+        <span className={cn('text-sm font-black', deltaClass(kit.masteryDelta))}>{formatDelta(kit.masteryDelta)}</span>
       </div>
-      <span className={cn('text-sm font-black', deltaClass(kit.masteryDelta))}>{formatDelta(kit.masteryDelta)}</span>
+      <div className="grid grid-cols-3 gap-3 text-sm">
+        <MetricPill icon={<Target className="w-4 h-4" />} label="Accuracy" value={`${kit.accuracy}%`} />
+        <MetricPill icon={<ChartSpline className="w-4 h-4" />} label="Mastery" value={`${kit.mastery}%`} />
+        <MetricPill icon={<Clock3 className="w-4 h-4" />} label="Pressure" value={kit.weakPressure.toFixed(1)} />
+      </div>
     </div>
-    <div className="grid grid-cols-3 gap-3 text-sm">
-      <MetricPill icon={<Target className="w-4 h-4" />} label="Accuracy" value={`${kit.accuracy}%`} />
-      <MetricPill icon={<ChartSpline className="w-4 h-4" />} label="Mastery" value={`${kit.mastery}%`} />
-      <MetricPill icon={<Clock3 className="w-4 h-4" />} label="Pressure" value={kit.weakPressure.toFixed(1)} />
-    </div>
-  </div>
-);
+  );
+}
 
 const MetricPill = ({
   icon,
