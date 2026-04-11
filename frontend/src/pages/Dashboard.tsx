@@ -63,7 +63,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
                   <span>{recentKit?.cardCount || 0} cards</span>
                 </div>
                 <Button onClick={() => recentKit && onStudyKit(recentKit.id)} disabled={!recentKit} className="rounded-full px-8">
-                  Continue Last Session
+                  Study This Kit
                 </Button>
               </div>
               <div className="hidden md:block shrink-0">
@@ -167,7 +167,7 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
               ))}
             </ul>
             <Button variant="tertiary" className="w-full py-4" onClick={() => onTabChange?.('progress')}>
-              Review Weak Items
+              Open Progress
             </Button>
           </div>
         </div>

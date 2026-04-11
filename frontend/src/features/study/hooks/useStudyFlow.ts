@@ -33,14 +33,14 @@ export function useStudyFlow(routeMode: StudyMode | null, routeSessionId: string
   }, [routeSessionId]);
 
   const handleCompleteSession = (
-    results: { correct: number; incorrect: number; weak: SessionResult['weakQuestions'] },
+    results: { sessionId: string; correct: number; incorrect: number; weak: SessionResult['weakQuestions'] },
     options: CompleteSessionOptions,
   ) => {
     const attempts = results.correct + results.incorrect;
     const accuracy = attempts > 0 ? Math.round((results.correct / attempts) * 100) : 0;
 
     const result: SessionResult = {
-      id: Math.random().toString(36).slice(2, 10),
+      id: results.sessionId,
       kitId: options.currentKit?.id || '',
       date: new Date(),
       accuracy,

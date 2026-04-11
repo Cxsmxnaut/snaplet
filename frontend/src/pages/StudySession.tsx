@@ -19,7 +19,7 @@ import { logDebug, logError } from '../lib/debug';
 interface StudySessionProps {
   kit: Kit;
   mode: StudyMode;
-  onComplete: (results: { correct: number; incorrect: number; weak: SessionResult['weakQuestions'] }) => void;
+  onComplete: (results: { sessionId: string; correct: number; incorrect: number; weak: SessionResult['weakQuestions'] }) => void;
   onQuit: () => void;
 }
 
@@ -168,6 +168,7 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
 
       const correct = isCorrectOutcome(result.outcome);
       const nextResults = {
+        sessionId,
         correct: results.correct + (correct ? 1 : 0),
         incorrect: results.incorrect + (correct ? 0 : 1),
         weak: correct
