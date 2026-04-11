@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import Busboy from "busboy";
 import { resolveAuthContext } from "../_lib/server/auth.js";
-import { badRequest, ok, serverError } from "../_lib/server/http.js";
+import { badRequest, errorResponse, methodNotAllowed, ok } from "../_lib/server/http.js";
 import { runWithRequestContext } from "../_lib/server/request-context.js";
 import { listSourceQuestions, uploadSource } from "../_lib/server/service.js";
 import { sendWebResponse } from "../_lib/vercel-bridge.js";
@@ -156,7 +156,7 @@ function isUploadClientError(error: unknown): error is Error {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    if (req.method !== "POST") return sendWebResponse(badRequest("Method not allowed"), res);
+    if (req.method !== "POST") return sendWebResponse(methodNotAllowed(), res);
 
     const auth = await resolveAuthContext(headerOnlyRequest(req));
     const parsed = await parseUploadFile(req);
@@ -183,6 +183,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (isUploadClientError(error)) {
       return sendWebResponse(badRequest(error.message), res);
     }
-    return sendWebResponse(serverError(error), res);
+    return sendWebResponse(errorResponse(error), res);
   }
 }

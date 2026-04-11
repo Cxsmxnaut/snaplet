@@ -63,9 +63,19 @@ Priority order:
      - it does not mean every PDF/DOCX extraction quality issue has been perfected
 
 3. Normalize API response and status behavior
+   - Status: completed on 2026-04-11
    - API routes should behave consistently across create/read/update/session flows.
    - Avoid mismatched `200` vs `201` semantics, inconsistent payload shapes, and route-specific surprises.
    - Frontend expectations and backend responses should line up cleanly.
+   - Verified complete on the live app:
+     - wrong-method requests now return `405` instead of `400`
+     - malformed JSON bodies now return `400` instead of `500`
+     - missing resources like sources and sessions now return `404`
+     - state conflicts like empty-start session flows and invalid session progression now map to `409`
+     - create-style routes continue to return `201`
+   - Important scope note:
+     - this pass normalized the route-status semantics and common error classes
+     - it did not fully unify every payload envelope into one global response schema
 
 4. Remove or harden any remaining `demo_user` or fake-user fallbacks
    - Development shortcuts are acceptable only when they are explicit and isolated.

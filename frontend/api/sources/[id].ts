@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { resolveAuthContext } from "../_lib/server/auth.js";
-import { badRequest, ok, serverError } from "../_lib/server/http.js";
+import { badRequest, errorResponse, methodNotAllowed, ok } from "../_lib/server/http.js";
 import { runWithRequestContext } from "../_lib/server/request-context.js";
 import { archiveSource, getSource } from "../_lib/server/service.js";
 import { requireParam, sendWebResponse, toWebRequest } from "../_lib/vercel-bridge.js";
@@ -21,8 +21,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    return sendWebResponse(badRequest("Method not allowed"), res);
+    return sendWebResponse(methodNotAllowed(), res);
   } catch (error) {
-    return sendWebResponse(serverError(error), res);
+    return sendWebResponse(errorResponse(error), res);
   }
 }

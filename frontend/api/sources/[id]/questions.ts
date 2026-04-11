@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { resolveAuthContext } from "../../_lib/server/auth.js";
-import { badRequest, ok, serverError } from "../../_lib/server/http.js";
+import { badRequest, errorResponse, methodNotAllowed, ok } from "../../_lib/server/http.js";
 import { runWithRequestContext } from "../../_lib/server/request-context.js";
 import { createQuestionForSource, listSourceQuestions } from "../../_lib/server/service.js";
 import { requireParam, sendWebResponse, toWebRequest } from "../../_lib/vercel-bridge.js";
@@ -18,7 +18,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === "POST") {
-      const payload = (await request.json()) as { prompt?: string; answer?: string };
+      const payload = (await request.json().catch(() => null)) as { prompt?: string; answer?: string } | null;
+      if (!payload) {
+        return sendWebResponse(badRequest("Request body must be valid JSON."), res);
+      }
       if (!payload.prompt?.trim() || !payload.answer?.trim()) {
         return sendWebResponse(badRequest("Prompt and answer are required."), res);
       }
@@ -28,8 +31,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    return sendWebResponse(badRequest("Method not allowed"), res);
+    return sendWebResponse(methodNotAllowed(), res);
   } catch (error) {
-    return sendWebResponse(serverError(error), res);
+    return sendWebResponse(errorResponse(error), res);
   }
 }
