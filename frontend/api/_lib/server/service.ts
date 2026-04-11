@@ -8,6 +8,7 @@ import {
   type Session,
   type SessionQuestion,
   type StudySource,
+  type UserBucket,
 } from "../domain/types.js";
 import { mapCsvRows, parseCsv, suggestCsvMapping, toPreviewRows } from "../domain/csv.js";
 import { evaluateAnswer, isLexicalSemanticEquivalent } from "../domain/evaluation.js";
