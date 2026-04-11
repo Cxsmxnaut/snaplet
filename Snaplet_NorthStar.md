@@ -1,6 +1,6 @@
 # Snaplet North Star
 
-Last consolidated update: 2026-04-11 12:08 PDT
+Last consolidated update: 2026-04-11 13:40 PDT
 
 ## Purpose
 
@@ -78,9 +78,18 @@ Priority order:
      - it did not fully unify every payload envelope into one global response schema
 
 4. Remove or harden any remaining `demo_user` or fake-user fallbacks
+   - Status: completed on 2026-04-11
    - Development shortcuts are acceptable only when they are explicit and isolated.
    - Production and realistic local workflows should resolve real authenticated users.
    - Hidden fake-user behavior should not silently power core app logic.
+   - Verified complete on the live app:
+     - unauthenticated requests return `401`
+     - `x-snaplet-user-id` alone no longer grants access in production
+     - frontend API calls now require a real Supabase session and bearer token
+     - a newly created real Supabase user can still call authenticated routes successfully
+   - Important scope note:
+     - a dev-only header override still exists, but only when `SNAPLET_ALLOW_DEV_USER_OVERRIDE=true`
+     - that override is intended for explicit local testing only, not normal product behavior
 
 5. Improve answer checking quality and semantic acceptance
    - Snaplet should accept clearly correct answers even when phrasing differs.
@@ -406,7 +415,7 @@ frontend/api/_lib
 
 Responsibilities:
 - `domain/*` handles extraction, generation, answer evaluation, normalization, and adaptive queueing
-- `server/auth.ts` resolves auth context from bearer token and/or `x-snaplet-user-id`
+- `server/auth.ts` resolves auth context from bearer token and only allows `x-snaplet-user-id` under an explicit local dev override
 - `server/request-context.ts` provides request-scoped auth context via `AsyncLocalStorage`
 - `server/supabase-server.ts` creates backend Supabase clients
 - `server/store.ts` handles the legacy bucket persistence layer
@@ -428,13 +437,15 @@ Current frontend auth:
 Current backend auth:
 - route handlers resolve auth context per request
 - `authorization: Bearer <supabase access token>` is preferred
-- `x-snaplet-user-id` is also accepted as a convenience/testing signal
-- `resolveAuthContext()` can still fall back to `demo_user` if nothing resolves
+- unauthenticated requests now fail with `401 Authentication required`
+- `x-snaplet-user-id` is only accepted when `SNAPLET_ALLOW_DEV_USER_OVERRIDE=true` and the request is local (`localhost` / `127.0.0.1`)
+- there is no silent `demo_user` fallback anymore
 
 Important reality:
 - auth is functional in production
-- backend trust is still more permissive than a hardened multi-tenant production app
-- `demo_user` fallback still exists in backend code and should be treated as a convenience/MVP compromise, not a final security posture
+- backend auth is now materially stricter than the earlier MVP state
+- client API calls require a real Supabase session token
+- any local override is explicit and opt-in
 
 ## Persistence And Data Model
 
@@ -694,7 +705,6 @@ Known non-blocking issues:
 - `frontend/index.html` title is stale
 - `vercel dev` local wrapper is flaky in this workspace
 - frontend TypeScript linting still reports unrelated older UI typing issues in several files
-- backend auth still allows a `demo_user` fallback, which is not a hardened final auth model
 
 Known product-shape compromise:
 - app state is still split:
@@ -741,7 +751,6 @@ When working on backend/data:
 
 High-priority backend/product work:
 - [ ] decide whether to fully normalize sources/questions/sessions out of `user_states`
-- [ ] remove or harden the `demo_user` backend fallback
 - [ ] add stronger local full-stack dev flow documentation or fix `vercel dev`
 - [ ] enable leaked-password protection in Supabase Auth
 - [ ] re-run Newman/smoke tests against the current deployment

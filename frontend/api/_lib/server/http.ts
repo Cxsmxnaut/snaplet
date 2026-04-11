@@ -6,6 +6,10 @@ export function badRequest(message: string): Response {
   return Response.json({ error: message }, { status: 400 });
 }
 
+export function unauthorized(message = "Authentication required"): Response {
+  return Response.json({ error: message }, { status: 401 });
+}
+
 export function notFound(message: string): Response {
   return Response.json({ error: message }, { status: 404 });
 }
@@ -47,6 +51,10 @@ const BAD_REQUEST_PATTERNS = [
 
 export function errorResponse(error: unknown): Response {
   const message = error instanceof Error ? error.message : "Unexpected server error";
+
+  if (message.includes("Authentication required")) {
+    return unauthorized(message);
+  }
 
   if (NOT_FOUND_PATTERNS.some((pattern) => message.includes(pattern))) {
     return notFound(message);

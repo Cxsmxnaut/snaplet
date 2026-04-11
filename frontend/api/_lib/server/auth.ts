@@ -1,6 +1,5 @@
 import { createSupabaseServerClient } from "./supabase-server.js";
 
-const FALLBACK_USER_ID = "demo_user";
 const TOKEN_CACHE_TTL_MS = 5 * 60_000;
 const tokenCache = new Map<string, { userId: string; expiresAt: number }>();
 
@@ -22,9 +21,18 @@ function createSupabaseAdminClient() {
   return createSupabaseServerClient(null);
 }
 
+function allowDevUserOverride(request: Request): boolean {
+  if (process.env.SNAPLET_ALLOW_DEV_USER_OVERRIDE !== "true") {
+    return false;
+  }
+
+  const hostname = new URL(request.url).hostname;
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
 export async function resolveAuthContext(request: Request): Promise<AuthContext> {
   const headerUserId = request.headers.get("x-snaplet-user-id")?.trim();
-  if (headerUserId && headerUserId.length >= 6 && headerUserId.length <= 128) {
+  if (headerUserId && headerUserId.length >= 6 && headerUserId.length <= 128 && allowDevUserOverride(request)) {
     return {
       userId: headerUserId,
       accessToken: readBearerToken(request),
@@ -57,10 +65,7 @@ export async function resolveAuthContext(request: Request): Promise<AuthContext>
     }
   }
 
-  return {
-    userId: FALLBACK_USER_ID,
-    accessToken: null,
-  };
+  throw new Error("Authentication required");
 }
 
 export async function resolveUserId(request: Request): Promise<string> {
