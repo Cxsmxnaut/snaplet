@@ -34,10 +34,22 @@ export function mapSourceToKit(
   masteryMap: Record<string, number>,
   lastSessionMap: Record<string, number>,
 ): Kit {
+  const statusLabel =
+    source.questionGenerationStatus === 'ready'
+      ? `${source.questionCount} questions ready`
+      : source.extractionStatus === 'needs_attention'
+      ? 'extraction needs attention'
+      : source.extractionStatus === 'failed'
+      ? 'import failed'
+      : source.questionGenerationStatus;
+
   return {
     id: source.id,
     title: source.title,
-    description: `Type: ${source.kind.toUpperCase()} • ${source.questionGenerationStatus}`,
+    description: `Type: ${source.kind.toUpperCase()} • ${statusLabel}`,
+    kind: source.kind,
+    extractionStatus: source.extractionStatus,
+    questionGenerationStatus: source.questionGenerationStatus,
     questions: mapQuestions(questions),
     mastery: masteryMap[source.id] ?? 0,
     lastSession: lastSessionMap[source.id] ? new Date(lastSessionMap[source.id]) : undefined,

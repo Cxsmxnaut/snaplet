@@ -360,7 +360,8 @@ export async function uploadSource(userId: string, file: File): Promise<StudySou
       source.content = extraction.text;
       source.extractionStatus = extraction.status;
       source.updatedAt = nowIso();
-      source.questionGenerationStatus = extraction.status === "failed" ? "failed" : "pending";
+      const canAttemptGeneration = extraction.status !== "failed" && extraction.text.trim().length > 0;
+      source.questionGenerationStatus = canAttemptGeneration ? "pending" : "failed";
 
       sourceFile.extractionStatus = extraction.status;
       sourceFile.extractorMode = extraction.ocrUsed ? "ocr_fallback" : "direct";
@@ -375,7 +376,8 @@ export async function uploadSource(userId: string, file: File): Promise<StudySou
       run.durationMs = Date.now() - initial.startedAt;
     });
 
-    if (extraction.status === "ready") {
+    const canAttemptGeneration = extraction.status !== "failed" && extraction.text.trim().length > 0;
+    if (canAttemptGeneration) {
       await generateQuestionsForSource(userId, initial.sourceId);
     }
   }
