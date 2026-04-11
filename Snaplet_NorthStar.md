@@ -1,6 +1,6 @@
 # Snaplet North Star
 
-Last consolidated update: 2026-04-10 22:35 PDT
+Last consolidated update: 2026-04-11 12:08 PDT
 
 ## Purpose
 
@@ -24,6 +24,7 @@ The main product goal right now is not feature expansion. It is making Snaplet f
 Priority order:
 
 1. Perfect the core demo flow
+   - Status: completed on 2026-04-10
    - The highest-value path is:
      - paste notes or upload material
      - generate questions
@@ -32,11 +33,34 @@ Priority order:
      - complete the session
      - see meaningful progress
    - This flow should feel smooth, trustworthy, and production-grade.
+   - Verified complete on the live app:
+     - auth
+     - paste-notes generation
+     - review
+     - study mode selection
+     - live study session
+     - session completion
+     - progress update
+     - upload-to-review flow
+   - Important scope note:
+     - this means the core user-facing demo loop works end to end in production
+     - it does not mean all local-dev or backend-consistency work is finished
 
 2. Fix upload endpoint reliability and FormData parsing edge cases
+   - Status: completed on 2026-04-11
    - Upload and import need to be boringly reliable.
    - File parsing, request validation, and fallback behavior should be consistent across environments.
    - If upload is flaky, the product feels fake no matter how polished the UI is.
+   - Verified complete on the live app:
+     - valid `.txt` upload returns generated questions
+     - valid `.csv` upload returns the correct number of questions without duplication
+     - empty file upload returns a clear `400`
+     - unsupported file upload returns a clear `400`
+     - malformed non-multipart upload returns a clear `400`
+     - upload review states are truthful for `failed`, `needs_attention`, and `ready`
+   - Important scope note:
+     - this means upload parsing and user-facing import behavior are now production-safe for the supported happy path and core failure cases
+     - it does not mean every PDF/DOCX extraction quality issue has been perfected
 
 3. Normalize API response and status behavior
    - API routes should behave consistently across create/read/update/session flows.

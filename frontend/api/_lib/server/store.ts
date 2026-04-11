@@ -82,11 +82,6 @@ function getSupabaseClient(): SupabaseClient | null {
 }
 
 async function loadBucketFromSupabase(userId: string): Promise<UserBucket | null> {
-  const cached = bucketCache.get(userId);
-  if (cached) {
-    return cached;
-  }
-
   const supabase = getSupabaseClient();
   if (!supabase) {
     return null;
@@ -161,9 +156,9 @@ export async function mutateUserBucket<T>(
       const remoteState = emptyState();
       remoteState.users[userId] = remoteBucket;
       const result = await mutator(remoteBucket, remoteState);
-      bucketCache.set(userId, remoteBucket);
       const persisted = await persistBucketToSupabase(userId, remoteBucket);
       if (persisted) {
+        bucketCache.set(userId, remoteBucket);
         return result;
       }
     }

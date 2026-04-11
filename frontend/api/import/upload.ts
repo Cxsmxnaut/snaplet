@@ -8,6 +8,15 @@ import { sendWebResponse } from "../_lib/vercel-bridge.js";
 
 const ACCEPTED_EXTENSIONS = ["pdf", "docx", "txt", "md", "csv"];
 const MAX_FILE_SIZE_BYTES = 8 * 1024 * 1024;
+const UPLOAD_CLIENT_ERROR_PATTERNS = [
+  "CSV mapping could not be determined",
+  "CSV mapping is required",
+  "Unable to auto-detect delimiting character",
+  "Too many fields",
+  "Too few fields",
+  "Quoted field unterminated",
+  "FieldMismatch",
+];
 
 export const config = {
   api: {
@@ -18,7 +27,8 @@ export const config = {
 async function parseUploadFile(req: VercelRequest): Promise<{ file: File | null; error: string | null }> {
   return new Promise((resolve, reject) => {
     const contentType = req.headers["content-type"];
-    if (!contentType) {
+    const normalizedContentType = Array.isArray(contentType) ? contentType[0] : contentType;
+    if (!normalizedContentType || !normalizedContentType.toLowerCase().startsWith("multipart/form-data")) {
       resolve({ file: null, error: "Upload is missing a multipart form payload." });
       return;
     }
@@ -136,6 +146,14 @@ function headerOnlyRequest(req: VercelRequest): Request {
   });
 }
 
+function isUploadClientError(error: unknown): error is Error {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return UPLOAD_CLIENT_ERROR_PATTERNS.some((pattern) => error.message.includes(pattern));
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method !== "POST") return sendWebResponse(badRequest("Method not allowed"), res);
@@ -162,6 +180,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendWebResponse(ok({ source, questions }, 201), res);
     });
   } catch (error) {
+    if (isUploadClientError(error)) {
+      return sendWebResponse(badRequest(error.message), res);
+    }
     return sendWebResponse(serverError(error), res);
   }
 }
