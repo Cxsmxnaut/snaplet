@@ -1166,7 +1166,8 @@ export async function submitAttempt(
     const evaluation = evaluateAnswer(payload.answer, question.answer);
     const lexicalSemanticMatch =
       evaluation.outcome === "incorrect" && isLexicalSemanticEquivalent(payload.answer, question.answer);
-    const semanticResult = evaluation.outcome === "incorrect" && !lexicalSemanticMatch
+    const shouldRunModelSemanticCheck = evaluation.outcome === "incorrect" && !lexicalSemanticMatch;
+    const semanticResult = shouldRunModelSemanticCheck
       ? await semanticCheckAnswer({
           prompt: question.prompt,
           canonicalAnswer: question.answer,
@@ -1284,10 +1285,7 @@ export async function submitAttempt(
       correct_after_retry: "Correct after retry.",
       incorrect: "Incorrect. You will see this again soon.",
     };
-    const semanticUnavailable =
-      evaluation.outcome === "incorrect" &&
-      !semanticMatch &&
-      !semanticResult;
+    const semanticUnavailable = shouldRunModelSemanticCheck && !semanticMatch && !semanticResult;
     const feedback = semanticMatch
       ? (isRetry ? "Correct after retry (semantic match)." : "Correct (semantic match).")
       : semanticUnavailable && finalOutcome === "incorrect"

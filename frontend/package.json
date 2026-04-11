@@ -10,7 +10,8 @@
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "postman:init": "node ./scripts/init-postman.mjs",
-    "test:api": "node ./scripts/init-postman.mjs && newman run ./postman/Snaplet.postman_collection.json -e ./postman/Snaplet.local.postman_environment.json --reporters cli --color on"
+    "test:api": "node ./scripts/init-postman.mjs && newman run ./postman/Snaplet.postman_collection.json -e ./postman/Snaplet.local.postman_environment.json --reporters cli --color on",
+    "test:semantic-check": "node ./scripts/eval-semantic-check.mjs"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",

@@ -44,12 +44,24 @@ Core frontend/runtime variables:
 
 AI and evaluation variables:
 - `OLLAMA_API_KEY`
+- `OLLAMA_API_KEYS`
 - `OLLAMA_BASE_URL`
 - `OLLAMA_MODEL`
+- `OLLAMA_ANSWER_CHECK_MODEL`
 - `OCR_SPACE_API_KEY`
 - `ANSWER_CHECK_PROVIDERS`
 - `GROQ_API_KEYS`
 - `OPENROUTER_API_KEYS`
+- `GROQ_ANSWER_CHECK_MODEL`
+- `OPENROUTER_ANSWER_CHECK_MODEL`
+- `SEMANTIC_ANSWER_MIN_CONFIDENCE`
+- `SEMANTIC_ANSWER_TIMEOUT_MS`
+
+Semantic answer-check evaluation:
+
+```bash
+npm run test:semantic-check
+```
 
 ## Notes
 

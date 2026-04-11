@@ -92,10 +92,31 @@ Priority order:
      - that override is intended for explicit local testing only, not normal product behavior
 
 5. Improve answer checking quality and semantic acceptance
+   - Status: completed on 2026-04-11
    - Snaplet should accept clearly correct answers even when phrasing differs.
    - Overly rigid grading makes the app feel dumb.
    - Overly loose grading makes the analytics feel untrustworthy.
    - This area directly affects product credibility.
+   - Verified complete in implementation:
+     - deterministic grading and lexical-semantic rules still run first
+     - model-based semantic checking only runs when deterministic grading says the answer is wrong
+     - provider fallback chain now supports `ollama -> groq -> openrouter`
+     - key pools are supported for all three providers:
+       - `OLLAMA_API_KEYS`
+       - `GROQ_API_KEYS`
+       - `OPENROUTER_API_KEYS`
+     - answer-check model envs are independently configurable:
+       - `OLLAMA_ANSWER_CHECK_MODEL`
+       - `GROQ_ANSWER_CHECK_MODEL`
+       - `OPENROUTER_ANSWER_CHECK_MODEL`
+     - semantic answer-check benchmarking exists at `frontend/scripts/eval-semantic-check.mjs`
+   - Benchmark result from the local provider-eval dataset:
+     - Groq performed best on both accuracy and latency
+     - OpenRouter was usable but slower and slightly stricter
+     - Ollama is still first in the fallback order by user request, but local evaluation hit TLS/certificate failures against the configured endpoint
+   - Important scope note:
+     - the app is now wired for ordered provider failover and easy key expansion
+     - Groq is the current strongest answer-check provider on the measured dataset, even though Ollama remains first in the default chain
 
 6. Stabilize the full local development workflow
    - Local frontend, local API behavior, env wiring, auth expectations, and Supabase integration should be understandable and repeatable.
@@ -640,8 +661,10 @@ Variables currently known to matter:
 - `APP_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `OLLAMA_API_KEY`
+- `OLLAMA_API_KEYS`
 - `OLLAMA_BASE_URL`
 - `OLLAMA_MODEL`
+- `OLLAMA_ANSWER_CHECK_MODEL`
 - `OCR_SPACE_API_KEY`
 - `ANSWER_CHECK_PROVIDERS`
 - `GROQ_ANSWER_CHECK_MODEL`
@@ -683,6 +706,7 @@ Current local HTML note:
 Current automated verification available:
 - `npm run build` in `frontend`
 - `npm run lint` in `frontend` runs `tsc --noEmit`
+- `npm run test:semantic-check` in `frontend` benchmarks answer-check providers
 - Postman/Newman assets exist in `frontend/postman`
 
 Important current test reality:
