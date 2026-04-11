@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import Busboy from "busboy";
-import { resolveUserId } from "../_lib/server/auth.js";
+import { resolveAuthContext } from "../_lib/server/auth.js";
 import { badRequest, ok, serverError } from "../_lib/server/http.js";
+import { runWithRequestContext } from "../_lib/server/request-context.js";
 import { listSourceQuestions, uploadSource } from "../_lib/server/service.js";
 import { sendWebResponse } from "../_lib/vercel-bridge.js";
 
@@ -89,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method !== "POST") return sendWebResponse(badRequest("Method not allowed"), res);
 
-    const userId = await resolveUserId(headerOnlyRequest(req));
+    const auth = await resolveAuthContext(headerOnlyRequest(req));
     const file = await parseUploadFile(req);
 
     if (!(file instanceof File)) return sendWebResponse(badRequest("Upload is missing a file payload."), res);
@@ -102,9 +103,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendWebResponse(badRequest("File size exceeds 8MB limit."), res);
     }
 
-    const source = await uploadSource(userId, file);
-    const questions = await listSourceQuestions(userId, source.id);
-    return sendWebResponse(ok({ source, questions }, 201), res);
+    return await runWithRequestContext(auth, async () => {
+      const source = await uploadSource(auth.userId, file);
+      const questions = await listSourceQuestions(auth.userId, source.id);
+      return sendWebResponse(ok({ source, questions }, 201), res);
+    });
   } catch (error) {
     return sendWebResponse(serverError(error), res);
   }

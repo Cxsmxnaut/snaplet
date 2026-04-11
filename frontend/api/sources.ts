@@ -1,16 +1,17 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { resolveUserId } from "./_lib/server/auth.js";
+import { resolveAuthContext } from "./_lib/server/auth.js";
 import { badRequest, ok, serverError } from "./_lib/server/http.js";
+import { runWithRequestContext } from "./_lib/server/request-context.js";
 import { createPasteSource, listSourceQuestions, listSources } from "./_lib/server/service.js";
 import { sendWebResponse, toWebRequest } from "./_lib/vercel-bridge.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const request = await toWebRequest(req);
-    const userId = await resolveUserId(request);
+    const auth = await resolveAuthContext(request);
 
     if (req.method === "GET") {
-      return sendWebResponse(ok({ sources: await listSources(userId) }), res);
+      return await runWithRequestContext(auth, async () => sendWebResponse(ok({ sources: await listSources(auth.userId) }), res));
     }
 
     if (req.method === "POST") {
@@ -18,9 +19,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!payload.content || payload.content.trim().length < 8) {
         return sendWebResponse(badRequest("Paste at least a few lines of study material."), res);
       }
-      const source = await createPasteSource(userId, payload.title ?? "", payload.content);
-      const questions = await listSourceQuestions(userId, source.id);
-      return sendWebResponse(ok({ source, questions }, 201), res);
+      return await runWithRequestContext(auth, async () => {
+        const source = await createPasteSource(auth.userId, payload.title ?? "", payload.content);
+        const questions = await listSourceQuestions(auth.userId, source.id);
+        return sendWebResponse(ok({ source, questions }, 201), res);
+      });
     }
 
     return sendWebResponse(badRequest("Method not allowed"), res);

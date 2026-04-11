@@ -154,25 +154,31 @@ export async function generateQuestionPairsWithOllama(
     sourceText.slice(0, 18_000),
   ].join("\n");
 
-  const response = await fetch(`${OLLAMA_BASE_URL}/generate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OLLAMA_API_KEY ?? ""}`,
-    },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      prompt,
-      stream: false,
-    }),
-  });
+  let rawText = "";
+  try {
+    const response = await fetch(`${OLLAMA_BASE_URL}/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OLLAMA_API_KEY ?? ""}`,
+      },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        prompt,
+        stream: false,
+      }),
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as { response?: unknown };
+    rawText = typeof data.response === "string" ? data.response : "";
+  } catch {
     return null;
   }
 
-  const data = (await response.json()) as { response?: unknown };
-  const rawText = typeof data.response === "string" ? data.response : "";
   const jsonText = extractJsonObject(rawText);
   if (!jsonText) {
     return null;
@@ -217,25 +223,31 @@ export async function generateTitleWithOllama(sourceText: string): Promise<strin
     sourceText.slice(0, 12_000),
   ].join("\n");
 
-  const response = await fetch(`${OLLAMA_BASE_URL}/generate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.OLLAMA_API_KEY ?? ""}`,
-    },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      prompt,
-      stream: false,
-    }),
-  });
+  let rawText = "";
+  try {
+    const response = await fetch(`${OLLAMA_BASE_URL}/generate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.OLLAMA_API_KEY ?? ""}`,
+      },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        prompt,
+        stream: false,
+      }),
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = (await response.json()) as { response?: unknown };
+    rawText = typeof data.response === "string" ? data.response : "";
+  } catch {
     return null;
   }
 
-  const data = (await response.json()) as { response?: unknown };
-  const rawText = typeof data.response === "string" ? data.response : "";
   const jsonText = extractJsonObject(rawText);
   if (!jsonText) {
     return null;

@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { resolveUserId } from "../_lib/server/auth.js";
+import { resolveAuthContext } from "../_lib/server/auth.js";
 import { badRequest, ok, serverError } from "../_lib/server/http.js";
+import { runWithRequestContext } from "../_lib/server/request-context.js";
 import { deleteQuestions } from "../_lib/server/service.js";
 import { sendWebResponse, toWebRequest } from "../_lib/vercel-bridge.js";
 
@@ -13,8 +14,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendWebResponse(badRequest("questionIds must be a non-empty array."), res);
     }
 
-    const userId = await resolveUserId(request);
-    return sendWebResponse(ok(await deleteQuestions(userId, payload.questionIds)), res);
+    const auth = await resolveAuthContext(request);
+    return await runWithRequestContext(auth, async () => sendWebResponse(ok(await deleteQuestions(auth.userId, payload.questionIds)), res));
   } catch (error) {
     return sendWebResponse(serverError(error), res);
   }

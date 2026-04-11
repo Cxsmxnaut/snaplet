@@ -15,6 +15,14 @@ import { extractTextFromUpload } from "../domain/extraction.js";
 import { generateQuestionPairs, generateStudyTitle } from "../domain/generation.js";
 import { buildSessionQueue, pickRevisitOffset } from "../domain/queue.js";
 import { semanticCheckAnswer, semanticPassesThreshold } from "./semantic-check.js";
+import {
+  ensureAnalyticsBackfill,
+  getAnalyticsProgress,
+  syncAttemptRecord,
+  syncQuestionProgressRecord,
+  syncSessionFinal,
+  syncSessionStart,
+} from "./analytics.js";
 import { createId, mutateUserBucket, readUserBucket } from "./store.js";
 
 function nowIso(): string {
@@ -718,7 +726,7 @@ export async function startSession(
   session: Session;
   currentQuestion: Omit<SessionQuestion, "answer"> | null;
 }> {
-  return mutateUserBucket(userId, (bucket) => {
+  return mutateUserBucket(userId, async (bucket) => {
     const mode = options?.mode ?? "standard";
     const sourceId = options?.sourceId?.trim();
     const allCandidates = sourceId
@@ -821,6 +829,7 @@ export async function startSession(
     };
 
     bucket.sessions[sessionId] = session;
+    await syncSessionStart(session, sourceId ? bucket.sources[sourceId] : undefined);
 
     const current = currentSessionQuestion(session, bucket);
     return {
@@ -876,8 +885,12 @@ function addDays(date: Date, days: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
-function dayKey(iso: string): string {
-  return iso.slice(0, 10);
+function dayKey(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function formatDayLabel(date: Date): string {
@@ -1183,6 +1196,17 @@ export async function submitAttempt(
 
       const reviewState = ensureReviewState(bucket, userId, question.id);
       applyReviewUpdate(reviewState, "typo_near");
+      await syncAttemptRecord(
+        bucket.attempts[attemptId],
+        question,
+        bucket.sources[question.sourceId],
+      );
+      await syncQuestionProgressRecord(
+        userId,
+        question,
+        bucket.sources[question.sourceId],
+        reviewState,
+      );
 
       return {
         needsRetry: true,
@@ -1218,6 +1242,17 @@ export async function submitAttempt(
 
     const reviewState = ensureReviewState(bucket, userId, question.id);
     applyReviewUpdate(reviewState, finalOutcome);
+    await syncAttemptRecord(
+      bucket.attempts[attemptId],
+      question,
+      bucket.sources[question.sourceId],
+    );
+    await syncQuestionProgressRecord(
+      userId,
+      question,
+      bucket.sources[question.sourceId],
+      reviewState,
+    );
 
     if (!isCorrect(finalOutcome)) {
       const topic = topicForQuestion(bucket, question);
@@ -1230,6 +1265,13 @@ export async function submitAttempt(
     session.updatedAt = nowIso();
 
     const ended = maybeEndSession(session);
+    if (ended) {
+      await syncSessionFinal(
+        session,
+        session.sourceId ? bucket.sources[session.sourceId] : undefined,
+        Object.values(bucket.attempts).filter((attempt) => attempt.sessionId === session.id),
+      );
+    }
     const next = ended ? null : currentSessionQuestion(session, bucket);
 
     const feedbackByOutcome: Record<AttemptOutcome, string> = {
@@ -1332,7 +1374,93 @@ export async function getProgress(userId: string): Promise<{
     mode: "standard" | "focus" | "weak_review" | "fast_drill" | null;
   };
 }> {
-  return readUserBucket(userId, (bucket) => {
+  return readUserBucket(userId, async (bucket) => {
+    await ensureAnalyticsBackfill(userId, bucket);
+    const analyticsProgress = await getAnalyticsProgress(
+      userId,
+      Object.keys(bucket.sources).length,
+      Object.values(bucket.questions).filter((question) => question.status === "active").length,
+    );
+    if (analyticsProgress) {
+      return analyticsProgress;
+    }
+
+    return buildBucketProgress(bucket);
+  });
+}
+
+function buildBucketProgress(bucket: UserBucket): {
+  totals: {
+    sources: number;
+    questions: number;
+    sessions: number;
+    attempts: number;
+  };
+  outcomes: Record<AttemptOutcome, number>;
+  weakQuestions: Array<{
+    questionId: string;
+    prompt: string;
+    recentErrorCount: number;
+    nearMissCount: number;
+    sourceId: string | null;
+    sourceTitle: string | null;
+  }>;
+  recentSessions: Array<{
+    sessionId: string;
+    sourceId: string | null;
+    sourceTitle: string;
+    mode: "standard" | "focus" | "weak_review" | "fast_drill";
+    accuracy: number;
+    correctCount: number;
+    incorrectCount: number;
+    attemptCount: number;
+    durationSeconds: number;
+    completedAt: string;
+  }>;
+  timeSeries: Array<{
+    date: string;
+    label: string;
+    attempts: number;
+    sessions: number;
+    accuracy: number;
+  }>;
+  kitBreakdown: Array<{
+    sourceId: string;
+    sourceTitle: string;
+    attempts: number;
+    accuracy: number;
+    mastery: number;
+    masteryDelta: number;
+    weakPressure: number;
+    sessionCount: number;
+    lastStudiedAt: string | null;
+  }>;
+  comparisons: {
+    current: {
+      attempts: number;
+      sessions: number;
+      retention: number;
+    };
+    previous: {
+      attempts: number;
+      sessions: number;
+      retention: number;
+    };
+    deltas: {
+      attempts: number;
+      sessions: number;
+      retention: number;
+    };
+  };
+  recommendations: {
+    headline: string;
+    summary: string;
+    actionLabel: string;
+    actionType: "create_kit" | "open_kits" | "review_weak_kit";
+    sourceId: string | null;
+    mode: "standard" | "focus" | "weak_review" | "fast_drill" | null;
+  };
+} {
     const attempts = listAttempts(bucket).filter((item) => item.final);
     const completedSessions = Object.values(bucket.sessions)
       .filter((session) => session.endedAt)
@@ -1392,7 +1520,7 @@ export async function getProgress(userId: string): Promise<{
 
     const timeSeries = Array.from({ length: 14 }, (_, index) => {
       const date = addDays(today, index - 13);
-      const key = dayKey(date.toISOString());
+      const key = dayKey(date);
       const dayAttempts = attempts.filter((attempt) => dayKey(attempt.createdAt) === key);
       const daySessions = completedSessions.filter((session) => dayKey(session.endedAt ?? session.startedAt) === key);
       const correctCount = dayAttempts.filter((attempt) => isCorrect(attempt.outcome)).length;
@@ -1540,5 +1668,4 @@ export async function getProgress(userId: string): Promise<{
       },
       recommendations,
     };
-  });
 }

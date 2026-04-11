@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServerClient } from "./supabase-server.js";
 
 const FALLBACK_USER_ID = "demo_user";
 const TOKEN_CACHE_TTL_MS = 5 * 60_000;
@@ -13,28 +13,32 @@ function readBearerToken(request: Request): string | null {
   return value.slice("Bearer ".length).trim();
 }
 
+export type AuthContext = {
+  userId: string;
+  accessToken: string | null;
+};
+
 function createSupabaseAdminClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return null;
-  }
-
-  return createClient(supabaseUrl, supabaseAnonKey);
+  return createSupabaseServerClient(null);
 }
 
-export async function resolveUserId(request: Request): Promise<string> {
+export async function resolveAuthContext(request: Request): Promise<AuthContext> {
   const headerUserId = request.headers.get("x-snaplet-user-id")?.trim();
   if (headerUserId && headerUserId.length >= 6 && headerUserId.length <= 128) {
-    return headerUserId;
+    return {
+      userId: headerUserId,
+      accessToken: readBearerToken(request),
+    };
   }
 
   const token = readBearerToken(request);
   if (token) {
     const cached = tokenCache.get(token);
     if (cached && cached.expiresAt > Date.now()) {
-      return cached.userId;
+      return {
+        userId: cached.userId,
+        accessToken: token,
+      };
     }
 
     const supabase = createSupabaseAdminClient();
@@ -45,10 +49,21 @@ export async function resolveUserId(request: Request): Promise<string> {
           userId: data.user.id,
           expiresAt: Date.now() + TOKEN_CACHE_TTL_MS,
         });
-        return data.user.id;
+        return {
+          userId: data.user.id,
+          accessToken: token,
+        };
       }
     }
   }
 
-  return FALLBACK_USER_ID;
+  return {
+    userId: FALLBACK_USER_ID,
+    accessToken: null,
+  };
+}
+
+export async function resolveUserId(request: Request): Promise<string> {
+  const auth = await resolveAuthContext(request);
+  return auth.userId;
 }

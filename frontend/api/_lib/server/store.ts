@@ -1,8 +1,10 @@
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { type SupabaseClient } from "@supabase/supabase-js";
 import { type SnapletState, type UserBucket } from "../domain/types.js";
+import { getRequestContext } from "./request-context.js";
+import { createSupabaseServerClient } from "./supabase-server.js";
 
 function resolveStateDirectory(): string {
   const configured = process.env.SNAPLET_STATE_DIR?.trim();
@@ -26,7 +28,6 @@ const STATE_FILE = path.join(STATE_DIRECTORY, "state.json");
 
 let cachedState: SnapletState | null = null;
 let writeChain = Promise.resolve();
-let supabaseClient: SupabaseClient | null | undefined;
 const bucketCache = new Map<string, UserBucket>();
 
 function emptyBucket(): UserBucket {
@@ -76,25 +77,8 @@ function getBucket(state: SnapletState, userId: string): UserBucket {
 }
 
 function getSupabaseClient(): SupabaseClient | null {
-  if (supabaseClient !== undefined) {
-    return supabaseClient;
-  }
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !anonKey) {
-    supabaseClient = null;
-    return supabaseClient;
-  }
-
-  supabaseClient = createClient(url, anonKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-  return supabaseClient;
+  const accessToken = getRequestContext()?.accessToken ?? null;
+  return createSupabaseServerClient(accessToken);
 }
 
 async function loadBucketFromSupabase(userId: string): Promise<UserBucket | null> {
