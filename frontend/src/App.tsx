@@ -60,7 +60,7 @@ export default function App() {
     removeQuestionFromKit,
     updateKitStudyStats,
   } = useKitsState(route.kitId);
-  const { progress, setProgress, refreshProgress } = useProgressState();
+  const { progress, setProgress, progressLoading, progressError, refreshProgress } = useProgressState();
   const { selectedStudyMode, setSelectedStudyMode, sessionResult, handleCompleteSession } = useStudyFlow(routeMode, route.sessionId);
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -261,6 +261,17 @@ export default function App() {
     navigate(buildAppPath('study', currentKitId, null, 'weak_review'));
   };
 
+  const handleOpenRecommendedReview = (sourceId: string | null, mode: StudyMode | null) => {
+    if (!sourceId || !mode) {
+      navigateToTab('kits');
+      return;
+    }
+
+    setCurrentKitId(sourceId);
+    setSelectedStudyMode(mode);
+    navigate(buildAppPath('study', sourceId, null, mode));
+  };
+
   if (!authReady) {
     return <div className="min-h-screen flex items-center justify-center text-on-surface-variant">Checking session...</div>;
   }
@@ -321,7 +332,19 @@ export default function App() {
         />
       )}
 
-      {route.tab === 'progress' && <ProgressPage progress={progress} onRefresh={() => { void refreshProgress(); }} />}
+      {route.tab === 'progress' && (
+        <ProgressPage
+          progress={progress}
+          loading={progressLoading}
+          error={progressError}
+          onRefresh={() => {
+            void refreshProgress();
+          }}
+          onCreateKit={() => navigateToTab('create')}
+          onOpenKits={() => navigateToTab('kits')}
+          onReviewWeakKit={(sourceId, mode) => handleOpenRecommendedReview(sourceId, mode)}
+        />
+      )}
       {route.tab === 'help' && <HelpPage onCreateKit={() => navigateToTab('create')} onGoDashboard={() => navigateToTab('dashboard')} />}
       {route.tab === 'settings' && (
         <SettingsPage

@@ -808,6 +808,8 @@ export async function startSession(
     const session: Session = {
       id: sessionId,
       userId,
+      sourceId,
+      mode,
       startedAt: createdAt,
       questionCap,
       timeCapSeconds: 300,
@@ -861,6 +863,83 @@ function toClientQuestion(question: SessionQuestion | null): Omit<SessionQuestio
 
 function isCorrect(outcome: AttemptOutcome): boolean {
   return outcome === "exact" || outcome === "accent_near" || outcome === "correct_after_retry";
+}
+
+type ProgressSummaryWindow = {
+  attempts: number;
+  correct: number;
+  sessions: number;
+  retention: number;
+};
+
+function addDays(date: Date, days: number): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function dayKey(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+function formatDayLabel(date: Date): string {
+  return date.toLocaleDateString("en-US", { weekday: "short" });
+}
+
+function deriveSessionSourceId(
+  bucket: { attempts: Record<string, Attempt>; questions: Record<string, Question>; sessions: Record<string, Session> },
+  sessionId: string,
+): string | null {
+  const session = bucket.sessions[sessionId];
+  if (session?.sourceId) {
+    return session.sourceId;
+  }
+
+  const counts = new Map<string, number>();
+  for (const attempt of Object.values(bucket.attempts)) {
+    if (attempt.sessionId !== sessionId || !attempt.final) {
+      continue;
+    }
+
+    const sourceId = bucket.questions[attempt.questionId]?.sourceId;
+    if (!sourceId) {
+      continue;
+    }
+
+    counts.set(sourceId, (counts.get(sourceId) ?? 0) + 1);
+  }
+
+  let strongest: { sourceId: string; count: number } | null = null;
+  for (const [sourceId, count] of counts.entries()) {
+    if (!strongest || count > strongest.count) {
+      strongest = { sourceId, count };
+    }
+  }
+
+  return strongest?.sourceId ?? null;
+}
+
+function computeWindow(
+  attempts: Attempt[],
+  sessions: Session[],
+  startInclusive: Date,
+  endExclusive: Date,
+): ProgressSummaryWindow {
+  const filteredAttempts = attempts.filter((attempt) => {
+    const created = new Date(attempt.createdAt);
+    return created >= startInclusive && created < endExclusive;
+  });
+  const filteredSessions = sessions.filter((session) => {
+    const marker = new Date(session.endedAt ?? session.startedAt);
+    return marker >= startInclusive && marker < endExclusive;
+  });
+  const correct = filteredAttempts.filter((attempt) => isCorrect(attempt.outcome)).length;
+  const attemptsCount = filteredAttempts.length;
+
+  return {
+    attempts: attemptsCount,
+    correct,
+    sessions: filteredSessions.length,
+    retention: attemptsCount > 0 ? Math.round((correct / attemptsCount) * 100) : 0,
+  };
 }
 
 const AUTO_REVIEW_TITLE_PREFIX = "Auto Review ·";
@@ -1194,10 +1273,70 @@ export async function getProgress(userId: string): Promise<{
     prompt: string;
     recentErrorCount: number;
     nearMissCount: number;
+    sourceId: string | null;
+    sourceTitle: string | null;
   }>;
+  recentSessions: Array<{
+    sessionId: string;
+    sourceId: string | null;
+    sourceTitle: string;
+    mode: "standard" | "focus" | "weak_review" | "fast_drill";
+    accuracy: number;
+    correctCount: number;
+    incorrectCount: number;
+    attemptCount: number;
+    durationSeconds: number;
+    completedAt: string;
+  }>;
+  timeSeries: Array<{
+    date: string;
+    label: string;
+    attempts: number;
+    sessions: number;
+    accuracy: number;
+  }>;
+  kitBreakdown: Array<{
+    sourceId: string;
+    sourceTitle: string;
+    attempts: number;
+    accuracy: number;
+    mastery: number;
+    masteryDelta: number;
+    weakPressure: number;
+    sessionCount: number;
+    lastStudiedAt: string | null;
+  }>;
+  comparisons: {
+    current: {
+      attempts: number;
+      sessions: number;
+      retention: number;
+    };
+    previous: {
+      attempts: number;
+      sessions: number;
+      retention: number;
+    };
+    deltas: {
+      attempts: number;
+      sessions: number;
+      retention: number;
+    };
+  };
+  recommendations: {
+    headline: string;
+    summary: string;
+    actionLabel: string;
+    actionType: "create_kit" | "open_kits" | "review_weak_kit";
+    sourceId: string | null;
+    mode: "standard" | "focus" | "weak_review" | "fast_drill" | null;
+  };
 }> {
   return readUserBucket(userId, (bucket) => {
     const attempts = listAttempts(bucket).filter((item) => item.final);
+    const completedSessions = Object.values(bucket.sessions)
+      .filter((session) => session.endedAt)
+      .sort((a, b) => (b.endedAt ?? b.startedAt).localeCompare(a.endedAt ?? a.startedAt));
 
     const outcomes: Record<AttemptOutcome, number> = {
       exact: 0,
@@ -1220,7 +1359,155 @@ export async function getProgress(userId: string): Promise<{
         prompt: bucket.questions[reviewState.questionId]?.prompt ?? "",
         recentErrorCount: Number(reviewState.recentErrorCount.toFixed(2)),
         nearMissCount: reviewState.nearMissCount,
+        sourceId: bucket.questions[reviewState.questionId]?.sourceId ?? null,
+        sourceTitle: bucket.sources[bucket.questions[reviewState.questionId]?.sourceId ?? ""]?.title ?? null,
       }));
+
+    const recentSessions = completedSessions.slice(0, 8).map((session) => {
+      const sessionAttempts = attempts.filter((attempt) => attempt.sessionId === session.id);
+      const correctCount = sessionAttempts.filter((attempt) => isCorrect(attempt.outcome)).length;
+      const incorrectCount = sessionAttempts.length - correctCount;
+      const accuracy = sessionAttempts.length > 0 ? Math.round((correctCount / sessionAttempts.length) * 100) : 0;
+      const sourceId = deriveSessionSourceId(bucket, session.id);
+      const startedAt = new Date(session.startedAt).getTime();
+      const endedAt = new Date(session.endedAt ?? session.updatedAt).getTime();
+      return {
+        sessionId: session.id,
+        sourceId,
+        sourceTitle: sourceId ? bucket.sources[sourceId]?.title ?? "Study kit" : "Mixed review",
+        mode: session.mode ?? "standard",
+        accuracy,
+        correctCount,
+        incorrectCount,
+        attemptCount: sessionAttempts.length,
+        durationSeconds: Math.max(60, Math.round((endedAt - startedAt) / 1000)),
+        completedAt: session.endedAt ?? session.updatedAt,
+      };
+    });
+
+    const today = new Date();
+    const currentWindowStart = addDays(today, -6);
+    const previousWindowStart = addDays(today, -13);
+    const previousWindowEnd = addDays(today, -6);
+
+    const timeSeries = Array.from({ length: 14 }, (_, index) => {
+      const date = addDays(today, index - 13);
+      const key = dayKey(date.toISOString());
+      const dayAttempts = attempts.filter((attempt) => dayKey(attempt.createdAt) === key);
+      const daySessions = completedSessions.filter((session) => dayKey(session.endedAt ?? session.startedAt) === key);
+      const correctCount = dayAttempts.filter((attempt) => isCorrect(attempt.outcome)).length;
+      return {
+        date: key,
+        label: formatDayLabel(date),
+        attempts: dayAttempts.length,
+        sessions: daySessions.length,
+        accuracy: dayAttempts.length > 0 ? Math.round((correctCount / dayAttempts.length) * 100) : 0,
+      };
+    });
+
+    const currentWindow = computeWindow(attempts, completedSessions, currentWindowStart, addDays(today, 1));
+    const previousWindow = computeWindow(attempts, completedSessions, previousWindowStart, previousWindowEnd);
+
+    const sourceGroups = new Map<string, {
+      attempts: Attempt[];
+      sessionIds: Set<string>;
+      lastStudiedAt: string | null;
+      weakPressure: number;
+      mastery: number;
+      masteryDelta: number;
+    }>();
+
+    for (const source of Object.values(bucket.sources)) {
+      const sourceAttempts = attempts.filter((attempt) => bucket.questions[attempt.questionId]?.sourceId === source.id);
+      if (sourceAttempts.length === 0) {
+        continue;
+      }
+
+      const sourceQuestions = Object.values(bucket.questions).filter((question) => question.sourceId === source.id && question.status === "active");
+      const reviewStates = sourceQuestions.map((question) => bucket.reviewStates[question.id]).filter(Boolean);
+      const mastery = reviewStates.length > 0
+        ? Math.round(
+            (reviewStates.reduce((sum, state) => sum + (state.totalAttempts > 0 ? state.correctAttempts / state.totalAttempts : 0), 0) /
+              reviewStates.length) *
+              100,
+          )
+        : 0;
+      const weakPressure = reviewStates.reduce((sum, state) => sum + state.recentErrorCount + state.nearMissCount * 0.5, 0);
+      const sourceCurrent = computeWindow(
+        sourceAttempts,
+        completedSessions.filter((session) => deriveSessionSourceId(bucket, session.id) === source.id),
+        currentWindowStart,
+        addDays(today, 1),
+      );
+      const sourcePrevious = computeWindow(
+        sourceAttempts,
+        completedSessions.filter((session) => deriveSessionSourceId(bucket, session.id) === source.id),
+        previousWindowStart,
+        previousWindowEnd,
+      );
+
+      sourceGroups.set(source.id, {
+        attempts: sourceAttempts,
+        sessionIds: new Set(sourceAttempts.map((attempt) => attempt.sessionId)),
+        lastStudiedAt: sourceAttempts[sourceAttempts.length - 1]?.createdAt ?? null,
+        weakPressure: Number(weakPressure.toFixed(2)),
+        mastery,
+        masteryDelta: sourceCurrent.retention - sourcePrevious.retention,
+      });
+    }
+
+    const kitBreakdown = [...sourceGroups.entries()]
+      .map(([sourceId, entry]) => {
+        const correctCount = entry.attempts.filter((attempt) => isCorrect(attempt.outcome)).length;
+        return {
+          sourceId,
+          sourceTitle: bucket.sources[sourceId]?.title ?? "Untitled kit",
+          attempts: entry.attempts.length,
+          accuracy: entry.attempts.length > 0 ? Math.round((correctCount / entry.attempts.length) * 100) : 0,
+          mastery: entry.mastery,
+          masteryDelta: entry.masteryDelta,
+          weakPressure: entry.weakPressure,
+          sessionCount: entry.sessionIds.size,
+          lastStudiedAt: entry.lastStudiedAt,
+        };
+      })
+      .sort((a, b) => {
+        if (b.weakPressure !== a.weakPressure) return b.weakPressure - a.weakPressure;
+        if (a.accuracy !== b.accuracy) return a.accuracy - b.accuracy;
+        return b.attempts - a.attempts;
+      })
+      .slice(0, 8);
+
+    const weakestKit = kitBreakdown[0] ?? null;
+    const shouldReviewWeakKit = Boolean(weakestKit && (weakestKit.weakPressure > 0 || weakestKit.accuracy < 85));
+    const recommendations = Object.keys(bucket.sources).length === 0
+      ? {
+          headline: "Start your first signal loop",
+          summary: "Create a study kit so Snaplet can begin tracking retention, weak spots, and momentum.",
+          actionLabel: "Create your first kit",
+          actionType: "create_kit" as const,
+          sourceId: null,
+          mode: null,
+        }
+      : shouldReviewWeakKit && weakestKit
+        ? {
+            headline: `Put ${weakestKit.sourceTitle} back into rotation`,
+            summary: weakestKit.weakPressure > 2
+              ? "This kit is carrying the highest error pressure right now. A short weak-review pass should give you the biggest lift."
+              : "This kit has the most room to improve based on your recent outcomes and retained accuracy.",
+            actionLabel: "Review weak kit",
+            actionType: "review_weak_kit" as const,
+            sourceId: weakestKit.sourceId,
+            mode: "weak_review" as const,
+          }
+        : {
+            headline: "Keep the momentum going",
+            summary: "Open your study kits and run another session to build enough signal for coaching and trends.",
+            actionLabel: "Open study kits",
+            actionType: "open_kits" as const,
+            sourceId: null,
+            mode: null,
+          };
 
     return {
       totals: {
@@ -1231,6 +1518,27 @@ export async function getProgress(userId: string): Promise<{
       },
       outcomes,
       weakQuestions,
+      recentSessions,
+      timeSeries,
+      kitBreakdown,
+      comparisons: {
+        current: {
+          attempts: currentWindow.attempts,
+          sessions: currentWindow.sessions,
+          retention: currentWindow.retention,
+        },
+        previous: {
+          attempts: previousWindow.attempts,
+          sessions: previousWindow.sessions,
+          retention: previousWindow.retention,
+        },
+        deltas: {
+          attempts: currentWindow.attempts - previousWindow.attempts,
+          sessions: currentWindow.sessions - previousWindow.sessions,
+          retention: currentWindow.retention - previousWindow.retention,
+        },
+      },
+      recommendations,
     };
   });
 }

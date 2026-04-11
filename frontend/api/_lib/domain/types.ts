@@ -14,6 +14,7 @@ export type AttemptOutcome =
 export type QuestionStatus = "active" | "archived";
 
 export type QueueItemKind = "new" | "review" | "revisit";
+export type StudyMode = "standard" | "focus" | "weak_review" | "fast_drill";
 
 export interface StudySource {
   id: string;
@@ -89,6 +90,8 @@ export interface SessionQueueItem {
 export interface Session {
   id: string;
   userId: string;
+  sourceId?: string;
+  mode?: StudyMode;
   startedAt: string;
   endedAt?: string;
   questionCap: number;

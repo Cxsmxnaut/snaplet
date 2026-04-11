@@ -6,6 +6,7 @@ import { cn } from '../lib/utils';
 interface TopBarProps {
   onNavigate: (tab: string) => void;
   onLogout: () => void;
+  isSidebarCollapsed: boolean;
   userProfile: {
     displayName: string;
     email: string;
@@ -16,6 +17,7 @@ interface TopBarProps {
 export const TopBar = ({ 
   onNavigate,
   onLogout,
+  isSidebarCollapsed,
   userProfile,
 }: TopBarProps) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -47,7 +49,10 @@ export const TopBar = ({
   }, []);
 
   return (
-    <header className="fixed top-0 left-56 right-0 z-30 h-20 bg-surface/94 backdrop-blur-xl px-6 md:px-8 flex justify-end items-center gap-4">
+    <header className={cn(
+      "fixed top-0 right-0 z-30 h-20 bg-surface/94 backdrop-blur-xl px-6 md:px-8 flex justify-end items-center gap-4 transition-[left] duration-300",
+      isSidebarCollapsed ? 'left-20' : 'left-56',
+    )}>
       <div className="flex items-center gap-2 md:gap-4 min-w-0">
         <div className="flex items-center gap-1 sm:gap-3 shrink-0">
           <button

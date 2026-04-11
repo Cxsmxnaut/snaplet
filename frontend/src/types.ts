@@ -53,5 +53,62 @@ export interface ProgressData {
     prompt: string;
     recentErrorCount: number;
     nearMissCount: number;
+    sourceId: string | null;
+    sourceTitle: string | null;
   }>;
+  recentSessions: Array<{
+    sessionId: string;
+    sourceId: string | null;
+    sourceTitle: string;
+    mode: 'standard' | 'focus' | 'weak_review' | 'fast_drill';
+    accuracy: number;
+    correctCount: number;
+    incorrectCount: number;
+    attemptCount: number;
+    durationSeconds: number;
+    completedAt: string;
+  }>;
+  timeSeries: Array<{
+    date: string;
+    label: string;
+    attempts: number;
+    sessions: number;
+    accuracy: number;
+  }>;
+  kitBreakdown: Array<{
+    sourceId: string;
+    sourceTitle: string;
+    attempts: number;
+    accuracy: number;
+    mastery: number;
+    masteryDelta: number;
+    weakPressure: number;
+    sessionCount: number;
+    lastStudiedAt: string | null;
+  }>;
+  comparisons: {
+    current: {
+      attempts: number;
+      sessions: number;
+      retention: number;
+    };
+    previous: {
+      attempts: number;
+      sessions: number;
+      retention: number;
+    };
+    deltas: {
+      attempts: number;
+      sessions: number;
+      retention: number;
+    };
+  };
+  recommendations: {
+    headline: string;
+    summary: string;
+    actionLabel: string;
+    actionType: 'create_kit' | 'open_kits' | 'review_weak_kit';
+    sourceId: string | null;
+    mode: 'standard' | 'focus' | 'weak_review' | 'fast_drill' | null;
+  };
 }
