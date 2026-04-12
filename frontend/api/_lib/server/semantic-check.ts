@@ -21,6 +21,22 @@ type SemanticPayload = {
   userAnswer: string;
 };
 
+type ProviderFailureKind = "http_error" | "timeout" | "network_error" | "empty_response" | "parse_error";
+
+type ProviderAttemptFailure = {
+  provider: AnswerCheckProvider;
+  model: string;
+  kind: ProviderFailureKind;
+  latencyMs: number;
+  httpStatus?: number;
+  message?: string;
+};
+
+type ProviderAttemptResult = {
+  result: SemanticCheckResult | null;
+  failure: ProviderAttemptFailure | null;
+};
+
 type ProviderDefinition = {
   keyEnvPool: string;
   keyEnvSingle: string;
@@ -40,6 +56,55 @@ const keyRotationCursor: Record<AnswerCheckProvider, number> = {
   groq: 0,
   openrouter: 0,
 };
+
+function semanticLogMode(): "failures" | "verbose" | "silent" {
+  const raw = (process.env.SEMANTIC_ANSWER_LOGGING ?? "failures").trim().toLowerCase();
+  if (raw === "silent" || raw === "off") {
+    return "silent";
+  }
+  if (raw === "verbose") {
+    return "verbose";
+  }
+  return "failures";
+}
+
+function summarizeErrorMessage(error: unknown): string | undefined {
+  if (!(error instanceof Error)) {
+    return undefined;
+  }
+
+  return error.message.slice(0, 240);
+}
+
+function logSemanticFailure(failure: ProviderAttemptFailure): void {
+  if (semanticLogMode() === "silent") {
+    return;
+  }
+
+  console.warn("[semantic-check] provider failed", {
+    provider: failure.provider,
+    model: failure.model,
+    kind: failure.kind,
+    latencyMs: failure.latencyMs,
+    httpStatus: failure.httpStatus,
+    message: failure.message,
+  });
+}
+
+function logSemanticSuccess(result: SemanticCheckResult, recoveredAfterFallback: boolean): void {
+  if (semanticLogMode() !== "verbose" && !recoveredAfterFallback) {
+    return;
+  }
+
+  console.info("[semantic-check] provider accepted", {
+    provider: result.provider,
+    model: result.model,
+    confidence: result.confidence,
+    isCorrect: result.isCorrect,
+    latencyMs: result.latencyMs,
+    recoveredAfterFallback,
+  });
+}
 
 function clampConfidence(value: unknown): number {
   if (typeof value !== "number" || Number.isNaN(value)) {
@@ -182,10 +247,6 @@ const PROVIDERS: Record<AnswerCheckProvider, ProviderDefinition> = {
         signal,
       });
 
-      if (!response.ok) {
-        return null;
-      }
-
       const data = (await response.json()) as { response?: unknown };
       return {
         response,
@@ -215,10 +276,6 @@ const PROVIDERS: Record<AnswerCheckProvider, ProviderDefinition> = {
         }),
         signal,
       });
-
-      if (!response.ok) {
-        return null;
-      }
 
       const data = (await response.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
@@ -251,10 +308,6 @@ const PROVIDERS: Record<AnswerCheckProvider, ProviderDefinition> = {
         }),
         signal,
       });
-
-      if (!response.ok) {
-        return null;
-      }
 
       const data = (await response.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
@@ -295,34 +348,78 @@ async function requestProvider(
   provider: AnswerCheckProvider,
   apiKey: string,
   payload: SemanticPayload,
-): Promise<SemanticCheckResult | null> {
+): Promise<ProviderAttemptResult> {
   const timeoutMs = Number(process.env.SEMANTIC_ANSWER_TIMEOUT_MS ?? 2800);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const started = Date.now();
+  const definition = PROVIDERS[provider];
+  const model = providerModel(provider, definition.modelEnv, definition.defaultModel);
 
   try {
-    const definition = PROVIDERS[provider];
     const result = await definition.request(apiKey, payload, controller.signal);
     if (!result) {
-      return null;
+      return {
+        result: null,
+        failure: {
+          provider,
+          model,
+          kind: "empty_response",
+          latencyMs: Date.now() - started,
+        },
+      };
+    }
+
+    if (!result.response.ok) {
+      return {
+        result: null,
+        failure: {
+          provider,
+          model: result.model,
+          kind: "http_error",
+          latencyMs: Date.now() - started,
+          httpStatus: result.response.status,
+        },
+      };
     }
 
     const parsed = parseContentToSemantic(result.content);
     if (!parsed || typeof parsed.is_correct !== "boolean") {
-      return null;
+      return {
+        result: null,
+        failure: {
+          provider,
+          model: result.model,
+          kind: "parse_error",
+          latencyMs: Date.now() - started,
+        },
+      };
     }
 
     return {
-      isCorrect: parsed.is_correct,
-      confidence: clampConfidence(parsed.confidence),
-      reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 240) : "",
-      provider,
-      model: result.model,
-      latencyMs: Date.now() - started,
+      result: {
+        isCorrect: parsed.is_correct,
+        confidence: clampConfidence(parsed.confidence),
+        reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 240) : "",
+        provider,
+        model: result.model,
+        latencyMs: Date.now() - started,
+      },
+      failure: null,
     };
-  } catch {
-    return null;
+  } catch (error) {
+    const kind: ProviderFailureKind =
+      error instanceof Error && error.name === "AbortError" ? "timeout" : "network_error";
+    return {
+      result: null,
+      failure: {
+        provider,
+        model,
+        kind,
+        latencyMs: Date.now() - started,
+        message: summarizeErrorMessage(error),
+      },
+    };
   } finally {
     clearTimeout(timeout);
   }
@@ -335,12 +432,18 @@ export async function semanticCheckAnswer(payload: SemanticPayload): Promise<Sem
   }
 
   const providers = normalizeProviderList(process.env.ANSWER_CHECK_PROVIDERS);
+  let sawFailure = false;
   for (const provider of providers) {
     const keys = rotatedKeys(provider);
     for (const key of keys) {
-      const result = await requestProvider(provider, key, payload);
-      if (result) {
-        return result;
+      const attempt = await requestProvider(provider, key, payload);
+      if (attempt.result) {
+        logSemanticSuccess(attempt.result, sawFailure);
+        return attempt.result;
+      }
+      if (attempt.failure) {
+        sawFailure = true;
+        logSemanticFailure(attempt.failure);
       }
     }
   }

@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port=5173 --host=0.0.0.0",
+    "dev:api": "npx vercel dev --listen 3000",
+    "dev:full": "sh -c 'npx vercel dev --listen 3000 > /tmp/snaplet-vercel-dev.log 2>&1 & API_PID=$!; trap \"kill $API_PID\" EXIT; vite --port=5173 --host=0.0.0.0'",
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",

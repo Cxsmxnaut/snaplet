@@ -23,8 +23,10 @@ Run locally:
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev:full
 ```
+
+That starts the Vercel API runtime on `http://localhost:3000` and the Vite frontend on `http://localhost:5173`.
 
 The frontend runs with Vite, and the backend lives under `frontend/api` for Vercel-compatible serverless execution.
 
@@ -40,6 +42,8 @@ Important values include:
 - `VITE_SUPABASE_ANON_KEY`
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `VITE_PROXY_TARGET`
 - `OLLAMA_API_KEY`
 - `OCR_SPACE_API_KEY`
 

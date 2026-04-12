@@ -1,6 +1,6 @@
 # Snaplet North Star
 
-Last consolidated update: 2026-04-11 13:40 PDT
+Last consolidated update: 2026-04-11 21:10 PDT
 
 ## Purpose
 
@@ -119,14 +119,71 @@ Priority order:
      - Groq is the current strongest answer-check provider on the measured dataset, even though Ollama remains first in the default chain
 
 6. Stabilize the full local development workflow
+   - Status: completed
    - Local frontend, local API behavior, env wiring, auth expectations, and Supabase integration should be understandable and repeatable.
    - `vercel dev`, Vite, and API routing should not feel like separate worlds.
    - Another engineer or model should be able to boot the app locally without detective work.
+   - Completed outcome:
+     - `frontend/package.json` now provides:
+       - `npm run dev`
+       - `npm run dev:api`
+       - `npm run dev:full`
+     - `npm run dev:full` is the documented full-stack local path:
+       - `npx vercel dev --listen 3000` for the runtime/API layer
+       - Vite frontend on `http://localhost:5173`
+     - local verification confirmed:
+       - Vite serving on `5173`
+       - runtime responding on `3000`
+       - `/api/progress` returning a real `401 Authentication required` when unauthenticated instead of hanging or pretending
+     - docs were updated in:
+       - `README.md`
+       - `frontend/README.md`
+       - `frontend/.env.example`
 
 7. Finish replacing fake analytics and placeholder UX with real product behavior
+   - Status: completed
    - Progress should be driven by real persisted analytics, not decorative placeholders.
    - Empty states are fine, but fake states should not masquerade as completed product behavior.
    - Every visible button and route should either work or be clearly marked as intentionally unavailable.
+   - Completed outcome:
+     - the Progress page no longer renders preview/sample analytics data
+     - empty history now shows a truthful empty state instead of a fake populated dashboard
+     - `/api/progress` now returns:
+       - relational analytics when they exist
+       - a zeroed, truthful empty payload when they do not
+     - the old bucket-derived analytics fallback was removed from the progress route
+     - relational analytics are now the only real source of progress truth
+   - Remaining intentional disabled UX:
+     - `Delete Account (Coming Soon)` in settings remains explicitly disabled and labeled as such
+
+8. Remove stale branding and polish mismatched product copy
+   - Status: completed
+   - The app should not carry leftover naming from previous experiments or scaffolds.
+   - Completed outcome:
+     - `frontend/index.html` title now correctly reads `Snaplet`
+     - stale AI Studio env/example copy was removed from `frontend/.env.example`
+     - local run and environment docs were rewritten in Snaplet-native terms
+   - Still worth watching:
+     - continue trimming any future copied or inherited wording during normal feature work
+
+9. Harden AI provider reliability and observability
+   - Status: completed
+   - The app now supports ordered semantic-check failover, but provider reliability still needs more operational polish.
+   - Completed outcome:
+     - semantic answer checking now logs provider failures and recovery/fallback events
+     - failure kinds are distinguished:
+       - `http_error`
+       - `timeout`
+       - `network_error`
+       - `empty_response`
+       - `parse_error`
+     - Ollama generation/title requests now emit failure logs instead of silently returning `null`
+     - provider logging is configurable with:
+       - `SEMANTIC_ANSWER_LOGGING`
+       - `OLLAMA_LOGGING`
+   - Operational note:
+     - local testing previously showed Ollama TLS/certificate problems against the configured endpoint
+     - that issue is now observable in logs instead of disappearing into generic fallback behavior
 
 Working rule:
 - when choosing between adding a new feature and making one of the above more reliable, choose reliability first
@@ -671,9 +728,13 @@ Variables currently known to matter:
 - `OPENROUTER_ANSWER_CHECK_MODEL`
 - `SEMANTIC_ANSWER_MIN_CONFIDENCE`
 - `SEMANTIC_ANSWER_TIMEOUT_MS`
+- `SEMANTIC_ANSWER_LOGGING`
 - `GROQ_API_KEYS`
 - `OPENROUTER_API_KEYS`
+- `SNAPLET_ENABLE_FILE_STATE_FALLBACK`
+- `SNAPLET_ALLOW_DEV_USER_OVERRIDE`
 - `SNAPLET_STATE_DIR`
+- `OLLAMA_LOGGING`
 - `VITE_API_BASE_URL`
 - `VITE_PROXY_TARGET`
 
@@ -682,24 +743,21 @@ Current local env fact:
 
 ## Local Development Reality
 
-Current known local run modes:
+Current recommended local run modes:
 
-1. plain Vite
-- works
-- last verified on `http://localhost:3400`
+1. `npm run dev:full` from `frontend`
+- starts the runtime/API layer on `http://localhost:3000`
+- starts the Vite frontend on `http://localhost:5173`
+- this is the preferred full-stack local path now
 
-2. `vercel dev`
-- has been unreliable locally in this workspace
-- recently produced Vite import-analysis 500s against `index.html`
-- not the preferred quick UI-check path right now
+2. `npm run dev` from `frontend`
+- frontend-only or frontend-first path
+- use this when the API/runtime target is already running elsewhere
 
 Current local caveat:
-- plain Vite can serve the frontend, but `/api` proxy behavior depends on configured backend target
-- for true full-stack local verification, use either a working `vercel dev` path or an explicit API proxy target
-
-Current local HTML note:
-- `frontend/index.html` currently has the title `My Google AI Studio App`
-- this is stale branding and should be changed back to Snaplet later
+- real Supabase-backed persistence is the default expectation now
+- local file-state persistence only exists when explicitly enabled with `SNAPLET_ENABLE_FILE_STATE_FALLBACK=true`
+- browser auth should not silently fall back to local Supabase anymore; missing config now fails loudly instead of pointing at `127.0.0.1:54321`
 
 ## Testing And Verification
 
@@ -711,7 +769,8 @@ Current automated verification available:
 
 Important current test reality:
 - `npm run build` passes
-- `npm run lint` still has unrelated pre-existing frontend TypeScript issues outside the latest backend analytics work
+- `npm run lint` passes after the latest TypeScript cleanup
+- `npm run dev:full` was verified to boot Vite on `5173` and the runtime on `3000`
 
 Current meaningful runtime checks already performed:
 - source creation on local server path
@@ -722,13 +781,13 @@ Current meaningful runtime checks already performed:
 - relational analytics row creation in Supabase
 - completed session sync into `study_sessions`
 - production deploy after analytics migration
+- local runtime health check returning `401 Authentication required` on `/api/progress` when unauthenticated
 
 ## Current Known Issues
 
 Known non-blocking issues:
-- `frontend/index.html` title is stale
-- `vercel dev` local wrapper is flaky in this workspace
-- frontend TypeScript linting still reports unrelated older UI typing issues in several files
+- build still emits a large-chunk warning for the main frontend bundle
+- GitHub MCP is configured in Codex, but still does not currently have access to `Cxsmxnaut/snaplet`
 
 Known product-shape compromise:
 - app state is still split:

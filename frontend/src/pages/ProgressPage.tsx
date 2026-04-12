@@ -38,39 +38,65 @@ export const ProgressPage = ({
   }
 
   const hasHistory = progress.totals.attempts > 0;
-  const isPreviewMode = !hasHistory;
-  const displayProgress = isPreviewMode ? createPreviewProgress(progress.totals.sources > 0) : progress;
+  if (!hasHistory) {
+    return (
+      <div className="max-w-7xl mx-auto space-y-10">
+        <header className="px-1">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-3">Progress</p>
+          <h1 className="text-4xl md:text-5xl font-headline font-black tracking-tight text-on-surface">
+            Understand what is sticking and what needs another pass
+          </h1>
+          <p className="mt-3 text-on-surface-variant text-lg leading-relaxed max-w-3xl">
+            A calmer overview of your learning rhythm, retention trends, and the kits that deserve your next session.
+          </p>
+        </header>
+
+        {error ? (
+          <div className="rounded-[22px] bg-tertiary/12 px-5 py-4 text-sm text-on-surface flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <span>Progress could not refresh right now: {error}</span>
+            <Button variant="outline" className="rounded-full shrink-0" onClick={onRefresh}>
+              <RefreshCw className="w-4 h-4" />
+              Try again
+            </Button>
+          </div>
+        ) : null}
+
+        <ProgressEmptyState onCreateKit={onCreateKit} onOpenKits={onOpenKits} hasSources={progress.totals.sources > 0} />
+      </div>
+    );
+  }
+
   const heroMetrics = [
     {
       label: 'Retention',
-      value: `${displayProgress.comparisons.current.retention}%`,
-      delta: displayProgress.comparisons.deltas.retention,
+      value: `${progress.comparisons.current.retention}%`,
+      delta: progress.comparisons.deltas.retention,
       tone: 'primary',
     },
     {
       label: 'Attempts this week',
-      value: String(displayProgress.comparisons.current.attempts),
-      delta: displayProgress.comparisons.deltas.attempts,
+      value: String(progress.comparisons.current.attempts),
+      delta: progress.comparisons.deltas.attempts,
       tone: 'secondary',
     },
     {
       label: 'Sessions this week',
-      value: String(displayProgress.comparisons.current.sessions),
-      delta: displayProgress.comparisons.deltas.sessions,
+      value: String(progress.comparisons.current.sessions),
+      delta: progress.comparisons.deltas.sessions,
       tone: 'tertiary',
     },
   ] as const;
 
   const primaryAction = () => {
-    if (displayProgress.recommendations.actionType === 'create_kit') {
+    if (progress.recommendations.actionType === 'create_kit') {
       onCreateKit();
       return;
     }
-    if (displayProgress.recommendations.actionType === 'open_kits') {
+    if (progress.recommendations.actionType === 'open_kits') {
       onOpenKits();
       return;
     }
-    onReviewWeakKit(displayProgress.recommendations.sourceId, displayProgress.recommendations.mode);
+    onReviewWeakKit(progress.recommendations.sourceId, progress.recommendations.mode);
   };
 
   return (
@@ -95,22 +121,6 @@ export const ProgressPage = ({
         </div>
       ) : null}
 
-      {isPreviewMode ? (
-        <div className="rounded-[22px] bg-primary-container/35 px-5 py-4 text-sm text-on-surface flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="font-bold text-on-surface">Preview mode</p>
-            <p className="text-on-surface-variant">
-              This page is showing sample progress data so you can see the full layout before real study history comes in.
-            </p>
-          </div>
-          <div className="flex gap-3 shrink-0">
-            <Button className="rounded-full" onClick={progress.totals.sources > 0 ? onOpenKits : onCreateKit}>
-              {progress.totals.sources > 0 ? 'Open study kits' : 'Create your first kit'}
-            </Button>
-          </div>
-        </div>
-      ) : null}
-
       <>
           <section className="rounded-[32px] bg-surface overflow-hidden">
             <div className="grid lg:grid-cols-[1.25fr_0.95fr]">
@@ -120,14 +130,14 @@ export const ProgressPage = ({
                   Study coach
                 </div>
                 <h2 className="text-3xl md:text-4xl font-headline font-black tracking-tight text-on-surface mb-4">
-                  {displayProgress.recommendations.headline}
+                  {progress.recommendations.headline}
                 </h2>
                 <p className="text-on-surface-variant text-lg leading-relaxed max-w-2xl mb-8">
-                  {displayProgress.recommendations.summary}
+                  {progress.recommendations.summary}
                 </p>
                 <div className="flex flex-wrap items-center gap-3">
                   <Button className="rounded-full px-6" onClick={primaryAction}>
-                    {displayProgress.recommendations.actionLabel}
+                    {progress.recommendations.actionLabel}
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                   <Button variant="outline" className="rounded-full px-6" onClick={onRefresh}>
@@ -157,18 +167,18 @@ export const ProgressPage = ({
                 </div>
                 <div className="text-right shrink-0">
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-on-surface-variant/60 mb-1">Compared with prior week</p>
-                  <p className={cn('text-xl font-headline font-black', deltaClass(displayProgress.comparisons.deltas.retention))}>
-                    {formatDelta(displayProgress.comparisons.deltas.retention)} retention
+                  <p className={cn('text-xl font-headline font-black', deltaClass(progress.comparisons.deltas.retention))}>
+                    {formatDelta(progress.comparisons.deltas.retention)} retention
                   </p>
                 </div>
               </div>
 
-              <TrendChart data={displayProgress.timeSeries} />
+              <TrendChart data={progress.timeSeries} />
 
               <div className="mt-8 grid sm:grid-cols-3 gap-4">
-                <ComparisonCard label="Attempt volume" current={displayProgress.comparisons.current.attempts} previous={displayProgress.comparisons.previous.attempts} delta={displayProgress.comparisons.deltas.attempts} />
-                <ComparisonCard label="Session count" current={displayProgress.comparisons.current.sessions} previous={displayProgress.comparisons.previous.sessions} delta={displayProgress.comparisons.deltas.sessions} />
-                <ComparisonCard label="Retention rate" current={displayProgress.comparisons.current.retention} previous={displayProgress.comparisons.previous.retention} delta={displayProgress.comparisons.deltas.retention} unit="%" />
+                <ComparisonCard label="Attempt volume" current={progress.comparisons.current.attempts} previous={progress.comparisons.previous.attempts} delta={progress.comparisons.deltas.attempts} />
+                <ComparisonCard label="Session count" current={progress.comparisons.current.sessions} previous={progress.comparisons.previous.sessions} delta={progress.comparisons.deltas.sessions} />
+                <ComparisonCard label="Retention rate" current={progress.comparisons.current.retention} previous={progress.comparisons.previous.retention} delta={progress.comparisons.deltas.retention} unit="%" />
               </div>
             </section>
 
@@ -180,13 +190,13 @@ export const ProgressPage = ({
               </div>
 
               <div className="space-y-4">
-                {displayProgress.weakQuestions.length === 0 ? (
+                {progress.weakQuestions.length === 0 ? (
                   <div className="rounded-[24px] bg-surface-container-low px-5 py-6">
                     <p className="text-on-surface font-bold mb-2">No active weak spots right now.</p>
                     <p className="text-sm text-on-surface-variant">Keep studying to maintain the signal or open a kit for another pass.</p>
                   </div>
                 ) : (
-                  displayProgress.weakQuestions.slice(0, 4).map((item) => (
+                  progress.weakQuestions.slice(0, 4).map((item) => (
                     <WeakFocusRow key={item.questionId} item={item} />
                   ))
                 )}
@@ -201,23 +211,31 @@ export const ProgressPage = ({
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-2">Sessions</p>
                   <h2 className="text-2xl font-headline font-black text-on-surface">Recent study sessions</h2>
                 </div>
-                <span className="text-sm text-on-surface-variant">{displayProgress.recentSessions.length} recent runs</span>
+                <span className="text-sm text-on-surface-variant">{progress.recentSessions.length} recent runs</span>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[720px]">
-                  <thead>
-                    <tr className="text-left text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant/60 border-y border-outline-variant/20">
-                      <th className="px-8 py-4">Study kit</th>
-                      <th className="px-6 py-4">Mode</th>
-                      <th className="px-6 py-4 text-center">Accuracy</th>
-                      <th className="px-6 py-4 text-center">Attempts</th>
-                      <th className="px-6 py-4 text-center">Duration</th>
-                      <th className="px-8 py-4 text-right">Completed</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {displayProgress.recentSessions.map((session) => (
+              {progress.recentSessions.length === 0 ? (
+                <div className="px-8 pb-8">
+                  <div className="rounded-[24px] bg-surface-container-low px-5 py-6">
+                    <p className="text-on-surface font-bold mb-2">Completed sessions will show up here.</p>
+                    <p className="text-sm text-on-surface-variant">Once you finish a run, Snaplet will keep a table of recent outcomes, modes, and durations.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[720px]">
+                    <thead>
+                      <tr className="text-left text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant/60 border-y border-outline-variant/20">
+                        <th className="px-8 py-4">Study kit</th>
+                        <th className="px-6 py-4">Mode</th>
+                        <th className="px-6 py-4 text-center">Accuracy</th>
+                        <th className="px-6 py-4 text-center">Attempts</th>
+                        <th className="px-6 py-4 text-center">Duration</th>
+                        <th className="px-8 py-4 text-right">Completed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {progress.recentSessions.map((session) => (
                       <tr key={session.sessionId} className="border-b border-outline-variant/12 last:border-b-0">
                         <td className="px-8 py-5">
                           <div>
@@ -235,10 +253,11 @@ export const ProgressPage = ({
                         <td className="px-6 py-5 text-center text-sm text-on-surface-variant">{formatDuration(session.durationSeconds)}</td>
                         <td className="px-8 py-5 text-right text-sm text-on-surface-variant">{relativeDate(session.completedAt)}</td>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </section>
 
             <section className="rounded-[28px] bg-surface px-8 py-8">
@@ -249,13 +268,13 @@ export const ProgressPage = ({
               </div>
 
               <div className="space-y-4">
-                {displayProgress.kitBreakdown.length === 0 ? (
+                {progress.kitBreakdown.length === 0 ? (
                   <div className="rounded-[24px] bg-surface-container-low px-5 py-6">
                     <p className="text-on-surface font-bold mb-2">Kit performance will show up here soon.</p>
                     <p className="text-sm text-on-surface-variant">Complete a few runs and Snaplet will rank where the biggest gains are hiding.</p>
                   </div>
                 ) : (
-                  displayProgress.kitBreakdown.slice(0, 5).map((kit, index) => (
+                  progress.kitBreakdown.slice(0, 5).map((kit, index) => (
                     <KitBreakdownRow key={kit.sourceId} kit={kit} index={index} />
                   ))
                 )}
@@ -546,155 +565,4 @@ function formatDuration(durationSeconds: number): string {
 function relativeDate(iso: string): string {
   const date = new Date(iso);
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function createPreviewProgress(hasSources: boolean): ProgressData {
-  const now = new Date();
-  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S', 'M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  return {
-    totals: {
-      sources: hasSources ? 4 : 0,
-      questions: 86,
-      sessions: 12,
-      attempts: 73,
-    },
-    outcomes: {
-      exact: 41,
-      accent_near: 8,
-      typo_near: 7,
-      correct_after_retry: 9,
-      incorrect: 8,
-    },
-    weakQuestions: [
-      {
-        questionId: 'preview-weak-1',
-        prompt: 'Explain the role of ATP during cellular respiration.',
-        recentErrorCount: 3,
-        nearMissCount: 1,
-        sourceId: 'preview-kit-bio',
-        sourceTitle: 'Bio Midterm Review',
-      },
-      {
-        questionId: 'preview-weak-2',
-        prompt: 'Differentiate mitosis and meiosis in one sentence.',
-        recentErrorCount: 2,
-        nearMissCount: 2,
-        sourceId: 'preview-kit-bio',
-        sourceTitle: 'Bio Midterm Review',
-      },
-      {
-        questionId: 'preview-weak-3',
-        prompt: 'What triggers the fall of the Roman Republic?',
-        recentErrorCount: 1,
-        nearMissCount: 3,
-        sourceId: 'preview-kit-history',
-        sourceTitle: 'Roman History',
-      },
-    ],
-    recentSessions: [
-      {
-        sessionId: 'preview-session-1',
-        sourceId: 'preview-kit-bio',
-        sourceTitle: 'Bio Midterm Review',
-        mode: 'focus',
-        accuracy: 84,
-        correctCount: 11,
-        incorrectCount: 2,
-        attemptCount: 13,
-        durationSeconds: 840,
-        completedAt: new Date(now.getTime() - 1000 * 60 * 60 * 5).toISOString(),
-      },
-      {
-        sessionId: 'preview-session-2',
-        sourceId: 'preview-kit-history',
-        sourceTitle: 'Roman History',
-        mode: 'weak_review',
-        accuracy: 76,
-        correctCount: 13,
-        incorrectCount: 4,
-        attemptCount: 17,
-        durationSeconds: 1080,
-        completedAt: new Date(now.getTime() - 1000 * 60 * 60 * 28).toISOString(),
-      },
-      {
-        sessionId: 'preview-session-3',
-        sourceId: 'preview-kit-chem',
-        sourceTitle: 'Organic Chemistry Reactions',
-        mode: 'fast_drill',
-        accuracy: 91,
-        correctCount: 10,
-        incorrectCount: 1,
-        attemptCount: 11,
-        durationSeconds: 540,
-        completedAt: new Date(now.getTime() - 1000 * 60 * 60 * 52).toISOString(),
-      },
-    ],
-    timeSeries: days.map((label, index) => ({
-      date: `preview-${index}`,
-      label,
-      attempts: [3, 5, 4, 7, 6, 2, 0, 4, 6, 5, 8, 7, 3, 5][index],
-      sessions: [1, 1, 1, 2, 2, 1, 0, 1, 2, 1, 2, 2, 1, 1][index],
-      accuracy: [68, 71, 73, 75, 77, 74, 72, 78, 79, 81, 83, 84, 82, 86][index],
-    })),
-    kitBreakdown: [
-      {
-        sourceId: 'preview-kit-bio',
-        sourceTitle: 'Bio Midterm Review',
-        attempts: 24,
-        accuracy: 78,
-        mastery: 71,
-        masteryDelta: 6,
-        weakPressure: 8.6,
-        sessionCount: 4,
-        lastStudiedAt: new Date(now.getTime() - 1000 * 60 * 60 * 5).toISOString(),
-      },
-      {
-        sourceId: 'preview-kit-history',
-        sourceTitle: 'Roman History',
-        attempts: 19,
-        accuracy: 74,
-        mastery: 66,
-        masteryDelta: 3,
-        weakPressure: 7.9,
-        sessionCount: 3,
-        lastStudiedAt: new Date(now.getTime() - 1000 * 60 * 60 * 28).toISOString(),
-      },
-      {
-        sourceId: 'preview-kit-chem',
-        sourceTitle: 'Organic Chemistry Reactions',
-        attempts: 17,
-        accuracy: 89,
-        mastery: 82,
-        masteryDelta: 8,
-        weakPressure: 4.2,
-        sessionCount: 3,
-        lastStudiedAt: new Date(now.getTime() - 1000 * 60 * 60 * 52).toISOString(),
-      },
-    ],
-    comparisons: {
-      current: {
-        attempts: 41,
-        sessions: 7,
-        retention: 84,
-      },
-      previous: {
-        attempts: 30,
-        sessions: 5,
-        retention: 76,
-      },
-      deltas: {
-        attempts: 11,
-        sessions: 2,
-        retention: 8,
-      },
-    },
-    recommendations: {
-      headline: 'Your strongest next move is a focused pass on Bio Midterm Review',
-      summary: 'Your recent accuracy is climbing, but ATP and cell-cycle questions are still carrying the most pressure. One focused run there should tighten the whole week.',
-      actionLabel: hasSources ? 'Open weak review' : 'Create your first kit',
-      actionType: hasSources ? 'review_weak_kit' : 'create_kit',
-      sourceId: hasSources ? 'preview-kit-bio' : null,
-      mode: hasSources ? 'weak_review' : null,
-    },
-  };
 }
