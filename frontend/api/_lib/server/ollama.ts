@@ -1,6 +1,23 @@
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "https://ollama.com/api";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3.5:0.8b";
 
+function shouldLogOllamaFailures(): boolean {
+  return process.env.OLLAMA_LOGGING !== "silent";
+}
+
+function logOllamaFailure(stage: "generate_questions" | "generate_title", details: Record<string, unknown>): void {
+  if (!shouldLogOllamaFailures()) {
+    return;
+  }
+
+  console.warn("[ollama] request failed", {
+    stage,
+    baseUrl: OLLAMA_BASE_URL,
+    model: OLLAMA_MODEL,
+    ...details,
+  });
+}
+
 function hasOllamaConfig(): boolean {
   return Boolean(process.env.OLLAMA_API_KEY);
 }
@@ -170,17 +187,22 @@ export async function generateQuestionPairsWithOllama(
     });
 
     if (!response.ok) {
+      logOllamaFailure("generate_questions", { status: response.status });
       return null;
     }
 
     const data = (await response.json()) as { response?: unknown };
     rawText = typeof data.response === "string" ? data.response : "";
-  } catch {
+  } catch (error) {
+    logOllamaFailure("generate_questions", {
+      error: error instanceof Error ? error.message.slice(0, 240) : "unknown_error",
+    });
     return null;
   }
 
   const jsonText = extractJsonObject(rawText);
   if (!jsonText) {
+    logOllamaFailure("generate_questions", { error: "missing_json_object" });
     return null;
   }
 
@@ -198,7 +220,10 @@ export async function generateQuestionPairsWithOllama(
       .filter((item) => item.prompt.length > 2 && item.answer.length > 0);
 
     return pairs.length > 0 ? pairs : null;
-  } catch {
+  } catch (error) {
+    logOllamaFailure("generate_questions", {
+      error: error instanceof Error ? error.message.slice(0, 240) : "invalid_json",
+    });
     return null;
   }
 }
@@ -239,17 +264,22 @@ export async function generateTitleWithOllama(sourceText: string): Promise<strin
     });
 
     if (!response.ok) {
+      logOllamaFailure("generate_title", { status: response.status });
       return null;
     }
 
     const data = (await response.json()) as { response?: unknown };
     rawText = typeof data.response === "string" ? data.response : "";
-  } catch {
+  } catch (error) {
+    logOllamaFailure("generate_title", {
+      error: error instanceof Error ? error.message.slice(0, 240) : "unknown_error",
+    });
     return null;
   }
 
   const jsonText = extractJsonObject(rawText);
   if (!jsonText) {
+    logOllamaFailure("generate_title", { error: "missing_json_object" });
     return null;
   }
 
@@ -261,7 +291,10 @@ export async function generateTitleWithOllama(sourceText: string): Promise<strin
     }
 
     return title.slice(0, 80);
-  } catch {
+  } catch (error) {
+    logOllamaFailure("generate_title", {
+      error: error instanceof Error ? error.message.slice(0, 240) : "invalid_json",
+    });
     return null;
   }
 }

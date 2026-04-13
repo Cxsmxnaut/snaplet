@@ -25,7 +25,6 @@ const environment = {
   name: 'Snaplet Local',
   values: [
     { key: 'baseUrl', value: baseUrl, type: 'default', enabled: true },
-    { key: 'xSnapletUserId', value: process.env.SNAPLET_POSTMAN_USER_ID || 'demo_user', type: 'default', enabled: true },
     { key: 'authToken', value: process.env.SNAPLET_POSTMAN_AUTH_TOKEN || '', type: 'secret', enabled: true },
     { key: 'supabaseUrl', value: mergedEnv.NEXT_PUBLIC_SUPABASE_URL || '', type: 'default', enabled: true },
     { key: 'supabaseAnonKey', value: mergedEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY || '', type: 'secret', enabled: true },
@@ -82,7 +81,7 @@ function jsonItem(name, method, rawUrl, body, testScript, options = {}) {
       method,
       header: [
         { key: 'Content-Type', value: 'application/json' },
-        { key: 'x-snaplet-user-id', value: '{{xSnapletUserId}}' },
+        { key: 'Authorization', value: 'Bearer {{authToken}}' },
       ],
       url: {
         raw: `{{baseUrl}}${rawUrl}`,
@@ -307,7 +306,7 @@ if (payload?.source?.id) {
           ],
           request: {
             method: 'POST',
-            header: [{ key: 'x-snaplet-user-id', value: '{{xSnapletUserId}}' }],
+            header: [{ key: 'Authorization', value: 'Bearer {{authToken}}' }],
             url: {
               raw: '{{baseUrl}}/api/import/upload',
               host: ['{{baseUrl}}'],

@@ -11,6 +11,9 @@ export interface Kit {
   id: string;
   title: string;
   description: string;
+  kind: 'paste' | 'upload' | 'csv';
+  extractionStatus: 'extracting' | 'ready' | 'needs_attention' | 'failed';
+  questionGenerationStatus: 'pending' | 'generating' | 'ready' | 'failed';
   questions: Question[];
   mastery: number;
   lastSession?: Date;

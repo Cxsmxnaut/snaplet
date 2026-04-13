@@ -157,15 +157,14 @@ const EmptyLibraryState = ({
   </section>
 );
 
-const KitLibraryCard = ({
-  kit,
-  onStudy,
-  onEdit,
-}: {
+interface KitLibraryCardProps {
+  key?: string;
   kit: Kit;
   onStudy: () => void;
   onEdit: () => void;
-}) => {
+}
+
+function KitLibraryCard({ kit, onStudy, onEdit }: KitLibraryCardProps) {
   const Icon = kit.icon === 'science' ? Zap : kit.icon === 'translate' ? Book : Brain;
 
   return (
@@ -207,7 +206,7 @@ const KitLibraryCard = ({
 
       <div className="flex items-center gap-3">
         <Button onClick={onStudy} className="rounded-full px-6 flex-1">
-          Open kit
+          Study
         </Button>
         <button
           onClick={onEdit}
@@ -218,4 +217,4 @@ const KitLibraryCard = ({
       </div>
     </motion.article>
   );
-};
+}

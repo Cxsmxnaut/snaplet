@@ -35,7 +35,46 @@ export const ReviewKit = ({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [itemError, setItemError] = useState<string | null>(null);
   const mastery = Math.max(0, Math.min(100, kit.mastery));
-  const estimatedMinutes = Math.max(1, Math.round(localQuestions.length * 0.75));
+  const estimatedMinutes = localQuestions.length === 0 ? 0 : Math.max(1, Math.round(localQuestions.length * 0.75));
+  const needsAttentionUpload = kit.kind !== 'paste' && kit.extractionStatus === 'needs_attention';
+  const failedUpload = kit.kind !== 'paste' && kit.extractionStatus === 'failed';
+  const generationFailed = kit.questionGenerationStatus === 'failed';
+
+  const emptyState = (() => {
+    if (failedUpload) {
+      return {
+        label: 'Import failed',
+        title: 'We could not read enough from this file.',
+        body:
+          'This upload did not produce readable study material. Try a cleaner PDF or DOCX, upload a smaller file, or paste the text directly into a new kit.',
+      };
+    }
+
+    if (needsAttentionUpload) {
+      return {
+        label: 'Needs attention',
+        title: 'This file imported, but the extracted text looks weak.',
+        body:
+          'Snaplet pulled in some text, but it may be incomplete or noisy. You can still review what was generated, or go back and paste cleaner notes for a stronger result.',
+      };
+    }
+
+    if (generationFailed) {
+      return {
+        label: 'Generation failed',
+        title: 'No questions are ready for review yet.',
+        body:
+          'This kit has source content, but the current generation pass did not produce usable questions. Try editing the source or regenerating from clearer notes.',
+      };
+    }
+
+    return {
+      label: 'Generation needed',
+      title: 'No questions are ready for review yet.',
+      body:
+        'This kit exists, but it does not have any active questions yet. Go back to your kits, edit the source material, or regenerate from clearer notes before starting a session.',
+    };
+  })();
 
   useEffect(() => {
     setLocalQuestions(kit.questions);
@@ -102,7 +141,7 @@ export const ReviewKit = ({
             <Trash2 className="w-5 h-5" />
             Delete Kit
           </Button>
-              <Button size="lg" onClick={onStart}>
+              <Button size="lg" onClick={onStart} disabled={localQuestions.length === 0}>
             <Play className="w-5 h-5" />
             Start Study Session
               </Button>
@@ -112,9 +151,32 @@ export const ReviewKit = ({
             <div className="mt-4 rounded-xl border border-error/30 bg-error/10 p-3 text-sm text-error">{itemError}</div>
           ) : null}
 
+      {needsAttentionUpload && localQuestions.length > 0 ? (
+        <div className="rounded-2xl border border-tertiary/20 bg-tertiary/8 px-6 py-5 flex flex-col gap-2">
+          <span className="inline-flex w-fit px-3 py-1 rounded-full bg-tertiary/14 text-tertiary text-[10px] font-bold uppercase tracking-widest">
+            Needs attention
+          </span>
+          <h3 className="text-lg font-headline font-bold text-on-surface">This upload produced questions, but the extracted text may be imperfect.</h3>
+          <p className="text-sm text-on-surface-variant leading-relaxed max-w-3xl">
+            Review these questions carefully before studying. If the wording feels noisy or incomplete, go back and paste cleaner notes
+            or upload a clearer source file.
+          </p>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-6">
-          {localQuestions.map((q, i) => (
+          {localQuestions.length === 0 ? (
+            <div className="rounded-2xl bg-surface-container p-8 border border-outline-variant/10 space-y-4">
+              <span className="inline-flex px-3 py-1 rounded-full bg-tertiary/12 text-tertiary text-xs font-bold uppercase tracking-widest">
+                {emptyState.label}
+              </span>
+              <h3 className="text-2xl font-headline font-bold text-on-surface">{emptyState.title}</h3>
+              <p className="text-on-surface-variant leading-relaxed max-w-2xl">
+                {emptyState.body}
+              </p>
+            </div>
+          ) : localQuestions.map((q, i) => (
             <div key={q.id} className="group bg-surface-container rounded-2xl p-8 transition-all hover:bg-surface-container-high border border-outline-variant/5 flex flex-col md:flex-row gap-8">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-4">
@@ -203,6 +265,7 @@ export const ReviewKit = ({
               <p className="text-xs text-on-primary/70 mb-4 leading-relaxed">Feeling confident? Enable Rapid Mode to reduce display time by 40%.</p>
               <button
                 onClick={onStartRapid}
+                disabled={localQuestions.length === 0}
                 className="bg-surface/80 border border-outline-variant/20 text-on-surface text-[10px] font-bold py-2 px-4 rounded-full hover:bg-surface transition-colors"
               >
                 ENABLE NOW

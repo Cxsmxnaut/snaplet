@@ -256,9 +256,15 @@ export default function App() {
     navigate(buildAppPath('study', currentKitId, null, mode));
   };
 
-  const handleRetryWeakItems = () => {
+  const handleRetryWeakItems = (kitId: string | null = currentKitId) => {
+    if (!kitId) {
+      navigateToTab('kits');
+      return;
+    }
+
+    setCurrentKitId(kitId);
     setSelectedStudyMode('weak_review');
-    navigate(buildAppPath('study', currentKitId, null, 'weak_review'));
+    navigate(buildAppPath('study', kitId, null, 'weak_review'));
   };
 
   const handleOpenRecommendedReview = (sourceId: string | null, mode: StudyMode | null) => {
@@ -368,7 +374,7 @@ export default function App() {
               setSelectedStudyMode('fast_drill');
               navigate(buildAppPath('study', currentKit.id, null, 'fast_drill'));
             }}
-            onBack={() => navigateToTab('dashboard')}
+            onBack={() => navigateToTab('kits')}
             onDelete={() => {
               void handleDeleteKit(currentKit.id);
             }}
@@ -390,6 +396,7 @@ export default function App() {
             title="Kit Not Found"
             message="This kit is unavailable. Select another kit to continue."
             onGoBack={() => navigate('/app/dashboard')}
+            ctaLabel="Go to Home"
           />
         ))}
 
@@ -399,13 +406,14 @@ export default function App() {
             kit={currentKit}
             progress={progress}
             onStart={handleStartStudyMode}
-            onBack={() => navigateToTab('dashboard')}
+            onBack={() => navigateToTab('review', currentKit.id)}
           />
         ) : (
           <MissingState
             title="No Kit Selected"
             message="Pick a kit first, then choose your study mode."
             onGoBack={() => navigate('/app/dashboard')}
+            ctaLabel="Go to Home"
           />
         ))}
 
@@ -422,13 +430,14 @@ export default function App() {
                 onRefreshProgress: refreshProgress,
               })
             }
-            onQuit={() => navigateToTab('dashboard')}
+            onQuit={() => navigateToTab('review', currentKit.id)}
           />
         ) : (
           <MissingState
             title="Session Not Ready"
             message="We could not restore this study session. Start from your kit list."
             onGoBack={() => navigate('/app/dashboard')}
+            ctaLabel="Go to Home"
           />
         ))}
 
@@ -437,14 +446,22 @@ export default function App() {
           <SessionComplete
             result={sessionResult}
             onBack={() => navigateToTab('dashboard')}
-            onRetry={handleRetryWeakItems}
-            onNew={() => navigateToTab('create')}
+            onRetry={() => handleRetryWeakItems(sessionResult.kitId)}
+            onNew={() => {
+              if (sessionResult.kitId) {
+                setCurrentKitId(sessionResult.kitId);
+                navigateToTab('study-mode', sessionResult.kitId);
+                return;
+              }
+              navigateToTab('kits');
+            }}
           />
         ) : (
           <MissingState
             title="Session Summary Missing"
             message="This completion page expired. Start a fresh session from your dashboard."
             onGoBack={() => navigate('/app/dashboard')}
+            ctaLabel="Go to Home"
           />
         ))}
     </AppShell>

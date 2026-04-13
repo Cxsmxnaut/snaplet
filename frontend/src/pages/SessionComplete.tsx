@@ -35,11 +35,11 @@ export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompl
         <div>
           <span className="inline-block px-3 py-1 bg-secondary/10 text-secondary text-xs font-bold rounded-full mb-4 tracking-widest uppercase">Success</span>
           <h1 className="text-4xl md:text-6xl font-black text-on-surface tracking-tighter">Session Complete</h1>
-          <p className="text-on-surface-variant mt-2 text-lg">You reached today&apos;s review milestone.</p>
+          <p className="text-on-surface-variant mt-2 text-lg">Your latest review run is saved and ready to build on.</p>
         </div>
         <Button variant="outline" onClick={onBack}>
           <ArrowLeft className="w-4 h-4" />
-          Back to Dashboard
+          Back to Home
         </Button>
       </header>
 
@@ -136,13 +136,13 @@ export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompl
           <div className="bg-surface-container-low rounded-xl p-8 sticky top-28 ambient-shadow">
             <h3 className="text-xl font-bold mb-6">Next Steps</h3>
             <div className="space-y-4">
-              <Button className="w-full py-4" onClick={onRetry}>
+              <Button className="w-full py-4" onClick={onRetry} disabled={weakCount === 0}>
                 <RefreshCw className="w-5 h-5" />
                 Retry Weak Items
               </Button>
               <Button variant="outline" className="w-full py-4" onClick={onNew}>
                 <Play className="w-5 h-5" />
-                Start New Session
+                Start Another Session
               </Button>
             </div>
             <div className="mt-8 pt-8 border-t border-outline-variant/10">

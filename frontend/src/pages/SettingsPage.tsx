@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { ChevronDown, Globe, LogOut, Moon, ShieldCheck, Sun, Timer, Trash2, User } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -183,7 +183,7 @@ const SettingsSection = ({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => (
   <section>
     <p className="text-xs font-black uppercase tracking-[0.18em] text-on-surface-variant/65 mb-3">{label}</p>
@@ -267,7 +267,7 @@ const ThemePill = ({
 }: {
   active: boolean;
   onClick: () => void;
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
 }) => (
   <button
@@ -329,12 +329,12 @@ const AvatarCircle = ({
   </div>
 );
 
-const DecorativeAvatar = ({
-  gradient,
-  label,
-}: {
+interface DecorativeAvatarProps {
+  key?: string;
   gradient: string;
   label: string;
-}) => (
-  <div className={cn('h-9 w-9 rounded-full bg-gradient-to-br ring-2 ring-white', gradient)} aria-label={label} />
-);
+}
+
+function DecorativeAvatar({ gradient, label }: DecorativeAvatarProps) {
+  return <div className={cn('h-9 w-9 rounded-full bg-gradient-to-br ring-2 ring-white', gradient)} aria-label={label} />;
+}

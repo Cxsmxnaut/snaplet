@@ -100,6 +100,29 @@ export const CreateKit = ({ onGenerate, onUploadFile }: CreateKitProps) => {
     await handleUpload(nextFile);
   };
 
+  const buildGenerationContent = () => {
+    if (!description.trim()) {
+      return content;
+    }
+
+    return `Description: ${description.trim()}\n\n${content}`;
+  };
+
+  const handleGenerate = () => {
+    const resolvedContent = buildGenerationContent().trim();
+    if (!resolvedContent) {
+      return;
+    }
+
+    logDebug('create-kit', 'Generate clicked', {
+      titleLength: title.length,
+      descriptionLength: description.length,
+      contentLength: content.length,
+    });
+
+    onGenerate(title, resolvedContent);
+  };
+
   return (
     <div className="max-w-7xl mx-auto space-y-10">
       <header className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 rounded-[32px] bg-surface/82 backdrop-blur-xl border border-outline-variant/10 ambient-shadow p-8">
@@ -118,10 +141,10 @@ export const CreateKit = ({ onGenerate, onUploadFile }: CreateKitProps) => {
             className="rounded-full h-12 px-6 bg-primary-container text-primary hover:bg-primary-container/80 shadow-none text-base"
             onClick={saveDraft}
           >
-            {draftSaved ? 'Draft saved' : 'Create'}
+            {draftSaved ? 'Draft saved' : 'Save draft'}
           </Button>
-          <Button className="rounded-full h-12 px-6 text-base" onClick={() => onGenerate(title, content)} disabled={!content}>
-            Create and practice
+          <Button className="rounded-full h-12 px-6 text-base" onClick={handleGenerate} disabled={!content.trim()}>
+            Generate and review
           </Button>
         </div>
       </header>
@@ -174,19 +197,12 @@ export const CreateKit = ({ onGenerate, onUploadFile }: CreateKitProps) => {
             <div className="p-6 bg-surface-container-low/35 flex justify-end">
               <Button 
                 size="lg" 
-                onClick={() => {
-                  logDebug('create-kit', 'Generate clicked', {
-                    titleLength: title.length,
-                    descriptionLength: description.length,
-                    contentLength: content.length,
-                  });
-                  onGenerate(title, buildGenerationContent());
-                }}
-                disabled={!content}
+                onClick={handleGenerate}
+                disabled={!content.trim()}
                 className="px-10 rounded-full"
               >
                 <Sparkles className="w-5 h-5" />
-                Generate Questions
+                Generate and review
               </Button>
             </div>
           </div>
@@ -279,10 +295,3 @@ export const CreateKit = ({ onGenerate, onUploadFile }: CreateKitProps) => {
     </div>
   );
 };
-  const buildGenerationContent = () => {
-    if (!description.trim()) {
-      return content;
-    }
-
-    return `Description: ${description.trim()}\n\n${content}`;
-  };

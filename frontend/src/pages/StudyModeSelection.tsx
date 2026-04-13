@@ -151,8 +151,8 @@ export const StudyModeSelection = ({ kit, progress, onStart, onBack }: StudyMode
               <Brain className="w-5 h-5" />
             </div>
             <div>
-              <p className="font-bold text-on-surface">Not sure how to study?</p>
-              <p className="text-sm text-on-surface-variant">Open AI assistant suggestions (optional)</p>
+              <p className="font-bold text-on-surface">Need a recommendation?</p>
+              <p className="text-sm text-on-surface-variant">Open Snaplet's suggested study mode</p>
             </div>
           </div>
           <ChevronDown className={cn("w-5 h-5 text-on-surface-variant transition-transform", showAssistant && "rotate-180")} />

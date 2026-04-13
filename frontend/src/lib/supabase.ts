@@ -24,14 +24,15 @@ function normalizeSupabaseUrl(value: string): string {
 
 const supabaseUrl = normalizeSupabaseUrl(import.meta.env.VITE_SUPABASE_URL ?? '');
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
+const hasSupabaseBrowserConfig = Boolean(supabaseUrl && supabaseAnonKey);
 
-if (!supabaseUrl || !supabaseAnonKey) {
+if (!hasSupabaseBrowserConfig) {
   logError('supabase', 'Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY');
 }
 
 export const supabase = createClient(
-  supabaseUrl || 'http://127.0.0.1:54321',
-  supabaseAnonKey || 'missing-anon-key',
+  hasSupabaseBrowserConfig ? supabaseUrl : 'https://missing-project.invalid',
+  hasSupabaseBrowserConfig ? supabaseAnonKey : 'missing-anon-key',
   {
     auth: {
       persistSession: true,
@@ -40,3 +41,5 @@ export const supabase = createClient(
     },
   },
 );
+
+export { hasSupabaseBrowserConfig };

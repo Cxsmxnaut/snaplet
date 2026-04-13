@@ -151,7 +151,6 @@ export type BackendAttemptResult = {
   } | null;
 };
 
-const USER_KEY = "snaplet_backend_user_id";
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "");
 const SOURCE_CACHE_KEY = "snaplet_backend_sources_cache_v1";
 const QUESTION_CACHE_KEY = "snaplet_backend_questions_cache_v1";
@@ -362,17 +361,6 @@ function submitLocalAttempt(
   };
 }
 
-function getUserId(): string {
-  const existing = window.localStorage.getItem(USER_KEY);
-  if (existing) {
-    return existing;
-  }
-
-  const next = `usr_${crypto.randomUUID()}`;
-  window.localStorage.setItem(USER_KEY, next);
-  return next;
-}
-
 async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const startedAt = performance.now();
   const headers = new Headers(init?.headers ?? {});
@@ -380,10 +368,11 @@ async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
     data: { session },
   } = await supabase.auth.getSession();
 
-  headers.set("x-snaplet-user-id", session?.user?.id ?? getUserId());
-  if (session?.access_token) {
-    headers.set("authorization", `Bearer ${session.access_token}`);
+  if (!session?.access_token || !session.user?.id) {
+    throw new Error('Please sign in to continue.');
   }
+
+  headers.set("authorization", `Bearer ${session.access_token}`);
 
   if (!(init?.body instanceof FormData) && !headers.has("content-type")) {
     headers.set("content-type", "application/json");

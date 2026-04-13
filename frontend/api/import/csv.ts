@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { resolveAuthContext } from "../_lib/server/auth.js";
-import { badRequest, ok, serverError } from "../_lib/server/http.js";
+import { badRequest, errorResponse, methodNotAllowed, ok } from "../_lib/server/http.js";
 import { runWithRequestContext } from "../_lib/server/request-context.js";
 import { importCsvFromText, previewCsv } from "../_lib/server/service.js";
 import { sendWebResponse, toWebRequest } from "../_lib/vercel-bridge.js";
@@ -15,11 +15,14 @@ interface CsvRequest {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
-    if (req.method !== "POST") return sendWebResponse(badRequest("Method not allowed"), res);
+    if (req.method !== "POST") return sendWebResponse(methodNotAllowed(), res);
 
     const request = await toWebRequest(req);
     const auth = await resolveAuthContext(request);
-    const body = (await request.json()) as CsvRequest;
+    const body = (await request.json().catch(() => null)) as CsvRequest | null;
+    if (!body) {
+      return sendWebResponse(badRequest("Request body must be valid JSON."), res);
+    }
 
     if (!body.csvText || body.csvText.trim().length === 0) {
       return sendWebResponse(badRequest("CSV text is required."), res);
@@ -34,6 +37,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       async () => sendWebResponse(ok({ source: await importCsvFromText(auth.userId, body.title ?? "CSV Import", body.csvText, body.mapping) }, 201), res),
     );
   } catch (error) {
-    return sendWebResponse(serverError(error), res);
+    return sendWebResponse(errorResponse(error), res);
   }
 }
