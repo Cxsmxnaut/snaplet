@@ -1,5 +1,6 @@
 import { type ReactNode, useMemo, useState } from 'react';
 import { ChevronDown, ExternalLink, Globe, LogOut, Moon, ShieldCheck, Sparkles, Sun, Timer, Trash2, User } from 'lucide-react';
+import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { loadAvatarPreset, saveAvatarPreset } from '../features/auth/services/profilePreferences';
 import ToggleSwitch from '../components/ui/toggle-switch';
@@ -319,7 +320,7 @@ const ThemeSelect = ({
   value: ThemeMode;
   onChange: (value: ThemeMode) => void;
 }) => (
-  <div className="flex items-center rounded-full bg-surface-container-low p-1">
+  <div className="flex items-center rounded-full bg-surface-container-low p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
     <ThemePill active={value === 'light'} onClick={() => onChange('light')} icon={<Sun className="w-4 h-4" />} label="Light" />
     <ThemePill active={value === 'dark'} onClick={() => onChange('dark')} icon={<Moon className="w-4 h-4" />} label="Dark" />
   </div>
@@ -340,12 +341,26 @@ const ThemePill = ({
     type="button"
     onClick={onClick}
     className={cn(
-      'h-10 rounded-full px-4 inline-flex items-center gap-2 text-sm font-bold transition-colors',
-      active ? 'bg-surface text-on-surface' : 'text-on-surface-variant'
+      'relative h-10 min-w-[92px] rounded-full px-4 inline-flex items-center justify-center gap-2 text-sm font-bold transition-colors duration-300',
+      active ? 'text-on-surface' : 'text-on-surface-variant hover:text-on-surface'
     )}
   >
-    {icon}
-    {label}
+    {active ? (
+      <motion.span
+        layoutId="settings-theme-pill"
+        className="absolute inset-0 rounded-full bg-surface ambient-shadow"
+        transition={{
+          type: 'spring',
+          stiffness: 380,
+          damping: 30,
+          mass: 0.8,
+        }}
+      />
+    ) : null}
+    <span className="relative z-10 inline-flex items-center gap-2">
+      {icon}
+      {label}
+    </span>
   </button>
 );
 
