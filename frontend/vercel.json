@@ -1,14 +1,16 @@
 {
   "routes": [
+    { "src": "/api/questions/bulk", "dest": "/api/questions/[id].ts?id=bulk" },
     { "src": "/api/questions/([^/]+)", "dest": "/api/questions/[id].ts?id=$1" },
+    { "src": "/api/sessions/([^/]+)/attempts", "dest": "/api/sessions/[id].ts?id=$1&action=attempts" },
     { "src": "/api/sessions/([^/]+)", "dest": "/api/sessions/[id].ts?id=$1" },
-    { "src": "/api/sessions/([^/]+)/attempts", "dest": "/api/sessions/[id]/attempts.ts?id=$1" },
     { "src": "/api/shared/([^/]+)", "dest": "/api/shared/[id].ts?id=$1" },
-    { "src": "/api/sources/([^/]+)/active-session", "dest": "/api/sources/[id]/active-session.ts?id=$1" },
-    { "src": "/api/sources/([^/]+)/questions", "dest": "/api/sources/[id]/questions.ts?id=$1" },
-    { "src": "/api/sources/([^/]+)/duplicate", "dest": "/api/sources/[id]/duplicate.ts?id=$1" },
-    { "src": "/api/sources/([^/]+)/generate", "dest": "/api/sources/[id]/generate.ts?id=$1" },
+    { "src": "/api/sources/([^/]+)/active-session", "dest": "/api/sources/[id].ts?id=$1&action=active-session" },
+    { "src": "/api/sources/([^/]+)/questions", "dest": "/api/sources/[id].ts?id=$1&action=questions" },
+    { "src": "/api/sources/([^/]+)/duplicate", "dest": "/api/sources/[id].ts?id=$1&action=duplicate" },
+    { "src": "/api/sources/([^/]+)/generate", "dest": "/api/sources/[id].ts?id=$1&action=generate" },
     { "src": "/api/sources/([^/]+)", "dest": "/api/sources/[id].ts?id=$1" },
+    { "src": "/api/import/csv", "dest": "/api/import/upload.ts?action=csv" },
     { "handle": "filesystem" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]

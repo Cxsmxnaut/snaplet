@@ -2,6 +2,7 @@ import { type ReactNode, useMemo, useState } from 'react';
 import { ChevronDown, ExternalLink, Globe, LogOut, Moon, ShieldCheck, Sparkles, Sun, Timer, Trash2, User } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { loadAvatarPreset, saveAvatarPreset } from '../features/auth/services/profilePreferences';
+import ToggleSwitch from '../components/ui/toggle-switch';
 
 type ThemeMode = 'dark' | 'light';
 
@@ -303,26 +304,11 @@ const ToggleRow = ({
   withDivider?: boolean;
 }) => (
   <div className={cn('px-6 py-5 flex items-center justify-between gap-6', withDivider && 'border-b border-outline-variant/35')}>
-    <div>
+    <div className="min-w-0 flex-1">
       <p className="text-sm font-bold text-on-surface">{label}</p>
       <p className="text-sm text-on-surface-variant">{description}</p>
     </div>
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      aria-pressed={checked}
-      className={cn(
-        'relative h-7 w-12 rounded-full transition-colors shrink-0',
-        checked ? 'bg-primary' : 'bg-surface-container-high'
-      )}
-    >
-      <span
-        className={cn(
-          'absolute top-1 h-5 w-5 rounded-full bg-white transition-transform',
-          checked ? 'translate-x-6' : 'translate-x-1'
-        )}
-      />
-    </button>
+    <ToggleSwitch checked={checked} onCheckedChange={onChange} className="shrink-0 text-transparent" />
   </div>
 );
 
