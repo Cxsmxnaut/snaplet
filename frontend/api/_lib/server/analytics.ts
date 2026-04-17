@@ -97,6 +97,10 @@ type AnalyticsSessionRow = {
   correct_count: number;
   incorrect_count: number;
   accuracy: number;
+  time_cap_seconds: number;
+  pointer: number;
+  pending_retry_question_id: string | null;
+  queue: Session["queue"];
   created_at: string;
   updated_at: string;
 };
@@ -219,6 +223,10 @@ function mapSessionRow(session: Session, source: StudySource | undefined, attemp
     correct_count: correctCount,
     incorrect_count: incorrectCount,
     accuracy: attemptCount > 0 ? Math.round((correctCount / attemptCount) * 100) : 0,
+    time_cap_seconds: session.timeCapSeconds,
+    pointer: session.pointer,
+    pending_retry_question_id: session.pendingRetryQuestionId ?? null,
+    queue: session.queue,
     created_at: session.createdAt,
     updated_at: session.updatedAt,
   };

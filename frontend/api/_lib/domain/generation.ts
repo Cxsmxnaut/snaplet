@@ -1,4 +1,10 @@
-import { generateQuestionPairsWithOllama, generateTitleWithOllama } from "../server/ollama.js";
+import { generateQuestionPairsWithProviderMetadata, generateTitleWithProviders } from "../server/generation-providers.js";
+
+export type QuestionGenerationResult = {
+  pairs: Array<{ prompt: string; answer: string }>;
+  provenance: "provider" | "heuristic";
+  provider: string | null;
+};
 
 function linePairs(text: string): Array<{ prompt: string; answer: string }> {
   return text
@@ -48,19 +54,25 @@ function sentencePairs(text: string): Array<{ prompt: string; answer: string }> 
   });
 }
 
-export async function generateQuestionPairs(
-  sourceText: string,
-): Promise<Array<{ prompt: string; answer: string }>> {
-  const ollamaPairs = await generateQuestionPairsWithOllama(sourceText);
-  if (ollamaPairs && ollamaPairs.length > 0) {
-    return ollamaPairs.slice(0, 20);
+export async function generateQuestionPairs(sourceText: string): Promise<QuestionGenerationResult> {
+  const providerResult = await generateQuestionPairsWithProviderMetadata(sourceText);
+  if (providerResult.pairs && providerResult.pairs.length > 0) {
+    return {
+      pairs: providerResult.pairs.slice(0, 24),
+      provenance: "provider",
+      provider: providerResult.provider,
+    };
   }
 
   const heuristicPairs = [...linePairs(sourceText), ...sentencePairs(sourceText)]
     .filter((pair) => pair.answer.length > 1)
     .slice(0, 20);
 
-  return heuristicPairs;
+  return {
+    pairs: heuristicPairs,
+    provenance: "heuristic",
+    provider: providerResult.provider,
+  };
 }
 
 function fallbackTitle(sourceText: string): string {
@@ -93,9 +105,9 @@ function fallbackTitle(sourceText: string): string {
 }
 
 export async function generateStudyTitle(sourceText: string): Promise<string> {
-  const ollamaTitle = await generateTitleWithOllama(sourceText);
-  if (ollamaTitle) {
-    return ollamaTitle;
+  const generatedTitle = await generateTitleWithProviders(sourceText);
+  if (generatedTitle) {
+    return generatedTitle;
   }
 
   return fallbackTitle(sourceText);

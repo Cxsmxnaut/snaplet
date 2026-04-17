@@ -1,7 +1,10 @@
 import { ReactNode, useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { UserProfile } from '../features/auth/hooks/useAuthSession';
+import { ProgressData } from '../types';
+import { pageTransition } from '../lib/motion';
 
 type AppShellProps = {
   hideShell: boolean;
@@ -9,7 +12,9 @@ type AppShellProps = {
   onTabChange: (tab: string) => void;
   onLogout: () => void;
   userProfile: UserProfile;
+  progress: ProgressData | null;
   error: string | null;
+  routeKey: string;
   children: ReactNode;
 };
 
@@ -19,7 +24,9 @@ export function AppShell({
   onTabChange,
   onLogout,
   userProfile,
+  progress,
   error,
+  routeKey,
   children,
 }: AppShellProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -52,12 +59,35 @@ export function AppShell({
             onLogout={onLogout}
             userProfile={userProfile}
             isSidebarCollapsed={isSidebarCollapsed}
+            progress={progress}
           />
         )}
 
         <div className={!hideShell ? 'relative pt-24 pb-16 px-8 lg:px-12' : ''}>
-          {error ? <div className="mb-6 rounded-2xl border border-error/20 bg-error-container/90 px-4 py-3 text-sm text-on-error-container ambient-shadow">{error}</div> : null}
-          {children}
+          <AnimatePresence initial={false}>
+            {error ? (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                className="mb-6 rounded-2xl border border-error/20 bg-error-container/90 px-4 py-3 text-sm text-on-error-container ambient-shadow"
+              >
+                {error}
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={routeKey}
+              initial={pageTransition.initial}
+              animate={pageTransition.animate}
+              exit={pageTransition.exit}
+              transition={pageTransition.transition}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>

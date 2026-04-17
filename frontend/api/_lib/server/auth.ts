@@ -17,10 +17,6 @@ export type AuthContext = {
   accessToken: string | null;
 };
 
-function createSupabaseAdminClient() {
-  return createSupabaseServerClient(null);
-}
-
 function allowDevUserOverride(request: Request): boolean {
   if (process.env.SNAPLET_ALLOW_DEV_USER_OVERRIDE !== "true") {
     return false;
@@ -49,7 +45,7 @@ export async function resolveAuthContext(request: Request): Promise<AuthContext>
       };
     }
 
-    const supabase = createSupabaseAdminClient();
+    const supabase = createSupabaseServerClient(token);
     if (supabase) {
       const { data } = await supabase.auth.getUser(token);
       if (data.user?.id) {
@@ -71,4 +67,16 @@ export async function resolveAuthContext(request: Request): Promise<AuthContext>
 export async function resolveUserId(request: Request): Promise<string> {
   const auth = await resolveAuthContext(request);
   return auth.userId;
+}
+
+export async function resolveOptionalAuthContext(request: Request): Promise<AuthContext | null> {
+  try {
+    return await resolveAuthContext(request);
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Authentication required")) {
+      return null;
+    }
+
+    throw error;
+  }
 }

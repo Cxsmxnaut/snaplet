@@ -14,7 +14,8 @@ const mergedEnv = { ...frontendEnv, ...rootEnv };
 
 const baseUrl = (
   process.env.SNAPLET_POSTMAN_BASE_URL ||
-  mergedEnv.NEXT_PUBLIC_SITE_URL ||
+  mergedEnv.VITE_API_BASE_URL ||
+  mergedEnv.VITE_PROXY_TARGET ||
   mergedEnv.APP_URL ||
   'http://localhost:3000'
 ).replace(/\/$/, '');

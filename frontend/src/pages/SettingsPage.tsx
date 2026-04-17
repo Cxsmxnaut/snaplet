@@ -1,11 +1,12 @@
-import { type ReactNode, useState } from 'react';
-import { ChevronDown, Globe, LogOut, Moon, ShieldCheck, Sun, Timer, Trash2, User } from 'lucide-react';
+import { type ReactNode, useMemo, useState } from 'react';
+import { ChevronDown, ExternalLink, Globe, LogOut, Moon, ShieldCheck, Sparkles, Sun, Timer, Trash2, User } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { loadAvatarPreset, saveAvatarPreset } from '../features/auth/services/profilePreferences';
 
 type ThemeMode = 'dark' | 'light';
 
 const AVATAR_SWATCHES = [
-  'from-[#4255FF] to-[#7A88FF]',
+  'from-[#63AD9E] to-[#BEEBE0]',
   'from-[#FFB95F] to-[#FFD98B]',
   'from-[#4EDEA3] to-[#8BEAC2]',
   'from-[#D78BFF] to-[#F0B8FF]',
@@ -35,6 +36,10 @@ export const SettingsPage = ({
   const [studyUpdates, setStudyUpdates] = useState(() => window.localStorage.getItem('snaplet_notify_study_updates') !== 'false');
   const [reviewReminders, setReviewReminders] = useState(() => window.localStorage.getItem('snaplet_notify_review_reminders') !== 'false');
   const [privateProfile, setPrivateProfile] = useState(() => window.localStorage.getItem('snaplet_private_profile') === 'true');
+  const [selectedAvatarPreset, setSelectedAvatarPreset] = useState<string | null>(() => loadAvatarPreset());
+  const [showUpgradeSheet, setShowUpgradeSheet] = useState(false);
+
+  const visibleAvatar = useMemo(() => userProfile.avatarUrl ?? null, [userProfile.avatarUrl]);
 
   const setSessionLengthAndPersist = (value: number) => {
     setSessionLength(value);
@@ -56,6 +61,11 @@ export const SettingsPage = ({
     window.localStorage.setItem('snaplet_private_profile', String(value));
   };
 
+  const handleSelectAvatar = (gradient: string | null) => {
+    setSelectedAvatarPreset(gradient);
+    saveAvatarPreset(gradient);
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-1 pb-12">
       <header className="mb-10">
@@ -68,7 +78,10 @@ export const SettingsPage = ({
           <p className="text-xs font-black uppercase tracking-[0.18em] text-white/65 mb-2">Subscription</p>
           <p className="text-2xl font-headline font-black tracking-tight">Level up your study flow</p>
         </div>
-        <button className="h-11 rounded-full bg-[#FFCD3C] px-5 text-sm font-black text-[#241A00] shrink-0">
+        <button
+          onClick={() => setShowUpgradeSheet(true)}
+          className="h-11 rounded-full bg-[#FFCD3C] px-5 text-sm font-black text-[#241A00] shrink-0"
+        >
           Upgrade now
         </button>
       </section>
@@ -79,20 +92,37 @@ export const SettingsPage = ({
             <div className="mb-4">
               <p className="text-sm font-bold text-on-surface mb-3">Profile picture</p>
               <div className="flex flex-wrap items-center gap-3">
-                <AvatarCircle image={userProfile.avatarUrl} initials={userProfile.displayName.slice(0, 1)} large />
+                <AvatarCircle
+                  image={visibleAvatar}
+                  avatarPreset={selectedAvatarPreset}
+                  initials={userProfile.displayName.slice(0, 1)}
+                  large
+                />
                 {AVATAR_SWATCHES.map((gradient, index) => (
-                  <DecorativeAvatar key={gradient} gradient={gradient} label={`Preset avatar ${index + 1}`} />
+                  <DecorativeAvatar
+                    key={gradient}
+                    gradient={gradient}
+                    label={`Preset avatar ${index + 1}`}
+                    selected={selectedAvatarPreset === gradient}
+                    onClick={() => handleSelectAvatar(gradient)}
+                  />
                 ))}
                 <button
                   type="button"
-                  className="h-10 w-10 rounded-full border border-outline-variant/40 bg-surface text-on-surface-variant text-xl font-light"
-                  title="Profile images are managed by your sign-in provider"
+                  onClick={() => handleSelectAvatar(null)}
+                  className={cn(
+                    "h-10 w-10 rounded-full border bg-surface text-on-surface-variant text-xl font-light transition-colors",
+                    selectedAvatarPreset === null ? 'border-primary text-primary' : 'border-outline-variant/40'
+                  )}
+                  title="Use your provider photo or initials"
                 >
                   +
                 </button>
               </div>
             </div>
-            <p className="text-sm text-on-surface-variant">Profile photos and account identity are managed by your sign-in provider.</p>
+            <p className="text-sm text-on-surface-variant">
+              Choose a local Snaplet avatar style or fall back to your sign-in provider photo.
+            </p>
           </div>
 
           <SettingRow label="Name" value={userProfile.displayName} meta="Provider-managed" />
@@ -157,15 +187,15 @@ export const SettingsPage = ({
           <div className="px-6 py-5 flex items-center justify-between gap-6">
             <div>
               <p className="text-sm font-bold text-on-surface">Delete account</p>
-              <p className="text-sm text-on-surface-variant">This workflow is not available yet, so the action stays disabled.</p>
+              <p className="text-sm text-on-surface-variant">This opens a real support request so we can complete account deletion safely.</p>
             </div>
-            <button
-              disabled
-              className="h-10 rounded-full bg-error/12 px-4 text-sm font-bold text-error/55 inline-flex items-center gap-2 cursor-not-allowed"
+            <a
+              href="mailto:support@snaplet.app?subject=Delete%20my%20Snaplet%20account"
+              className="h-10 rounded-full bg-error/12 px-4 text-sm font-bold text-error inline-flex items-center gap-2"
             >
               <Trash2 className="w-4 h-4" />
               Delete account
-            </button>
+            </a>
           </div>
         </SettingsSection>
 
@@ -174,6 +204,56 @@ export const SettingsPage = ({
           <span>Your preferences are stored safely and theme choices stay local to this device.</span>
         </div>
       </div>
+
+      {showUpgradeSheet ? (
+        <div className="fixed inset-0 z-50 bg-on-surface/35 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-xl rounded-[30px] bg-surface p-8 ambient-shadow border border-outline-variant/10">
+            <div className="flex items-start justify-between gap-4 mb-6">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-2">Snaplet Plus</p>
+                <h2 className="text-3xl font-headline font-black tracking-tight text-on-surface">Join the early upgrade list</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowUpgradeSheet(false)}
+                className="h-10 w-10 rounded-full bg-surface-container-low text-on-surface-variant"
+                aria-label="Close upgrade details"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="grid gap-3 mb-8">
+              <UpgradeBullet icon={<Sparkles className="w-4 h-4" />} title="Priority model access" body="Use the fastest and strongest generation providers by default." />
+              <UpgradeBullet icon={<Globe className="w-4 h-4" />} title="Public sharing" body="Publish your strongest kits to read-only public share pages." />
+              <UpgradeBullet icon={<Timer className="w-4 h-4" />} title="Longer sessions" body="Unlock longer defaults and more advanced review controls." />
+            </div>
+
+            <div className="rounded-[22px] bg-surface-container-low p-5 mb-8">
+              <p className="text-sm text-on-surface-variant leading-relaxed">
+                Billing is not live yet, but the upgrade path is real now: this opens a direct request so we can invite you when Plus is ready.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <a
+                href="mailto:support@snaplet.app?subject=Snaplet%20Plus%20early%20access"
+                className="flex-1 h-12 rounded-full gradient-primary text-on-primary font-bold inline-flex items-center justify-center gap-2"
+              >
+                Request early access
+                <ExternalLink className="w-4 h-4" />
+              </a>
+              <button
+                type="button"
+                onClick={() => setShowUpgradeSheet(false)}
+                className="h-12 px-6 rounded-full bg-surface-container-low text-on-surface font-bold"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -307,10 +387,12 @@ const SessionLengthSelect = ({
 
 const AvatarCircle = ({
   image,
+  avatarPreset,
   initials,
   large = false,
 }: {
   image: string | null;
+  avatarPreset: string | null;
   initials: string;
   large?: boolean;
 }) => (
@@ -322,6 +404,8 @@ const AvatarCircle = ({
   >
     {image ? (
       <img src={image} alt="Profile avatar" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+    ) : avatarPreset ? (
+      <div className={cn('h-full w-full bg-gradient-to-br', avatarPreset)} />
     ) : (
       <User className={cn('text-primary', large ? 'w-7 h-7' : 'w-4 h-4')} />
     )}
@@ -333,8 +417,43 @@ interface DecorativeAvatarProps {
   key?: string;
   gradient: string;
   label: string;
+  selected: boolean;
+  onClick: () => void;
 }
 
-function DecorativeAvatar({ gradient, label }: DecorativeAvatarProps) {
-  return <div className={cn('h-9 w-9 rounded-full bg-gradient-to-br ring-2 ring-white', gradient)} aria-label={label} />;
+function DecorativeAvatar({ gradient, label, selected, onClick }: DecorativeAvatarProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={cn(
+        'h-9 w-9 rounded-full bg-gradient-to-br ring-2 transition-transform hover:scale-105',
+        gradient,
+        selected ? 'ring-primary ring-offset-2 ring-offset-white' : 'ring-white'
+      )}
+    />
+  );
+}
+
+function UpgradeBullet({
+  icon,
+  title,
+  body,
+}: {
+  icon: ReactNode;
+  title: string;
+  body: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-[20px] bg-surface-container-low p-4">
+      <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0">
+        {icon}
+      </div>
+      <div>
+        <p className="text-sm font-bold text-on-surface">{title}</p>
+        <p className="text-sm text-on-surface-variant leading-relaxed">{body}</p>
+      </div>
+    </div>
+  );
 }

@@ -17,11 +17,15 @@ snaplet/
 
 Prerequisites:
 - Node.js
+- a linked Vercel project in `frontend/.vercel/project.json`
+- a real `frontend/.env.local` copied from `frontend/.env.example`
 
 Run locally:
 
 ```bash
 cd frontend
+cp .env.example .env.local
+npx vercel link
 npm install
 npm run dev:full
 ```
@@ -32,10 +36,10 @@ The frontend runs with Vite, and the backend lives under `frontend/api` for Verc
 
 ## Environment
 
-Key local environment variables live in:
-- `.env.local`
-- `frontend/.env.local`
-- `frontend/.env.example`
+Canonical local runtime env files:
+- `frontend/.env.example` is the template
+- `frontend/.env.local` is the real local runtime file
+- root `.env.local` is optional local-only override state and is not required for normal setup
 
 Important values include:
 - `VITE_SUPABASE_URL`
@@ -54,12 +58,21 @@ Newman/Postman assets live in `frontend/postman`.
 Useful commands:
 
 ```bash
-PATH="$PWD/.tools/bin:$PATH" ./frontend/scripts/run-newman.sh
+cd frontend
+npm run dev:api
 ```
 
 ```bash
-PATH="$PWD/.tools/bin:$PATH" ./.tools/bin/npm --prefix frontend run test:api
+cd frontend
+export SNAPLET_POSTMAN_AUTH_TOKEN="YOUR_SUPABASE_ACCESS_TOKEN"
+npm run test:api
 ```
+
+`npm run test:api` now exits with a clear message if:
+- `frontend/.env.local` is missing
+- the Vercel project is not linked
+- `SNAPLET_POSTMAN_AUTH_TOKEN` is missing
+- the API target is unreachable
 
 ## Deployment
 

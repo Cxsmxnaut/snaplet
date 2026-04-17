@@ -23,8 +23,8 @@ export const HelpPage = ({ onCreateKit, onGoDashboard }: { onCreateKit: () => vo
         />
         <ActionCard
           icon={<Wrench className="w-5 h-5" />}
-          title="Reset Stuck Session"
-          description="If session startup fails, return to Home and start the kit again from there."
+          title="Recover a Session"
+          description="If a session fails to open, go back to the kit and reopen it from there. Active runs can be resumed."
           cta="Go to Home"
           onClick={onGoDashboard}
         />

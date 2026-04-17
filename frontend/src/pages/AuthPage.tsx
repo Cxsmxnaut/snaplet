@@ -1,12 +1,13 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../components/Button';
-import { Apple, Bolt, Lock, User } from 'lucide-react';
+import { Apple, Bolt, Lock, Mail } from 'lucide-react';
+import { trackProductEvent } from '../lib/api';
 import { supabase } from '../lib/supabase';
 import { logDebug, logError } from '../lib/debug';
 
 export const AuthPage = () => {
-  const [identifier, setIdentifier] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authMode, setAuthMode] = useState<'signup' | 'login'>('login');
   const [pending, setPending] = useState<null | 'google' | 'apple' | 'magic'>(null);
@@ -14,15 +15,17 @@ export const AuthPage = () => {
   const [error, setError] = useState<string | null>(null);
   const configuredRedirect = (import.meta.env.VITE_SUPABASE_REDIRECT_URL ?? '').trim();
 
-  const toSupabaseEmail = (value: string): string => {
-    const trimmed = value.trim().toLowerCase();
-    if (trimmed.includes('@')) {
-      return trimmed;
-    }
+  const normalizeEmail = (value: string): string => value.trim().toLowerCase();
 
-    // Username mode: map to deterministic internal email key.
-    return `${trimmed}@snaplet.local`;
-  };
+  const isValidEmail = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
+
+  useEffect(() => {
+    void trackProductEvent('auth_viewed', {
+      properties: {
+        surface: 'auth_page',
+      },
+    });
+  }, []);
 
   const startOAuth = async (provider: 'google' | 'apple') => {
     setPending(provider);
@@ -38,6 +41,11 @@ export const AuthPage = () => {
       redirectTarget,
       configuredRedirect: normalizedConfiguredRedirect || null,
       currentOrigin: normalizedOrigin,
+    });
+    void trackProductEvent('auth_oauth_started', {
+      properties: {
+        provider,
+      },
     });
 
     const { data: oauthData, error: oauthError } = await supabase.auth.signInWithOAuth({
@@ -74,9 +82,9 @@ export const AuthPage = () => {
   };
 
   const handleResetPassword = async () => {
-    const email = identifier.trim();
-    if (!email.includes('@')) {
-      setError('Enter your email address first to reset your password.');
+    const normalizedEmail = normalizeEmail(email);
+    if (!isValidEmail(normalizedEmail)) {
+      setError('Enter the email address you signed up with to reset your password.');
       setMessage(null);
       return;
     }
@@ -89,7 +97,7 @@ export const AuthPage = () => {
     const normalizedOrigin = window.location.origin.replace(/\/+$/, '');
     const redirectTarget = normalizedConfiguredRedirect ? `${normalizedConfiguredRedirect}/auth` : `${normalizedOrigin}/auth`;
 
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(normalizedEmail, {
       redirectTo: redirectTarget,
     });
 
@@ -100,63 +108,61 @@ export const AuthPage = () => {
       return;
     }
 
+    void trackProductEvent('auth_reset_requested', {
+      properties: {
+        method: 'password_reset',
+      },
+    });
     setMessage('Password reset email sent. Check your inbox for the reset link.');
   };
 
   const handlePasswordAuth = async (event: FormEvent) => {
     event.preventDefault();
-    if (!identifier.trim() || !password) {
-      setError('Username/email and password are required.');
+    if (!email.trim() || !password) {
+      setError('Email and password are required.');
+      return;
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    if (!isValidEmail(normalizedEmail)) {
+      setError('Enter a valid email address.');
       return;
     }
 
     setPending('magic');
     setMessage(null);
     setError(null);
+    void trackProductEvent('auth_password_submitted', {
+      properties: {
+        mode: authMode,
+      },
+    });
 
-    const email = toSupabaseEmail(identifier);
     if (authMode === 'login') {
       const signInResult = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
 
       if (!signInResult.error) {
-        logDebug('auth', 'Signed in with password', { email });
+        logDebug('auth', 'Signed in with password', { email: normalizedEmail });
+        void trackProductEvent('auth_signed_in', {
+          properties: {
+            method: 'password',
+          },
+        });
         setPending(null);
         return;
       }
 
-      logDebug('auth', 'Sign-in failed, trying auto-signup', {
-        reason: signInResult.error.message,
-        email,
-      });
-
-      const signUpResult = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
       setPending(null);
-
-      if (signUpResult.error) {
-        logError('auth', 'Auto-signup failed after sign-in failure', signUpResult.error);
-        setError('Sign in failed. Check your password or try a different identifier.');
-        return;
-      }
-
-      if (signUpResult.data.session) {
-        logDebug('auth', 'Auto-signup succeeded with session', { email });
-        return;
-      }
-
-      logDebug('auth', 'Auto-signup created account but needs confirmation', { email });
-      setMessage('Account created. Please confirm your email before signing in.');
+      logError('auth', 'Sign-in failed', signInResult.error);
+      setError(signInResult.error.message || 'Sign in failed. Check your email and password.');
       return;
     }
 
     const signUpResult = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
     });
 
@@ -169,11 +175,23 @@ export const AuthPage = () => {
     }
 
     if (signUpResult.data.session) {
-      logDebug('auth', 'Sign-up succeeded with session', { email });
+      logDebug('auth', 'Sign-up succeeded with session', { email: normalizedEmail });
+      void trackProductEvent('auth_signed_up', {
+        properties: {
+          method: 'password',
+          immediateSession: true,
+        },
+      });
       return;
     }
 
-    setMessage('Account created. Please confirm your email before signing in.');
+    void trackProductEvent('auth_signed_up', {
+      properties: {
+        method: 'password',
+        immediateSession: false,
+      },
+    });
+    setMessage('Account created. Check your email to confirm your account before signing in.');
   };
 
   return (
@@ -317,11 +335,13 @@ export const AuthPage = () => {
             <div className="space-y-2">
               <label className="block text-sm font-bold text-on-surface-variant">Email</label>
               <div className="relative">
-                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 w-5 h-5" />
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 w-5 h-5" />
                 <input 
-                  type="text"
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@university.edu"
                   className="w-full bg-surface-container-low border border-outline-variant/25 py-4 pl-12 pr-4 rounded-xl text-on-surface placeholder:text-on-surface-variant/35 focus:ring-4 focus:ring-primary/5 focus:border-primary/40 focus:bg-surface transition-all text-sm font-medium"
                 />
@@ -330,9 +350,11 @@ export const AuthPage = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="block text-sm font-bold text-on-surface-variant">Password</label>
-                <button type="button" onClick={() => { void handleResetPassword(); }} className="text-sm font-semibold text-primary">
-                  {pending === 'magic' ? 'Sending...' : 'Forgot password'}
-                </button>
+                {authMode === 'login' ? (
+                  <button type="button" onClick={() => { void handleResetPassword(); }} className="text-sm font-semibold text-primary">
+                    {pending === 'magic' ? 'Sending...' : 'Forgot password'}
+                  </button>
+                ) : null}
               </div>
               <div className="relative">
                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/50 w-5 h-5" />

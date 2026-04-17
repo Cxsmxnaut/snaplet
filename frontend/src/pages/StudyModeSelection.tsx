@@ -2,13 +2,16 @@ import { useMemo, useState } from "react";
 import { Brain, ChevronDown, Rabbit, ShieldAlert, Sparkles, Target } from "lucide-react";
 import { Button } from "../components/Button";
 import { Kit, ProgressData } from "../types";
-import { StudyMode } from "../lib/api";
+import { BackendActiveSourceSession, StudyMode } from "../lib/api";
 import { cn } from "../lib/utils";
 
 interface StudyModeSelectionProps {
   kit: Kit;
   progress: ProgressData | null;
   onStart: (mode: StudyMode) => void;
+  activeSession: BackendActiveSourceSession | null;
+  activeSessionLoading: boolean;
+  onResumeSession: (session: BackendActiveSourceSession) => void;
   onBack: () => void;
 }
 
@@ -95,7 +98,15 @@ function getModeSuggestion(progress: ProgressData | null): {
   };
 }
 
-export const StudyModeSelection = ({ kit, progress, onStart, onBack }: StudyModeSelectionProps) => {
+export const StudyModeSelection = ({
+  kit,
+  progress,
+  onStart,
+  activeSession,
+  activeSessionLoading,
+  onResumeSession,
+  onBack,
+}: StudyModeSelectionProps) => {
   const [showAssistant, setShowAssistant] = useState(false);
   const assistant = useMemo(() => getModeSuggestion(progress), [progress]);
 
@@ -110,6 +121,30 @@ export const StudyModeSelection = ({ kit, progress, onStart, onBack }: StudyMode
           Pick a mode in one click. Your session starts immediately.
         </p>
       </header>
+
+      {activeSession ? (
+        <section className="rounded-2xl p-5 border border-primary/20 bg-primary/8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.18em] font-black text-primary mb-2">Resume available</p>
+            <h2 className="text-xl font-headline font-black text-on-surface">You already have an active session for this kit.</h2>
+            <p className="text-sm text-on-surface-variant mt-2">
+              {activeSession.answeredCount} answered of {activeSession.questionCap}
+              {activeSession.currentPosition ? ` • next question ${activeSession.currentPosition}` : ''}
+              {activeSession.pendingRetry ? ' • retry waiting' : ''} • mode {MODE_CARDS.find((mode) => mode.id === activeSession.mode)?.label ?? activeSession.mode}
+            </p>
+            <p className="text-xs text-on-surface-variant mt-2">
+              Resume this run to continue the same server-backed session. Use the mode cards below only if you want to start a fresh one.
+            </p>
+          </div>
+          <Button className="shrink-0" onClick={() => onResumeSession(activeSession)}>
+            Resume Current Session
+          </Button>
+        </section>
+      ) : activeSessionLoading ? (
+        <section className="rounded-2xl p-5 border border-outline-variant/20 bg-surface-container-low text-sm text-on-surface-variant">
+          Checking for an in-progress session...
+        </section>
+      ) : null}
 
       <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {MODE_CARDS.map((mode) => {

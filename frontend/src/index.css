@@ -15,15 +15,17 @@
   --color-surface-bright: #ffffff;
 
   --color-primary: #4255ff;
-  --color-primary-strong: #2a3bff;
-  --color-primary-container: #e0e2ff;
+  --color-primary-strong: #3145ea;
+  --color-primary-container: #e7ebff;
   --color-on-primary: #ffffff;
-  --color-on-primary-container: #000966;
+  --color-on-primary-container: #1d2e8f;
+  --color-primary-foreground: var(--color-on-primary);
 
   --color-secondary: #4edea3;
   --color-on-secondary: #003824;
   --color-secondary-container: #cbfbe4;
   --color-on-secondary-container: #002114;
+  --color-secondary-foreground: var(--color-on-secondary);
 
   --color-tertiary: #ffb95f;
   --color-on-tertiary: #472a00;
@@ -33,11 +35,18 @@
   --color-on-error: #ffffff;
   --color-error-container: #ffdad6;
   --color-on-error-container: #93000a;
+  --color-destructive: var(--color-error);
+  --color-destructive-foreground: var(--color-on-error);
 
   --color-on-surface: #282e3e;
   --color-on-surface-variant: #586380;
   --color-outline: #282e3e;
   --color-outline-variant: #d9dee9;
+  --color-muted-foreground: var(--color-on-surface-variant);
+  --color-accent: #eff3f8;
+  --color-accent-foreground: var(--color-on-surface);
+  --color-input: var(--color-outline-variant);
+  --color-ring: var(--color-primary);
   --color-scheme: light;
   --surface-stack-start: #ffffff;
   --surface-stack-end: #fbfcff;
@@ -57,16 +66,18 @@
   --color-surface-container-highest: #313d59;
   --color-surface-bright: #364361;
 
-  --color-primary: #c0c1ff;
-  --color-primary-strong: #8083ff;
-  --color-primary-container: #8083ff;
-  --color-on-primary: #1000a9;
-  --color-on-primary-container: #0d0096;
+  --color-primary: #b7e7dd;
+  --color-primary-strong: #84cfc1;
+  --color-primary-container: #2f665d;
+  --color-on-primary: #173732;
+  --color-on-primary-container: #def6f0;
+  --color-primary-foreground: var(--color-on-primary);
 
   --color-secondary: #4edea3;
   --color-on-secondary: #003824;
   --color-secondary-container: #0f3b2f;
   --color-on-secondary-container: #cbfbe4;
+  --color-secondary-foreground: var(--color-on-secondary);
 
   --color-tertiary: #ffb95f;
   --color-on-tertiary: #472a00;
@@ -76,11 +87,18 @@
   --color-on-error: #690005;
   --color-error-container: #93000a;
   --color-on-error-container: #ffdad6;
+  --color-destructive: var(--color-error);
+  --color-destructive-foreground: var(--color-on-error);
 
   --color-on-surface: #dae2fd;
   --color-on-surface-variant: #c7c4d7;
   --color-outline: #dae2fd;
   --color-outline-variant: #55607d;
+  --color-muted-foreground: var(--color-on-surface-variant);
+  --color-accent: #1f2a44;
+  --color-accent-foreground: var(--color-on-surface);
+  --color-input: var(--color-outline-variant);
+  --color-ring: var(--color-primary);
   --color-scheme: dark;
   --surface-stack-start: #1b2540;
   --surface-stack-end: #10182d;
@@ -106,10 +124,12 @@
   --color-primary: var(--color-primary);
   --color-primary-strong: var(--color-primary-strong);
   --color-primary-container: var(--color-primary-container);
+  --color-primary-foreground: var(--color-primary-foreground);
   --color-on-primary: var(--color-on-primary);
   --color-on-primary-container: var(--color-on-primary-container);
 
   --color-secondary: var(--color-secondary);
+  --color-secondary-foreground: var(--color-secondary-foreground);
   --color-on-secondary: var(--color-on-secondary);
   --color-secondary-container: var(--color-secondary-container);
   --color-on-secondary-container: var(--color-on-secondary-container);
@@ -119,14 +139,21 @@
   --color-tertiary-container: var(--color-tertiary-container);
 
   --color-error: var(--color-error);
+  --color-destructive: var(--color-destructive);
+  --color-destructive-foreground: var(--color-destructive-foreground);
   --color-on-error: var(--color-on-error);
   --color-error-container: var(--color-error-container);
   --color-on-error-container: var(--color-on-error-container);
 
   --color-on-surface: var(--color-on-surface);
   --color-on-surface-variant: var(--color-on-surface-variant);
+  --color-muted-foreground: var(--color-muted-foreground);
+  --color-accent: var(--color-accent);
+  --color-accent-foreground: var(--color-accent-foreground);
   --color-outline: var(--color-outline);
   --color-outline-variant: var(--color-outline-variant);
+  --color-input: var(--color-input);
+  --color-ring: var(--color-ring);
 
   --radius-default: 0.5rem;
   --radius-lg: 0.75rem;
@@ -140,6 +167,34 @@
 
   body {
     @apply bg-background text-on-surface font-sans antialiased;
+  }
+
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  textarea,
+  select {
+    transition:
+      border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: border-color, box-shadow, background-color, transform;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--color-primary) 50%, transparent),
+      0 10px 26px rgba(99, 173, 158, 0.16);
+    transform: translateY(-1px);
   }
 }
 
@@ -181,4 +236,58 @@
   width: 4px;
   border-radius: 999px;
   background: var(--color-primary);
+}
+
+.interactive-control {
+  transition:
+    transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, box-shadow;
+}
+
+.interactive-card {
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, box-shadow;
+}
+
+.interactive-card:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 20px 36px rgba(40, 46, 62, 0.12);
+}
+
+.interactive-card:active {
+  transform: translateY(0) scale(0.995);
+}
+
+.shimmer-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-surface-container-highest) 72%, var(--color-surface) 28%);
+}
+
+.shimmer-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, white 60%, transparent) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.35s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }

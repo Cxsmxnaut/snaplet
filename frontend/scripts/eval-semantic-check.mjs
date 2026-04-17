@@ -162,7 +162,7 @@ const dataset = [
 
 const providerOrder = (process.argv
   .find((arg) => arg.startsWith("--providers="))
-  ?.split("=")[1] ?? process.env.ANSWER_CHECK_PROVIDERS ?? "ollama,groq,openrouter")
+  ?.split("=")[1] ?? process.env.ANSWER_CHECK_PROVIDERS ?? "groq,openrouter,ollama")
   .split(",")
   .map((value) => value.trim().toLowerCase())
   .filter(Boolean);
@@ -268,6 +268,11 @@ function readKeys(provider) {
     .filter(Boolean);
 }
 
+function readModel(envName, fallback) {
+  const value = process.env[envName];
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+}
+
 async function requestProvider(provider, apiKey, payload) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), Number(process.env.SEMANTIC_ANSWER_TIMEOUT_MS ?? 2800));
@@ -282,7 +287,7 @@ async function requestProvider(provider, apiKey, payload) {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: process.env.OLLAMA_ANSWER_CHECK_MODEL ?? process.env.OLLAMA_MODEL ?? "gemma3:4b",
+          model: readModel("OLLAMA_ANSWER_CHECK_MODEL", readModel("OLLAMA_MODEL", "gemma3:4b")),
           prompt: buildOllamaPrompt(payload),
           stream: false,
         }),
@@ -304,7 +309,7 @@ async function requestProvider(provider, apiKey, payload) {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: process.env.GROQ_ANSWER_CHECK_MODEL ?? "llama-3.1-8b-instant",
+          model: readModel("GROQ_ANSWER_CHECK_MODEL", "llama-3.1-8b-instant"),
           temperature: 0,
           response_format: { type: "json_object" },
           messages: buildMessages(payload),
@@ -326,7 +331,7 @@ async function requestProvider(provider, apiKey, payload) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: process.env.OPENROUTER_ANSWER_CHECK_MODEL ?? "openai/gpt-4o-mini",
+        model: readModel("OPENROUTER_ANSWER_CHECK_MODEL", "openai/gpt-4o-mini"),
         temperature: 0,
         response_format: { type: "json_object" },
         messages: buildMessages(payload),

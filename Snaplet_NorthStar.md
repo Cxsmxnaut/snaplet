@@ -1,6 +1,6 @@
 # Snaplet North Star
 
-Last consolidated update: 2026-04-11 21:10 PDT
+Last consolidated update: 2026-04-17 08:20 PDT
 
 ## Purpose
 
@@ -17,178 +17,571 @@ Rules:
 
 ## Current Priorities (DO NOT IGNORE)
 
-These priorities override lower-value feature work until they are stable.
+Last reframed from the external audit: 2026-04-14
 
-The main product goal right now is not feature expansion. It is making Snaplet feel real, durable, and demo-ready from end to end.
+This section is the active execution roadmap. It replaces the older “completed priorities” mindset with a stricter rule:
 
-Priority order:
+- first fix trust debt
+- then fix persistence and data-truth debt
+- then turn visible feature debt into real product capabilities
+- only after that add new polish or new surface area
 
-1. Perfect the core demo flow
-   - Status: completed on 2026-04-10
-   - The highest-value path is:
-     - paste notes or upload material
-     - generate questions
-     - review/edit the kit
-     - start a study session
-     - complete the session
-     - see meaningful progress
-   - This flow should feel smooth, trustworthy, and production-grade.
-   - Verified complete on the live app:
-     - auth
-     - paste-notes generation
-     - review
-     - study mode selection
-     - live study session
-     - session completion
-     - progress update
-     - upload-to-review flow
-   - Important scope note:
-     - this means the core user-facing demo loop works end to end in production
-     - it does not mean all local-dev or backend-consistency work is finished
-
-2. Fix upload endpoint reliability and FormData parsing edge cases
-   - Status: completed on 2026-04-11
-   - Upload and import need to be boringly reliable.
-   - File parsing, request validation, and fallback behavior should be consistent across environments.
-   - If upload is flaky, the product feels fake no matter how polished the UI is.
-   - Verified complete on the live app:
-     - valid `.txt` upload returns generated questions
-     - valid `.csv` upload returns the correct number of questions without duplication
-     - empty file upload returns a clear `400`
-     - unsupported file upload returns a clear `400`
-     - malformed non-multipart upload returns a clear `400`
-     - upload review states are truthful for `failed`, `needs_attention`, and `ready`
-   - Important scope note:
-     - this means upload parsing and user-facing import behavior are now production-safe for the supported happy path and core failure cases
-     - it does not mean every PDF/DOCX extraction quality issue has been perfected
-
-3. Normalize API response and status behavior
-   - Status: completed on 2026-04-11
-   - API routes should behave consistently across create/read/update/session flows.
-   - Avoid mismatched `200` vs `201` semantics, inconsistent payload shapes, and route-specific surprises.
-   - Frontend expectations and backend responses should line up cleanly.
-   - Verified complete on the live app:
-     - wrong-method requests now return `405` instead of `400`
-     - malformed JSON bodies now return `400` instead of `500`
-     - missing resources like sources and sessions now return `404`
-     - state conflicts like empty-start session flows and invalid session progression now map to `409`
-     - create-style routes continue to return `201`
-   - Important scope note:
-     - this pass normalized the route-status semantics and common error classes
-     - it did not fully unify every payload envelope into one global response schema
-
-4. Remove or harden any remaining `demo_user` or fake-user fallbacks
-   - Status: completed on 2026-04-11
-   - Development shortcuts are acceptable only when they are explicit and isolated.
-   - Production and realistic local workflows should resolve real authenticated users.
-   - Hidden fake-user behavior should not silently power core app logic.
-   - Verified complete on the live app:
-     - unauthenticated requests return `401`
-     - `x-snaplet-user-id` alone no longer grants access in production
-     - frontend API calls now require a real Supabase session and bearer token
-     - a newly created real Supabase user can still call authenticated routes successfully
-   - Important scope note:
-     - a dev-only header override still exists, but only when `SNAPLET_ALLOW_DEV_USER_OVERRIDE=true`
-     - that override is intended for explicit local testing only, not normal product behavior
-
-5. Improve answer checking quality and semantic acceptance
-   - Status: completed on 2026-04-11
-   - Snaplet should accept clearly correct answers even when phrasing differs.
-   - Overly rigid grading makes the app feel dumb.
-   - Overly loose grading makes the analytics feel untrustworthy.
-   - This area directly affects product credibility.
-   - Verified complete in implementation:
-     - deterministic grading and lexical-semantic rules still run first
-     - model-based semantic checking only runs when deterministic grading says the answer is wrong
-     - provider fallback chain now supports `ollama -> groq -> openrouter`
-     - key pools are supported for all three providers:
-       - `OLLAMA_API_KEYS`
-       - `GROQ_API_KEYS`
-       - `OPENROUTER_API_KEYS`
-     - answer-check model envs are independently configurable:
-       - `OLLAMA_ANSWER_CHECK_MODEL`
-       - `GROQ_ANSWER_CHECK_MODEL`
-       - `OPENROUTER_ANSWER_CHECK_MODEL`
-     - semantic answer-check benchmarking exists at `frontend/scripts/eval-semantic-check.mjs`
-   - Benchmark result from the local provider-eval dataset:
-     - Groq performed best on both accuracy and latency
-     - OpenRouter was usable but slower and slightly stricter
-     - Ollama is still first in the fallback order by user request, but local evaluation hit TLS/certificate failures against the configured endpoint
-   - Important scope note:
-     - the app is now wired for ordered provider failover and easy key expansion
-     - Groq is the current strongest answer-check provider on the measured dataset, even though Ollama remains first in the default chain
-
-6. Stabilize the full local development workflow
-   - Status: completed
-   - Local frontend, local API behavior, env wiring, auth expectations, and Supabase integration should be understandable and repeatable.
-   - `vercel dev`, Vite, and API routing should not feel like separate worlds.
-   - Another engineer or model should be able to boot the app locally without detective work.
-   - Completed outcome:
-     - `frontend/package.json` now provides:
-       - `npm run dev`
-       - `npm run dev:api`
-       - `npm run dev:full`
-     - `npm run dev:full` is the documented full-stack local path:
-       - `npx vercel dev --listen 3000` for the runtime/API layer
-       - Vite frontend on `http://localhost:5173`
-     - local verification confirmed:
-       - Vite serving on `5173`
-       - runtime responding on `3000`
-       - `/api/progress` returning a real `401 Authentication required` when unauthenticated instead of hanging or pretending
-     - docs were updated in:
-       - `README.md`
-       - `frontend/README.md`
-       - `frontend/.env.example`
-
-7. Finish replacing fake analytics and placeholder UX with real product behavior
-   - Status: completed
-   - Progress should be driven by real persisted analytics, not decorative placeholders.
-   - Empty states are fine, but fake states should not masquerade as completed product behavior.
-   - Every visible button and route should either work or be clearly marked as intentionally unavailable.
-   - Completed outcome:
-     - the Progress page no longer renders preview/sample analytics data
-     - empty history now shows a truthful empty state instead of a fake populated dashboard
-     - `/api/progress` now returns:
-       - relational analytics when they exist
-       - a zeroed, truthful empty payload when they do not
-     - the old bucket-derived analytics fallback was removed from the progress route
-     - relational analytics are now the only real source of progress truth
-   - Remaining intentional disabled UX:
-     - `Delete Account (Coming Soon)` in settings remains explicitly disabled and labeled as such
-
-8. Remove stale branding and polish mismatched product copy
-   - Status: completed
-   - The app should not carry leftover naming from previous experiments or scaffolds.
-   - Completed outcome:
-     - `frontend/index.html` title now correctly reads `Snaplet`
-     - stale AI Studio env/example copy was removed from `frontend/.env.example`
-     - local run and environment docs were rewritten in Snaplet-native terms
-   - Still worth watching:
-     - continue trimming any future copied or inherited wording during normal feature work
-
-9. Harden AI provider reliability and observability
-   - Status: completed
-   - The app now supports ordered semantic-check failover, but provider reliability still needs more operational polish.
-   - Completed outcome:
-     - semantic answer checking now logs provider failures and recovery/fallback events
-     - failure kinds are distinguished:
-       - `http_error`
-       - `timeout`
-       - `network_error`
-       - `empty_response`
-       - `parse_error`
-     - Ollama generation/title requests now emit failure logs instead of silently returning `null`
-     - provider logging is configurable with:
-       - `SEMANTIC_ANSWER_LOGGING`
-       - `OLLAMA_LOGGING`
-   - Operational note:
-     - local testing previously showed Ollama TLS/certificate problems against the configured endpoint
-     - that issue is now observable in logs instead of disappearing into generic fallback behavior
+Important interpretation rule:
+- if the audit called something “dead UI,” do not assume removal
+- if the surface is part of the intended product, keep it and implement it for real
+- only remove UI when it is the wrong product direction, not merely unfinished
 
 Working rule:
-- when choosing between adding a new feature and making one of the above more reliable, choose reliability first
-- when a UI improvement conflicts with product truth, choose product truth
-- when documenting or prompting future work, reference this section first
+- trust debt beats feature debt
+- product truth beats aesthetic polish
+- durable data beats convenient fallback
+- explicit failure beats believable lies
+
+### Priority 1: Make Product Truth Real
+
+Status:
+- completed on 2026-04-14
+
+Why this matters:
+- this is the single biggest adoption and trust blocker
+- users will forgive rough edges before they forgive feeling misled
+- Snaplet cannot become habit-forming if “saved,” “progress,” and “session complete” are not fully real
+
+Problems included:
+- silent local session fallback when session start fails
+- session completion implying durable save semantics when the backend truth may not exist
+- study routes not being truly session-addressable
+- quitting a study session just navigating away instead of having explicit close/resume behavior
+- progress load failures collapsing to believable empty-state truth
+- in-session metric wording that overclaims what is actually being measured
+- any copy that implies durability or adaptivity beyond what the backend actually guarantees
+
+Definition of done:
+- session start, continue, quit, resume, and complete are server-truth by default
+- progress failures render as actual errors or degraded states, not “empty but fine”
+- no core study path silently falls back to browser-local truth unless Snaplet explicitly supports offline mode
+- every visible metric and label says exactly what the system can prove
+
+Do not work on before this is stable:
+- streak gamification
+- extra “coach” messaging
+- premium habit loops
+
+Likely systems involved:
+- study flow hooks
+- session routes
+- completion page
+- progress fetching
+- navigation/state restoration
+
+### Priority 2: Replace Fragile Persistence Architecture
+
+Status:
+- completed on 2026-04-14
+
+Why this matters:
+- the current data model is still too dependent on `user_states`
+- whole-user JSON writes are concurrency-unsafe and not a real long-term product architecture
+- this will become a serious scale, debugging, and reliability blocker
+
+Problems included:
+- required `user_states` dependency not being fully created or reproducible from repo truth alone
+- whole-user JSON bucket writes
+- last-write-wins risk across serverless instances
+- split truth between legacy bucket data and newer relational analytics
+- backfill and migration assumptions that are too optimistic
+
+Definition of done:
+- the repo can recreate the persistence layer from migrations alone
+- sources, questions, sessions, attempts, and derived progress are row-addressable relational data
+- core product behavior no longer depends on whole-bucket upserts
+- legacy bucket usage is either eliminated or tightly scoped, documented, and non-critical
+
+Completion notes:
+- normalized core-state tables now exist in Supabase and are created by repo migrations:
+  - `study_sources`
+  - `source_files`
+  - `extraction_runs`
+  - `study_questions`
+- existing legacy core state was backfilled into those tables with a dedicated migration
+- the store layer now reads relational state first and writes successful product changes to relational rows instead of a whole-user JSON blob
+- paste-kit creation, CSV import, question editing, and review-state creation were verified against the real Supabase project
+- `question_progress` contract mismatches that previously caused partial relational writes were fixed
+- CSV import was rewritten to use a single atomic mutation instead of a brittle two-step reread flow
+- normal relational users no longer silently fall back to `user_states` on write failure; those failures now surface honestly
+- `user_states` still exists only as tightly scoped legacy-read / explicit local fallback support, not as the normal source of truth
+
+Do not work on before this is stable:
+- collaboration
+- public/shared kits
+- institutional features
+- large analytics expansion
+
+Likely systems involved:
+- Supabase migrations
+- server store layer
+- source/session/question persistence
+- analytics backfill
+
+### Priority 3: Fix Cache and Device-Local Trust Leaks
+
+Status:
+- completed on 2026-04-14
+
+Why this matters:
+- convenience caching is okay
+- cross-user contamination, stale truth, and local privacy leaks are not
+- this is both a trust problem and a real shared-device risk
+
+Problems included:
+- `localStorage` caches that are not scoped by authenticated user
+- cached sources/questions being merged into authoritative server lists
+- logout not fully purging user-sensitive local truth
+- raw study material cached locally in ways that outlive the intended session
+- device-local mastery, last-studied, or recency signals leaking into the main product experience
+
+Definition of done:
+- all client caches are user-scoped or clearly marked non-authoritative
+- logout purges sensitive local state
+- cached records never override or silently supplement server truth
+- no raw source material is persisted locally by default unless explicitly intended and documented
+
+Completion notes:
+- removed the old browser source/question caches from `frontend/src/lib/api.ts`
+- `listSources()` no longer merges cached sources into authoritative server truth
+- `listSourceQuestions()` no longer resurrects cached questions when the backend returns an empty list
+- create-kit draft storage is now explicitly user-scoped instead of global
+- logout now purges user-scoped local drafts/cache plus legacy global cache keys
+- device-local kit mastery and last-session state are no longer written to `localStorage`
+- dashboard / kit recency and mastery now sync from backend `progress.kitBreakdown`, not browser-only maps
+- app cache hydration was reduced to non-sensitive UI context (`currentKitId`) instead of restoring kits/progress from local storage
+- `/api/sources` now returns source summaries only, so raw study material is not exposed through list payloads
+- remaining local storage use is now limited to benign UI preferences or explicitly user-scoped convenience state
+
+Do not work on before this is stable:
+- richer personalization
+- multi-device “smart” continuity
+- offline niceties
+
+Likely systems involved:
+- frontend API cache helpers
+- local storage utilities
+- kit state hooks
+- auth/logout flow
+
+### Priority 4: Fix Auth and Identity Model
+
+Status:
+- completed on 2026-04-14
+
+Why this matters:
+- auth confusion is one of the fastest ways to lose new users
+- recovery/reset must match the identity users think they have
+- login should never secretly behave like signup
+
+Problems included:
+- email vs username/local alias confusion
+- login path auto-signing users up on failure
+- password reset only working for “real email” flows while the UI suggests broader input support
+- auth copy that does not match the actual identity model
+- trust loss at the very first interaction with the product
+
+Definition of done:
+- Snaplet has one clear primary sign-in model
+- login and signup are truly separate and explicit
+- password recovery matches the actual identifier users enter
+- auth UX no longer contains surprise behavior
+
+Completion notes:
+- password auth is now explicitly email-based in the primary auth form
+- the hidden username-to-`@snaplet.local` alias path was removed from the frontend auth flow
+- login no longer auto-creates accounts on sign-in failure
+- signup remains explicit and separate from login
+- password reset now validates and uses the same email identity model the form presents to users
+- the reset affordance is shown only in login mode, where it is actually relevant
+- auth copy and validation errors now align with the real email-based flow
+
+Do not work on before this is stable:
+- deeper profile systems
+- social/account linking polish
+- identity-adjacent growth experiments
+
+Likely systems involved:
+- auth page
+- Supabase auth integration
+- auth hooks
+- password reset flow
+
+### Priority 5: Make Progress and Analytics Honest
+
+Status:
+- completed on 2026-04-14
+
+Why this matters:
+- progress is the retention loop
+- if accuracy, mastery, pressure, streak, or recency feel fake, users stop believing the app is helping
+- analytics must fail loudly enough to be fixed, not quietly enough to be ignored
+
+Problems included:
+- device-local mastery and last-studied values
+- placeholder dashboard chart bars or faux trend surfaces
+- streak surface without a real durable writer
+- analytics sync swallowing database failures
+- progress backfill overstating success
+- progress reads soft-failing into empty but plausible UI
+
+Definition of done:
+- dashboard, progress, and session-complete metrics all come from durable backend truth
+- analytics write failures are visible and operationally actionable
+- backfills are complete, idempotent, and measurable
+- no major stat is local-only unless clearly labeled as such
+
+Completion notes:
+- the dedicated Progress page now renders real backend-driven totals, trends, kit breakdowns, recent sessions, weak-question pressure, and recommendation states with explicit loading, empty, and error handling
+- dashboard summary cards now use durable backend totals instead of browser-local progress maps
+- the dashboard activity chart now reflects real `timeSeries` attempts per day instead of placeholder bar math derived from unrelated outcome counts
+- the dashboard weak-focus list no longer invents a fake “success rate”; it now surfaces real recent-miss and near-miss counts
+- session-complete and in-session wording were aligned earlier under Priority 1 so they no longer imply fake streak semantics
+- the top-bar habit surface now represents real weekly study activity derived from backend session data rather than a pseudo-streak concept with no durable writer
+- progress fetch failures now surface honestly instead of collapsing into believable empty-state truth
+
+Do not work on before this is stable:
+- more coach copy
+- more progress cards
+- deeper gamification
+
+Likely systems involved:
+- progress page
+- analytics write path
+- session completion
+- dashboard summary surfaces
+
+### Priority 6: Make AI Generation and Answer Checking Product-Grade
+
+Status:
+- completed on 2026-04-14
+
+Why this matters:
+- Snaplet’s core promise lives or dies on generation quality and believable grading
+- if the output is weak, users experience the app as cleanup labor rather than leverage
+
+Problems included:
+- generation still being too close to Ollama-or-heuristics
+- weak quality gates for generated questions
+- answer-check provider order not always matching measured best provider
+- provider failure handling and observability not being strong enough
+- product messaging implying stronger AI reliability than the implementation can support
+
+Definition of done:
+- generation uses a real multi-provider strategy with explicit quality expectations
+- answer checking defaults reflect measured best provider quality, not legacy preference
+- provider failures, timeouts, and fallbacks are observable
+- Snaplet has a lightweight but real evaluation harness for generation and semantic checking
+
+Completion notes:
+- question generation and title generation no longer depend on an Ollama-only path; they now use a provider router with pooled keys, timeout handling, parse validation, and ordered fallback across Groq, OpenRouter, and Ollama before dropping to heuristics
+- semantic answer checking still only runs after deterministic grading and lexical-equivalence checks say an answer is wrong
+- semantic answer checking now defaults to `groq,openrouter,ollama`, matching the best measured provider order rather than the old legacy preference
+- provider failures for both generation and semantic grading now log in a structured way instead of disappearing silently
+- the repo now includes a second evaluation harness, `npm run test:generation-quality`, alongside `npm run test:semantic-check`
+- generation quality can now be compared by parse success, title success, pair count, latency, and structural quality score
+- after pulling production envs from Vercel, the live benchmark picture on this machine is:
+  - semantic answer checking:
+    - `groq`: `100%` on the local benchmark set, `255ms` average latency, one unavailable row (`ATP` abbreviation case)
+    - `openrouter`: `95.2%`, `1030ms` average latency
+    - `ollama`: unusable in this environment
+  - generation/title creation:
+    - `groq`: `3/3` question success, `3/3` title success, `584ms` average question latency, quality score `100`
+    - `openrouter`: `3/3` question success, `3/3` title success, `2543ms` average question latency, quality score `85`
+    - `ollama`: unusable in this environment (`fetch failed`)
+- current best measured default remains `groq -> openrouter -> ollama` for both grading and generation in this deployment context
+
+Do not work on before this is stable:
+- bigger AI marketing claims
+- advanced coach/explanation surfaces that depend on weak output quality
+
+Likely systems involved:
+- generation domain logic
+- provider clients
+- semantic-check routing
+- evaluation scripts
+
+### Priority 7: Turn Placeholder or Dead UI Into Real Features
+
+Status:
+- complete
+- verified:
+  - kits sorting is real
+  - regenerate is exposed as a real review action
+  - profile avatar presets and upgrade CTA are real, not decorative only
+  - delete-account now routes into a real support request instead of sitting disabled
+  - processing copy is now truthful instead of fake multi-phase theater
+  - Auto Review kits are called out explicitly in review/library UI
+  - create-kit visibility is wired for private/public
+  - shared kit routing is live end to end after adding the missing Vercel dynamic route entries
+  - public shared kits load read-only question pages when visibility is `public`
+  - switching the same kit back to `private` makes the shared route return `404 Shared kit not found`
+
+Why this matters:
+- if a user sees a control, Snaplet should eventually make it real
+- visible feature debt should become roadmap, not trash
+- unfinished surfaces are acceptable only when they are truthful and intentionally staged
+
+Problems included:
+- kits sort control
+- upgrade surface
+- avatar presets and plus affordance
+- create-kit `Public` state without a sharing model
+- regenerate UI expectations without an exposed regenerate flow
+- fake or theatrical “processing” UI without real async jobs/status/retry semantics
+- hidden Auto Review kit creation/editing behavior that appears as normal user content
+- any other visible control that exists before the feature does
+
+Definition of done:
+- every visible product surface is either:
+  - implemented for real
+  - disabled with truthful explanation
+  - or clearly marked as upcoming in-product
+- hidden system behaviors become explicit product concepts if kept
+- async processing and regeneration are real capabilities, not theater
+
+Do not work on before this is stable:
+- more decorative UI
+- more placeholder controls
+- more “coming soon” surfaces without a build plan
+
+Likely systems involved:
+- create kit
+- review flow
+- settings/profile UI
+- kits page controls
+- processing screen
+
+### Priority 8: Fix Legal, Privacy, and Data Disclosure
+
+Status:
+- complete
+- verified:
+  - `/legal/privacy`, `/legal/terms`, `/legal/methodology`, and `/legal/contact` are no longer one-line placeholders
+  - the legal surfaces now disclose Supabase-backed storage, public shared-kit visibility, OCR.space fallback, local Tesseract fallback, and AI provider routing across Groq, OpenRouter, and Ollama
+  - privacy/methodology copy now reflects the real grading flow: deterministic answer checks first, model fallback second
+  - retention and support realities are stated plainly, including support-routed delete-account handling
+  - lint and build pass after the rewrite
+
+Why this matters:
+- the app uses OCR and multiple AI providers on user-supplied material
+- placeholder legal pages are not compatible with serious trust
+- this becomes much more important the moment real users, parents, or schools evaluate the product
+
+Problems included:
+- placeholder privacy/terms/methodology/contact pages
+- missing disclosure for OCR.space and third-party AI provider usage
+- no real retention or processor explanation
+- product behavior and legal copy not matching
+
+Definition of done:
+- legal and privacy pages reflect real runtime behavior
+- third-party processors and basic retention rules are disclosed clearly
+- the app no longer asks users to trust invisible data flows
+
+Do not work on before this is stable:
+- school or institution outreach
+- broad public distribution that assumes high trust
+
+Likely systems involved:
+- legal pages
+- extraction pipeline
+- provider routing
+- public marketing copy
+
+### Priority 9: Add Product Instrumentation
+
+Status:
+- completed on 2026-04-14
+
+Why this matters:
+- without instrumentation, the team is flying blind
+- it is impossible to improve activation, retention, or provider quality if the funnel is invisible
+- strong opinions about what users do are not enough
+
+Problems included:
+- no meaningful activation funnel tracking
+- no durable visibility into source creation/upload success and failure
+- weak visibility into generation/provider failure rates
+- no usable instrumentation for session start, quit, complete, or weak-review entry
+- no way to measure whether changes actually improve the product
+
+Definition of done:
+- key product moments are instrumented end to end
+- failures are measurable, not anecdotal
+- provider quality and user funnel breakage are visible enough to prioritize confidently
+
+Completion notes:
+- Snaplet now records product events into `public.product_events` in Supabase with RLS-enabled policies for:
+  - authenticated user-owned inserts
+  - anonymous pre-auth inserts with `user_id is null`
+- frontend event capture now covers:
+  - auth page viewed
+  - OAuth started
+  - password auth submitted
+  - password reset requested
+  - sign in
+  - sign up
+  - sign out
+  - source create started / failed
+  - upload started / failed
+  - weak review opened
+  - recommended review opened
+  - progress load failed
+- backend instrumentation now captures durable server-truth events for:
+  - source create succeeded
+  - upload succeeded / failed
+  - generation succeeded / failed
+  - session started
+  - session completed
+  - provider failures in generation and semantic answer checking
+- `/api/events` exists as a best-effort ingestion endpoint for lightweight frontend funnel events
+- runtime verification was completed on 2026-04-14:
+  - local `POST /api/events` returned `202`
+  - matching `auth_viewed` rows were verified in Supabase after the table move to `public.product_events`
+
+Do not work on before this is stable:
+- growth experiments based on guesswork
+- advanced retention tactics without measurement
+
+Likely systems involved:
+- frontend event capture
+- API write paths
+- provider routing/logging
+- analytics dashboards or exported event sinks
+
+### Priority 10: Fix Local Dev and Repo Truth
+
+Status:
+- complete
+- verified:
+  - local runtime scripts now enforce real prerequisites instead of relying on hidden shell state
+  - `dev:api` and `dev:full` load `frontend/.env.local` explicitly
+  - `dev:api` and `dev:full` fail clearly if `frontend/.vercel/project.json` is missing
+  - `test:api` now documents and enforces the `SNAPLET_POSTMAN_AUTH_TOKEN` requirement
+  - Postman base URL generation now prefers API-target envs instead of accidentally picking a frontend site URL
+  - root and frontend READMEs now describe the actual local bootstrap path
+  - repo truth no longer depends on root `.env.local` existing
+  - branch/docs truth now reflects `main` instead of the old feature branch
+
+Why this matters:
+- a product team moves slower when the repo lies about what is reproducible
+- onboarding and debugging both degrade when docs, env assumptions, and actual bootstrap behavior drift apart
+- if the project memory is wrong, every future model or teammate starts from fiction
+
+Problems included:
+- local dev bootstrap not being fully reproducible on a clean machine
+- `dev:full` and test commands depending on hidden setup
+- docs and memory referencing files or states that are not actually in repo truth
+- environment assumptions not being clear enough
+- North Star and README drift from actual runtime reality
+
+Definition of done:
+- there is one verified local bootstrap path for frontend, API, auth, and Supabase-backed behavior
+- test commands clearly state prerequisites or manage them automatically
+- repo docs describe what actually exists, not what used to exist
+- North Star stays current enough to trust as handoff memory
+
+Do not work on before this is stable:
+- expanding contributor surface area
+- assuming new machines will “just work”
+
+Likely systems involved:
+- root README
+- frontend README
+- package scripts
+- local env examples
+- North Star itself
+
+### Priority Ordering Notes
+
+What would stop Snaplet from becoming widely used if left unfixed:
+- users realizing that “saved,” “progress,” and “session complete” are not consistently durable
+- weak first-run trust due to auth confusion, fake processing, and hidden fallback behavior
+- AI quality that feels like extra cleanup work instead of leverage
+- no real legal/privacy trust layer for OCR and AI processing
+- no instrumentation to learn what is actually breaking activation and retention
+
+How to sequence the work:
+- Priorities 1 through 5 are trust debt and product-truth debt
+- Priorities 6 through 8 are quality and trust-expansion debt
+- Priorities 9 and 10 are force-multipliers that make every other priority easier to execute well
+
+Explicit anti-distraction rule:
+- do not add new study modes, sharing, premium loops, notifications, or extra dashboard polish until the active trust-debt priorities are materially stable
+- any trust-heavy user segment push
+
+### Remaining Backend Reality After The 2026-04-17 Hardening Pass
+
+These are still real and should be treated as active backend debt even after the public-sharing fix landed:
+
+- Public sharing is now routed through published snapshot tables, and raw `study_sources` / `study_questions` are no longer publicly readable through anon access.
+- The largest remaining backend risk is still the bucket-style write path in `frontend/api/_lib/server/store.ts`.
+  - writes are safer than before because file fallback and `user_states` runtime persistence were removed from the real product path
+  - broad delete-missing cleanup was also removed, which lowers the chance of accidental destructive rewrites
+  - but the architecture is still not truly row-level, transactional, or cross-instance concurrency-safe
+- Analytics are still a shadow system rather than canonical truth.
+  - progress is much more honest than before
+  - but `frontend/api/_lib/server/analytics.ts` is still a best-effort side channel, not a transactional extension of core writes
+- Product events are safer than before but not fully hardened.
+  - there is now app-layer rate limiting and the public insert policies were removed
+  - but event ingestion still needs a more deliberate server-only durability and abuse strategy if it becomes operationally important
+- OCR privacy is improved but not fully productized.
+  - OCR.space is now opt-in by env gate
+  - but there is still no in-product consent/control surface for users uploading sensitive documents
+- Account deletion/export and some privacy/account settings are still not real backend capabilities.
+  - support and deletion still lean on manual workflows
+  - some settings still imply durability that the backend does not truly own yet
+
+What changed materially on 2026-04-17:
+- raw public sharing leak was closed by moving public reads to `published_sources` / `published_questions`
+- public `get_landing_stats()` RPC was removed
+- generation now records provenance so heuristic fallback no longer masquerades as provider-backed success
+- normal server data access no longer defaults to service-role scope for user data paths
+- duplicate open sessions were constrained with a unique partial index in Supabase
+
+What should happen next on the backend:
+1. replace bucket-level writes with row-level transactional writes or RPC-backed mutations
+2. decide whether analytics should become canonical events/tables or stay derived and explicitly best-effort
+3. finish real account deletion/export and privacy controls before broader trust-sensitive growth
+
+### Completed Foundation Work
+
+These were important and are still true, but they are no longer the active top priorities:
+
+1. Core demo flow
+- completed on 2026-04-10
+- auth → create/upload → review → study → complete → progress works in production
+
+2. Upload endpoint reliability and FormData parsing
+- completed on 2026-04-11
+- supported happy path and core failure cases were hardened
+
+3. API response and status normalization
+- completed on 2026-04-11
+- route status semantics were normalized across major flows
+
+4. Removal/hardening of fake-user auth fallback
+- completed on 2026-04-11
+- production now requires real auth; explicit dev override remains opt-in only
+
+5. Semantic answer checking upgrade
+- completed on 2026-04-11
+- deterministic grading first, model fallback second, provider chain implemented
+
+6. Local dev path and observability improvements
+- completed on 2026-04-11 to 2026-04-12
+- docs, scripts, and provider logging improved materially
+
+Working rule:
+- when choosing between shipping a feature and making Snaplet more truthful, choose truth first
+- when a visible feature exists but is not real yet, prefer implementing it or truthfully disabling it over deleting it blindly
+- when documenting future work, map it into one of the priorities above instead of creating parallel ad hoc lists
 
 ## Current Identity
 
@@ -231,10 +624,8 @@ Current high-level structure:
 ```text
 snaplet/
 ├── README.md
-├── .env.local
 ├── .gitignore
 ├── Snaplet_NorthStar.md
-├── design.md
 ├── frontend/
 │   ├── .env.example
 │   ├── .env.local
@@ -269,7 +660,7 @@ Important note:
 ## Git And Deployment State
 
 Primary git branch in active use:
-- `codex/snapshot-light-theme-2026-04-08`
+- `main`
 
 Recent important commits:
 - `692cea1` — Fix service typing for deployment build
@@ -671,18 +1062,23 @@ Current session persistence:
 
 Current generation path:
 - source/question generation lives in `frontend/api/_lib/domain/generation.ts`
-- Ollama client lives in `frontend/api/_lib/server/ollama.ts`
+- multi-provider routing lives in `frontend/api/_lib/server/generation-providers.ts`
+- legacy Ollama-specific request code still lives in `frontend/api/_lib/server/ollama.ts` as a provider implementation detail, not the main product strategy
 
-Current Ollama behavior:
-- tries Ollama first for question generation and title generation
-- falls back to heuristic generation if Ollama is unavailable or errors
+Current generation behavior:
+- provider order is controlled by `GENERATION_PROVIDERS`
+- default generation order is `groq,openrouter,ollama`
+- if a provider errors, times out, or returns invalid JSON, Snaplet rotates to the next configured provider
+- only after all configured providers fail does Snaplet fall back to heuristic generation
 
 Important fix already applied:
 - Ollama fetch failures now fail soft instead of crashing source creation
 
 Current semantic answer checking:
 - handled in `frontend/api/_lib/server/semantic-check.ts`
-- can use configured providers such as Groq or OpenRouter
+- only runs after deterministic grading and lexical-semantic checks still say “wrong”
+- can use configured providers such as Groq, OpenRouter, and Ollama
+- default answer-check provider order is now `groq,openrouter,ollama`
 
 ## API Routes
 
@@ -739,7 +1135,8 @@ Variables currently known to matter:
 - `VITE_PROXY_TARGET`
 
 Current local env fact:
-- root `.env.local` contains working Supabase browser credentials and model-related envs used in local verification
+- canonical local runtime env is `frontend/.env.local`
+- root `.env.local` may exist as optional local-only override state, but it is not required for normal repo setup
 
 ## Local Development Reality
 
@@ -749,10 +1146,26 @@ Current recommended local run modes:
 - starts the runtime/API layer on `http://localhost:3000`
 - starts the Vite frontend on `http://localhost:5173`
 - this is the preferred full-stack local path now
+- checks for `frontend/.env.local`
+- checks for `frontend/.vercel/project.json`
+- loads the local runtime env before starting `vercel dev`
+- waits for the API runtime before starting Vite
 
 2. `npm run dev` from `frontend`
 - frontend-only or frontend-first path
 - use this when the API/runtime target is already running elsewhere
+
+3. `npm run dev:api` from `frontend`
+- API/runtime only path
+- loads `frontend/.env.local` before starting `vercel dev`
+- fails clearly if the local Vercel project link is missing
+
+4. `npm run test:api` from `frontend`
+- authenticated Newman/Postman path
+- requires `SNAPLET_POSTMAN_AUTH_TOKEN`
+- prefers `SNAPLET_POSTMAN_BASE_URL`, `VITE_API_BASE_URL`, or `VITE_PROXY_TARGET` before falling back to `http://localhost:3000`
+- auto-starts a local `vercel dev` target when the test target is localhost and not already running
+- fails fast with a clear message if auth or runtime prerequisites are missing
 
 Current local caveat:
 - real Supabase-backed persistence is the default expectation now
@@ -765,12 +1178,15 @@ Current automated verification available:
 - `npm run build` in `frontend`
 - `npm run lint` in `frontend` runs `tsc --noEmit`
 - `npm run test:semantic-check` in `frontend` benchmarks answer-check providers
+- `npm run test:generation-quality` in `frontend` benchmarks generation/title providers
 - Postman/Newman assets exist in `frontend/postman`
 
 Important current test reality:
 - `npm run build` passes
 - `npm run lint` passes after the latest TypeScript cleanup
-- `npm run dev:full` was verified to boot Vite on `5173` and the runtime on `3000`
+- `npm run dev:api` was verified on an alternate port (`3010`)
+- `npm run dev:full` was verified on alternate ports (`3011` API and `5180` frontend)
+- `npm run test:api` now exits with a clear missing-token message when `SNAPLET_POSTMAN_AUTH_TOKEN` is not set
 
 Current meaningful runtime checks already performed:
 - source creation on local server path
@@ -829,6 +1245,353 @@ When working on backend/data:
 - check whether logic belongs in the legacy bucket or the new analytics tables
 - avoid adding more fake/local-only fallbacks without documenting them here
 - prefer deterministic metrics for progress
+
+## External Audit Snapshot (2026-04-14)
+
+Source:
+- separate Codex audit pass requested to identify anything stopping Snaplet from becoming a widely used, trusted product
+
+### Executive Summary
+
+This repo is not ready to be trusted by a large user base. The UI is polished enough to demo, but the product truth layer is still shaky: sessions can silently drop to browser-local mode, progress can fail soft to empty, and several core stats are still fake or device-local. The backend state model is also fragile: primary product data still rides on a whole-user JSON blob in `user_states`, and the repo does not create that table from migrations. On the trust side, auth is confused, legal/privacy pages are placeholder copy, and the code is wired to send data to third-party OCR/AI providers without real disclosure. On the AI side, generation is still basically Ollama-or-heuristics, while the app presents a much stronger product promise than the implementation can support. Growth readiness is weak too: there is essentially no product instrumentation, the first-run “aha” path is thin, and the canonical project memory overclaims what is actually working. This audit was produced by tracing the code end to end, running `npm run lint` and `npm run build`, exercising the local UI with Playwright, and attempting `npm run dev:full`, `npm run test:api`, and `npm run test:semantic-check`.
+
+### Critical Findings
+
+1. Cross-user/stale browser cache contamination
+- Why it matters:
+  - same-browser/shared-device users can inherit stale or foreign kits/questions
+  - raw study material is cached globally in `localStorage`
+  - `listSources()` merges cached sources back into server truth
+- Paths:
+  - `frontend/src/lib/api.ts` (line 154)
+  - `frontend/api/_lib/server/service.ts` (line 33)
+  - `frontend/src/features/kits/services/kitStorage.ts` (line 3)
+  - `frontend/src/pages/CreateKit.tsx` (line 33)
+  - `frontend/src/App.tsx` (line 166)
+- Affects:
+  - trust
+  - privacy
+  - reliability
+  - scale
+- Recommended fix:
+  - scope every browser cache by user
+  - purge on logout
+  - stop merging cached sources into authoritative lists
+  - stop serving cached questions when the backend says `[]`
+  - do not return full source content in list endpoints
+
+2. Session durability is fake
+- Why it matters:
+  - any session-start failure silently becomes a browser-local session
+  - completion state is restored from `localStorage`
+  - the completion page says the run is “saved”
+  - study routes are not session-addressable
+  - quitting just navigates away
+- Paths:
+  - `frontend/src/lib/api.ts` (line 507)
+  - `frontend/src/features/study/hooks/useStudyFlow.ts` (line 29)
+  - `frontend/src/pages/SessionComplete.tsx` (line 38)
+  - `frontend/src/features/navigation/logic/routes.ts` (line 43)
+  - `frontend/src/pages/StudySession.tsx` (line 113)
+  - `frontend/src/App.tsx` (line 433)
+  - `frontend/api/_lib/server/analytics.ts` (line 551)
+- Affects:
+  - trust
+  - reliability
+  - retention
+- Recommended fix:
+  - remove silent local fallback from the default product path
+  - make sessions server-truth only unless the app explicitly supports offline mode
+  - make study URLs session-id based
+  - add resume/close semantics
+  - back the completion page from server data
+
+3. Core persistence is non-reproducible and concurrency-unsafe
+- Why it matters:
+  - the app depends on `public.user_states`, but the repo does not create that table
+  - state writes upsert the entire bucket JSON
+  - concurrent requests are last-write-wins across serverless instances
+- Paths:
+  - `frontend/api/_lib/server/store.ts` (line 113)
+  - `frontend/api/_lib/server/store.ts` (line 191)
+  - `supabase/migrations/20260410_add_analytics_tables.sql` (line 169)
+  - `supabase/migrations/20260410_add_analytics_tables.sql` (line 1)
+- Affects:
+  - scale
+  - reliability
+  - engineering readiness
+- Recommended fix:
+  - add the missing migration immediately
+  - stop using a whole-user JSON blob for core entities
+  - move sources/questions/sessions/attempts to normalized tables with row-level writes
+
+4. Analytics and progress fail soft into lies
+- Why it matters:
+  - analytics sync ignores database errors
+  - backfill declares success if any `study_sessions` row exists
+  - progress load failures collapse to a truthful-looking empty payload instead of an error
+- Paths:
+  - `frontend/api/_lib/server/analytics.ts` (line 279)
+  - `frontend/api/_lib/server/analytics.ts` (line 323)
+  - `frontend/api/_lib/server/analytics.ts` (line 377)
+  - `frontend/api/_lib/server/service.ts` (line 1378)
+- Affects:
+  - trust
+  - retention
+  - reliability
+- Recommended fix:
+  - treat write failures as first-class operational errors
+  - add retries or a queue
+  - make backfill idempotent and complete
+  - return explicit failure states when progress truth is unavailable
+
+### High Findings
+
+1. Auth is confusing and unsafe for real users
+- Why it matters:
+  - the UI says “Email,” but the code also maps non-email identifiers to `@snaplet.local`
+  - password reset only works for real emails
+  - login auto-signs users up on failure
+- Paths:
+  - `frontend/src/pages/AuthPage.tsx` (line 17)
+  - `frontend/src/pages/AuthPage.tsx` (line 76)
+  - `frontend/src/pages/AuthPage.tsx` (line 117)
+  - `frontend/src/pages/AuthPage.tsx` (line 318)
+- Affects:
+  - trust
+  - onboarding
+  - retention
+  - reliability
+- Recommended fix:
+  - pick one identity model
+  - never auto-signup from the login path
+  - make recovery/reset match the actual login primitive
+
+2. User-facing progress and habit surfaces are still fake or device-local
+- Why it matters:
+  - kit mastery and “last studied” come from `localStorage`
+  - the streak key has no writer
+  - the dashboard uses placeholder chart bars
+  - settings imply real behavior that never reaches the backend
+- Paths:
+  - `frontend/src/features/kits/hooks/useKitsState.ts` (line 38)
+  - `frontend/src/features/kits/services/kitStorage.ts` (line 39)
+  - `frontend/src/features/study/hooks/useStudyFlow.ts` (line 53)
+  - `frontend/src/components/TopBar.tsx` (line 28)
+  - `frontend/src/pages/Dashboard.tsx` (line 33)
+  - `frontend/src/pages/SettingsPage.tsx` (line 31)
+- Affects:
+  - trust
+  - retention
+  - growth
+  - UX
+- Recommended fix:
+  - either wire these to durable backend truth or remove them from the core experience
+
+3. Study mode promise does not match implementation
+- Why it matters:
+  - Focus Mode is functionally the same as Standard Mode
+  - sessions hard-stop after 5 minutes with no user-facing explanation
+- Paths:
+  - `frontend/src/pages/StudyModeSelection.tsx` (line 22)
+  - `frontend/api/_lib/server/service.ts` (line 763)
+- Affects:
+  - UX
+  - trust
+  - retention
+- Recommended fix:
+  - make Focus materially different or remove it
+  - expose or remove the hidden time cap
+
+4. The “processing” pipeline is mostly theater
+- Why it matters:
+  - the app shows staged processing UI, but kit creation/upload is synchronous request-time work
+  - review/help copy tells users to regenerate, but the frontend exposes no regenerate action
+- Paths:
+  - `frontend/src/App.tsx` (line 179)
+  - `frontend/api/_lib/server/service.ts` (line 226)
+  - `frontend/src/pages/Processing.tsx` (line 20)
+  - `frontend/src/pages/ReviewKit.tsx` (line 62)
+  - `frontend/src/pages/HelpPage.tsx` (line 48)
+  - `frontend/api/sources/[id]/generate.ts` (line 1)
+- Affects:
+  - reliability
+  - UX
+  - trust
+- Recommended fix:
+  - either build a real async job/status/retry flow or stop pretending one exists
+
+5. AI generation quality and routing are not product-grade yet
+- Why it matters:
+  - question generation is effectively Ollama-only, then falls back to naive colon/sentence heuristics
+  - answer checking still defaults to Ollama first even though the project memory says Groq performed best and Ollama had reliability issues
+- Paths:
+  - `frontend/api/_lib/domain/generation.ts` (line 51)
+  - `frontend/api/_lib/server/ollama.ts` (line 1)
+  - `frontend/api/_lib/server/semantic-check.ts` (line 52)
+  - `Snaplet_NorthStar.md` (line 113)
+- Affects:
+  - AI quality
+  - trust
+  - retention
+- Recommended fix:
+  - add real multi-provider routing for generation
+  - add evals/quality gates
+  - default to the best measured provider rather than the legacy preference
+
+6. The backend silently creates hidden “Auto Review” kits
+- Why it matters:
+  - wrong answers can spawn or rewrite `Auto Review · <Topic>` kits with no explicit UI explanation
+  - they render like normal user kits
+- Paths:
+  - `frontend/api/_lib/server/service.ts` (line 1031)
+  - `frontend/api/_lib/server/service.ts` (line 1261)
+  - `frontend/src/features/kits/services/kitMapper.ts` (line 46)
+- Affects:
+  - trust
+  - UX
+  - retention
+- Recommended fix:
+  - either expose this as an explicit system-generated queue with user control or remove it until the UX is designed
+
+7. Legal/privacy trust is not real
+- Why it matters:
+  - the legal pages are one-line placeholders
+  - the app is wired to send PDFs to OCR.space and study text/answers to external AI providers
+  - this is especially risky in production if those keys are enabled
+- Paths:
+  - `frontend/src/App.tsx` (line 285)
+  - `frontend/src/components/LegalPage.tsx` (line 1)
+  - `frontend/api/_lib/domain/extraction.ts` (line 62)
+  - `frontend/api/_lib/server/semantic-check.ts` (line 227)
+  - `frontend/api/_lib/server/ollama.ts` (line 176)
+- Affects:
+  - trust
+  - compliance
+  - growth
+- Recommended fix:
+  - replace placeholder legal copy with real processor/data-retention disclosures
+  - align the product behavior with that policy
+
+8. There is essentially no product instrumentation
+- Why it matters:
+  - there is no meaningful activation/funnel/event capture in the app layer
+  - the only analytics code is learning-state persistence
+  - the team cannot improve activation, retention, or provider quality without measurement
+- Paths:
+  - `frontend/src`
+  - `frontend/api`
+  - `frontend/api/_lib/server/analytics.ts` (line 279)
+- Affects:
+  - growth
+  - retention
+  - prioritization
+- Recommended fix:
+  - instrument auth
+  - source creation/upload
+  - generation success/failure
+  - session start/quit/complete
+  - weak-review opens
+  - provider failures
+
+### Medium Findings
+
+1. Local-only: the documented dev/test workflow is not actually reproducible, and the project memory is stale
+- Why it matters:
+  - `npm run dev:full` did not start the API on a clean machine because `vercel dev` required linking/scope
+  - `.env.local`, `frontend/.env.local`, `design.md`, and `.vercel/project.json` were missing despite docs/NorthStar claiming they exist or were verified
+  - `npm run test:api` assumes an already-running server
+  - `npm run test:semantic-check` had no usable providers configured
+- Paths:
+  - `frontend/package.json` (line 7)
+  - `README.md` (line 16)
+  - `frontend/README.md` (line 8)
+  - `Snaplet_NorthStar.md` (line 121)
+  - `Snaplet_NorthStar.md` (line 227)
+- Affects:
+  - engineering velocity
+  - onboarding
+  - local confidence
+- Recommended fix:
+  - either make bootstrap real or stop claiming it is
+  - rewrite North Star from repo truth
+  - add a one-command verified setup path
+
+2. Dead or misleading UI controls keep breaking trust
+- Why it matters:
+  - the Kits sort button is dead
+  - “Upgrade now” is dead
+  - avatar presets and the `+` affordance are dead
+  - Create Kit shows a Public state with no sharing model
+- Paths:
+  - `frontend/src/pages/KitsPage.tsx` (line 59)
+  - `frontend/src/pages/SettingsPage.tsx` (line 71)
+  - `frontend/src/pages/SettingsPage.tsx` (line 86)
+  - `frontend/src/pages/CreateKit.tsx` (line 154)
+- Affects:
+  - UX
+  - trust
+- Recommended fix:
+  - remove or disable-with-explanation anything that is not wired
+  - stop implying product surfaces that do not exist
+
+### Low Findings
+
+1. Placeholder/mockup leftovers still leak through
+- Why it matters:
+  - stock picsum imagery and leftover “kinetic intelligence” copy make parts of the app feel like a prototype, not a product
+- Paths:
+  - `frontend/src/pages/CreateKit.tsx` (line 277)
+  - `frontend/src/pages/LandingPage.tsx` (line 212)
+- Affects:
+  - trust
+  - polish
+- Recommended fix:
+  - replace with product-native content or delete
+
+2. One small but obvious metric lie remains in-session
+- Why it matters:
+  - the study footer labels total correct answers as a “streak,” which is false
+- Path:
+  - `frontend/src/pages/StudySession.tsx` (line 408)
+- Affects:
+  - UX
+  - trust
+- Recommended fix:
+  - rename it to `Correct so far` or implement a real consecutive streak
+
+### What Would Stop This From Becoming Widely Used?
+
+- Users will realize quickly that Snaplet is overclaiming product truth: what is “saved,” what counts as “progress,” and what is “your streak” are not consistently durable or server-backed.
+- The first-run path does not create a clean aha moment. The landing page is static marketing, auth is confusing, the dashboard is thin for new users, and generation relies on fake processing theater instead of a reliably magical result.
+- AI output quality is not dependable enough yet to be habit-forming. When generation is weak, the product effectively asks users to clean their notes, retry, or manually edit, which feels like unpaid labor.
+- Trust/compliance is undercooked. Placeholder legal pages plus undisclosed OCR/AI provider flows are enough to make serious users, schools, and parents bounce.
+- The team cannot compound improvements fast because there is almost no product instrumentation and the repo memory/docs are not a reliable source of truth.
+
+### What Should The Next 3 Priorities Be?
+
+1. Make state truthful end to end
+- remove silent local session fallback
+- fix cache isolation and logout purge
+- make sessions resumable and server-backed
+- stop letting progress fail soft to empty
+
+2. Replace the fragile persistence model
+- add the missing schema
+- move off the whole-user JSON bucket
+- make sources/questions/sessions/attempts relational and concurrency-safe
+
+3. Fix trust at the edges
+- clean up auth
+- add real regenerate/job status flows
+- disclose third-party OCR/AI handling
+- instrument the activation/session funnel so you can see where users actually break
+
+### What Should NOT Be Worked On Yet?
+
+- Do not add new study modes, sharing/public-kit features, premium upgrade flows, or notifications.
+- Do not spend time on extra dashboard cards, streak gamification, or “coach” copy until the underlying metrics are real.
+- Do not do another design polish pass beyond deleting placeholder/stale UI; the product truth layer is the real blocker, not the spacing or gradients.
 
 ## Future Work Checklist
 

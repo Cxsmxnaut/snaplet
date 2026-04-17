@@ -3,12 +3,13 @@ import { motion } from 'motion/react';
 import {
   ChevronDown,
   Edit3,
-  FolderOpen,
   Plus,
   Search,
   Zap,
   Book,
   Brain,
+  Globe2,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Kit } from '../types';
@@ -24,6 +25,7 @@ interface KitsPageProps {
 export const KitsPage = ({ kits, onStudyKit, onCreateKit, onEditKit }: KitsPageProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'recent' | 'mastered'>('all');
+  const [sortBy, setSortBy] = useState<'recent' | 'mastery' | 'title' | 'questions'>('recent');
 
   const filteredKits = useMemo(() => {
     return [...kits]
@@ -34,11 +36,30 @@ export const KitsPage = ({ kits, onStudyKit, onCreateKit, onEditKit }: KitsPageP
         return matchesSearch;
       })
       .sort((a, b) => {
+        if (sortBy === 'mastery') {
+          return b.mastery - a.mastery || a.title.localeCompare(b.title);
+        }
+        if (sortBy === 'title') {
+          return a.title.localeCompare(b.title);
+        }
+        if (sortBy === 'questions') {
+          return b.cardCount - a.cardCount || a.title.localeCompare(b.title);
+        }
+
         const aTime = a.lastSession ? a.lastSession.getTime() : 0;
         const bTime = b.lastSession ? b.lastSession.getTime() : 0;
-        return bTime - aTime;
+        return bTime - aTime || a.title.localeCompare(b.title);
       });
-  }, [filter, kits, searchQuery]);
+  }, [filter, kits, searchQuery, sortBy]);
+
+  const sortLabel =
+    sortBy === 'mastery'
+      ? 'Mastery'
+      : sortBy === 'title'
+      ? 'Title'
+      : sortBy === 'questions'
+      ? 'Question count'
+      : 'Most recent';
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -56,11 +77,24 @@ export const KitsPage = ({ kits, onStudyKit, onCreateKit, onEditKit }: KitsPageP
 
       <section className="mb-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3 text-sm font-bold text-on-surface-variant">
-          <button className="inline-flex items-center gap-2 hover:text-on-surface transition-colors">
-            <span>{filter === 'recent' ? 'Recent' : filter === 'mastered' ? 'Mastered first' : 'All kits'}</span>
-            <ChevronDown className="w-4 h-4" />
-          </button>
+          <div className="relative">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="appearance-none rounded-full bg-surface-container-low px-4 py-2 pr-9 text-sm font-bold text-on-surface focus:outline-none"
+              aria-label="Sort study kits"
+            >
+              <option value="recent">Most recent</option>
+              <option value="mastery">Mastery</option>
+              <option value="title">Title</option>
+              <option value="questions">Question count</option>
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 w-4 h-4 -translate-y-1/2 text-on-surface-variant" />
+          </div>
           <span className="text-on-surface-variant/40">•</span>
+          <span>{sortLabel}</span>
+          <span className="text-on-surface-variant/40">•</span>
+          <span>{filter === 'recent' ? 'Recent' : filter === 'mastered' ? 'Mastered' : 'All kits'}</span>
           <span>{filteredKits.length} {filteredKits.length === 1 ? 'kit' : 'kits'}</span>
         </div>
 
@@ -186,6 +220,20 @@ function KitLibraryCard({ kit, onStudy, onEdit }: KitLibraryCardProps) {
       </div>
 
       <div className="mb-6">
+        <div className="flex flex-wrap gap-2 mb-3">
+          {kit.visibility === 'public' ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-primary">
+              <Globe2 className="w-3.5 h-3.5" />
+              Public
+            </span>
+          ) : null}
+          {kit.isAutoReview ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-secondary/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-secondary">
+              <Sparkles className="w-3.5 h-3.5" />
+              Auto Review
+            </span>
+          ) : null}
+        </div>
         <h3 className="text-2xl font-headline font-bold tracking-tight text-on-surface mb-2 line-clamp-2">{kit.title}</h3>
         <p className="text-sm text-on-surface-variant">
           {kit.cardCount} questions

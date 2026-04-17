@@ -24,12 +24,16 @@ export const config = {
   },
 };
 
-async function parseUploadFile(req: VercelRequest): Promise<{ file: File | null; error: string | null }> {
+async function parseUploadFile(req: VercelRequest): Promise<{
+  file: File | null;
+  visibility: "private" | "public";
+  error: string | null;
+}> {
   return new Promise((resolve, reject) => {
     const contentType = req.headers["content-type"];
     const normalizedContentType = Array.isArray(contentType) ? contentType[0] : contentType;
     if (!normalizedContentType || !normalizedContentType.toLowerCase().startsWith("multipart/form-data")) {
-      resolve({ file: null, error: "Upload is missing a multipart form payload." });
+      resolve({ file: null, visibility: "private", error: "Upload is missing a multipart form payload." });
       return;
     }
 
@@ -43,13 +47,14 @@ async function parseUploadFile(req: VercelRequest): Promise<{ file: File | null;
         },
       });
     } catch {
-      resolve({ file: null, error: "Could not read uploaded form data." });
+      resolve({ file: null, visibility: "private", error: "Could not read uploaded form data." });
       return;
     }
 
     let resolvedFile: File | null = null;
     let parseError: string | null = null;
     let fileSeen = false;
+    let visibility: "private" | "public" = "private";
 
     busboy.on("file", (_fieldName, fileStream, info) => {
       fileSeen = true;
@@ -91,17 +96,23 @@ async function parseUploadFile(req: VercelRequest): Promise<{ file: File | null;
       });
     });
 
+    busboy.on("field", (fieldName, value) => {
+      if (fieldName === "visibility" && (value === "private" || value === "public")) {
+        visibility = value;
+      }
+    });
+
     busboy.on("filesLimit", () => {
       parseError = "Upload one file at a time.";
     });
     busboy.on("error", () => {
-      resolve({ file: null, error: "Could not parse uploaded form data." });
+      resolve({ file: null, visibility: "private", error: "Could not parse uploaded form data." });
     });
     busboy.on("finish", () => {
       if (!fileSeen && !parseError) {
         parseError = "Upload is missing a file payload.";
       }
-      resolve({ file: parseError ? null : resolvedFile, error: parseError });
+      resolve({ file: parseError ? null : resolvedFile, visibility, error: parseError });
     });
 
     const rawBody = (req as VercelRequest & { rawBody?: Buffer | string }).rawBody;
@@ -163,7 +174,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (parsed.error) return sendWebResponse(badRequest(parsed.error), res);
 
-    const { file } = parsed;
+    const { file, visibility } = parsed;
     if (!(file instanceof File)) return sendWebResponse(badRequest("Upload is missing a file payload."), res);
 
     const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -175,7 +186,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return await runWithRequestContext(auth, async () => {
-      const source = await uploadSource(auth.userId, file);
+      const source = await uploadSource(auth.userId, file, { visibility });
       const questions = await listSourceQuestions(auth.userId, source.id);
       return sendWebResponse(ok({ source, questions }, 201), res);
     });

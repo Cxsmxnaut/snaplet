@@ -1,5 +1,7 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
+import { snapletDurations, snapletEase } from '../lib/motion';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'tertiary' | 'ghost' | 'outline';
@@ -16,14 +18,15 @@ export const Button = ({
   size = 'md', 
   className, 
   children, 
+  disabled,
   ...props 
 }: ButtonProps) => {
   const variants = {
-    primary: 'gradient-primary text-on-primary shadow-sm shadow-primary/10 hover:-translate-y-px active:translate-y-0 active:scale-[0.99]',
-    secondary: 'bg-surface-container-lowest border border-outline-variant/20 text-on-surface hover:bg-surface-container-low active:scale-[0.99]',
-    tertiary: 'bg-transparent text-primary hover:text-primary-strong active:scale-[0.99]',
+    primary: 'gradient-primary text-on-primary shadow-sm shadow-primary/10 hover:shadow-[0_14px_30px_rgba(99,173,158,0.24)]',
+    secondary: 'bg-surface-container-lowest border border-outline-variant/20 text-on-surface hover:bg-surface-container-low hover:shadow-[0_12px_24px_rgba(40,46,62,0.08)]',
+    tertiary: 'bg-transparent text-primary hover:text-primary-strong',
     ghost: 'bg-transparent text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface',
-    outline: 'bg-surface-container-lowest border border-outline-variant/20 text-on-surface hover:bg-surface-container-low active:scale-[0.99]',
+    outline: 'bg-surface-container-lowest border border-outline-variant/20 text-on-surface hover:bg-surface-container-low hover:shadow-[0_12px_24px_rgba(40,46,62,0.08)]',
   };
 
   const sizes = {
@@ -34,16 +37,21 @@ export const Button = ({
   };
 
   return (
-    <button 
+    <motion.button 
+      whileHover={disabled ? undefined : { scale: 1.01, y: -1 }}
+      whileTap={disabled ? undefined : { scale: 0.985, y: 0 }}
+      transition={{ duration: snapletDurations.fast, ease: snapletEase }}
       className={cn(
-        'transition-all duration-200 flex items-center justify-center gap-2 font-headline',
+        'interactive-control flex items-center justify-center gap-2 font-headline',
+        disabled && 'cursor-not-allowed opacity-60 shadow-none',
         variants[variant],
         sizes[size],
         className
       )}
+      disabled={disabled}
       {...props}
     >
       {children}
-    </button>
+    </motion.button>
   );
 };

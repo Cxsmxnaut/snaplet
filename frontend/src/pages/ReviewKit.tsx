@@ -6,13 +6,25 @@ import {
   Trash2,
   ArrowLeft,
   Zap,
+  RefreshCw,
+  Globe2,
+  Copy,
+  RotateCcw,
+  Sparkles,
+  CheckCircle2,
 } from 'lucide-react';
 import { Kit } from '../types';
+import { BackendActiveSourceSession } from '../lib/api';
 
 interface ReviewKitProps {
   kit: Kit;
   onStart: () => void;
   onStartRapid: () => void;
+  onRegenerate: () => Promise<void> | void;
+  onToggleVisibility: (visibility: 'private' | 'public') => Promise<void> | void;
+  activeSession: BackendActiveSourceSession | null;
+  activeSessionLoading: boolean;
+  onResumeSession: () => void;
   onBack: () => void;
   onDelete: () => void;
   onUpdateQuestion: (questionId: string, question: string, answer: string) => Promise<void>;
@@ -23,6 +35,11 @@ export const ReviewKit = ({
   kit,
   onStart,
   onStartRapid,
+  onRegenerate,
+  onToggleVisibility,
+  activeSession,
+  activeSessionLoading,
+  onResumeSession,
   onBack,
   onDelete,
   onUpdateQuestion,
@@ -33,12 +50,16 @@ export const ReviewKit = ({
   const [localQuestions, setLocalQuestions] = useState(kit.questions);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
+  const [visibilityUpdating, setVisibilityUpdating] = useState(false);
+  const [shareFeedback, setShareFeedback] = useState<string | null>(null);
   const [itemError, setItemError] = useState<string | null>(null);
   const mastery = Math.max(0, Math.min(100, kit.mastery));
   const estimatedMinutes = localQuestions.length === 0 ? 0 : Math.max(1, Math.round(localQuestions.length * 0.75));
   const needsAttentionUpload = kit.kind !== 'paste' && kit.extractionStatus === 'needs_attention';
   const failedUpload = kit.kind !== 'paste' && kit.extractionStatus === 'failed';
   const generationFailed = kit.questionGenerationStatus === 'failed';
+  const sharedUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/shared/${kit.id}`;
 
   const emptyState = (() => {
     if (failedUpload) {
@@ -123,6 +144,48 @@ export const ReviewKit = ({
     }
   };
 
+  const handleRegenerate = async () => {
+    setRegenerating(true);
+    setItemError(null);
+    try {
+      await onRegenerate();
+    } catch (err) {
+      setItemError(err instanceof Error ? err.message : 'Failed to regenerate questions.');
+    } finally {
+      setRegenerating(false);
+    }
+  };
+
+  const handleToggleVisibility = async (visibility: 'private' | 'public') => {
+    if (visibility === kit.visibility) {
+      return;
+    }
+
+    setVisibilityUpdating(true);
+    setItemError(null);
+    try {
+      await onToggleVisibility(visibility);
+      setShareFeedback(visibility === 'public' ? 'Share page is live now.' : 'This kit is private again.');
+    } catch (err) {
+      setItemError(err instanceof Error ? err.message : 'Failed to update visibility.');
+    } finally {
+      setVisibilityUpdating(false);
+    }
+  };
+
+  const handleCopyShareLink = async () => {
+    if (!sharedUrl) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(sharedUrl);
+      setShareFeedback('Public share link copied.');
+    } catch {
+      setShareFeedback('Copy failed. You can still open the public page directly.');
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-12">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -132,24 +195,45 @@ export const ReviewKit = ({
               <ArrowLeft className="w-5 h-5" />
             </button>
             <span className="px-3 py-1 bg-surface-container-high rounded-full text-xs font-bold text-primary tracking-widest uppercase">AI Generated</span>
+            {kit.isAutoReview ? (
+              <span className="px-3 py-1 bg-secondary/14 rounded-full text-xs font-bold text-secondary tracking-widest uppercase">
+                Auto Review
+              </span>
+            ) : null}
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase ${
+                kit.visibility === 'public'
+                  ? 'bg-primary/12 text-primary'
+                  : 'bg-surface-container-high text-on-surface-variant'
+              }`}
+            >
+              {kit.visibility}
+            </span>
           </div>
           <h2 className="text-4xl font-headline font-extrabold text-on-surface mb-3 tracking-tight">{kit.title}</h2>
           <p className="text-on-surface-variant text-lg leading-relaxed">Review the AI's interpretations before finalizing your study deck.</p>
         </div>
-        <div className="flex gap-4">
-              <Button variant="outline" onClick={onDelete} className="text-error border-error/20 hover:bg-error/10">
+        <div className="flex flex-wrap gap-3">
+          <Button variant="outline" onClick={() => { void handleRegenerate(); }} disabled={regenerating} className="border-outline-variant/20">
+            <RotateCcw className={`w-4 h-4 ${regenerating ? 'animate-spin' : ''}`} />
+            {regenerating ? 'Regenerating...' : 'Regenerate'}
+          </Button>
+          <Button variant="outline" onClick={onDelete} className="text-error border-error/20 hover:bg-error/10">
             <Trash2 className="w-5 h-5" />
             Delete Kit
           </Button>
-              <Button size="lg" onClick={onStart} disabled={localQuestions.length === 0}>
+          <Button size="lg" onClick={onStart} disabled={localQuestions.length === 0}>
             <Play className="w-5 h-5" />
             Start Study Session
-              </Button>
-            </div>
-          </header>
-          {itemError ? (
-            <div className="mt-4 rounded-xl border border-error/30 bg-error/10 p-3 text-sm text-error">{itemError}</div>
-          ) : null}
+          </Button>
+        </div>
+      </header>
+      {itemError ? (
+        <div className="rounded-xl border border-error/30 bg-error/10 p-3 text-sm text-error">{itemError}</div>
+      ) : null}
+      {shareFeedback ? (
+        <div className="rounded-xl border border-primary/20 bg-primary/8 p-3 text-sm text-primary">{shareFeedback}</div>
+      ) : null}
 
       {needsAttentionUpload && localQuestions.length > 0 ? (
         <div className="rounded-2xl border border-tertiary/20 bg-tertiary/8 px-6 py-5 flex flex-col gap-2">
@@ -161,6 +245,44 @@ export const ReviewKit = ({
             Review these questions carefully before studying. If the wording feels noisy or incomplete, go back and paste cleaner notes
             or upload a clearer source file.
           </p>
+        </div>
+      ) : null}
+
+      {kit.isAutoReview ? (
+        <div className="rounded-2xl border border-secondary/20 bg-secondary/8 px-6 py-5 flex flex-col gap-2">
+          <span className="inline-flex w-fit px-3 py-1 rounded-full bg-secondary/14 text-secondary text-[10px] font-bold uppercase tracking-widest">
+            Auto Review queue
+          </span>
+          <h3 className="text-lg font-headline font-bold text-on-surface">This kit was generated from missed or weaker questions.</h3>
+          <p className="text-sm text-on-surface-variant leading-relaxed max-w-3xl">
+            Snaplet created this review queue so you can revisit pressure points faster. It behaves like a normal kit now, but it is system-generated from your study history.
+          </p>
+        </div>
+      ) : null}
+
+      {activeSession ? (
+        <div className="rounded-2xl border border-primary/20 bg-primary/8 px-6 py-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <span className="inline-flex px-3 py-1 rounded-full bg-primary/14 text-primary text-[10px] font-bold uppercase tracking-widest">
+              Session in progress
+            </span>
+            <h3 className="mt-3 text-lg font-headline font-bold text-on-surface">
+              You already have a live {activeSession.mode.replace('_', ' ')} session for this kit.
+            </h3>
+            <p className="text-sm text-on-surface-variant mt-1">
+              {activeSession.answeredCount} answered of {activeSession.questionCap}
+              {activeSession.currentPosition ? ` • next question ${activeSession.currentPosition}` : ''}
+              {activeSession.pendingRetry ? ' • retry waiting' : ''}
+            </p>
+          </div>
+          <Button onClick={onResumeSession} className="shrink-0">
+            <RefreshCw className="w-4 h-4" />
+            Resume Session
+          </Button>
+        </div>
+      ) : activeSessionLoading ? (
+        <div className="rounded-2xl border border-outline-variant/15 bg-surface-container px-6 py-5 text-sm text-on-surface-variant">
+          Checking for an in-progress session...
         </div>
       ) : null}
 
@@ -235,6 +357,69 @@ export const ReviewKit = ({
 
         <aside className="lg:col-span-4 space-y-6">
           <div className="bg-surface-container rounded-2xl p-6 border border-outline-variant/5">
+            <h4 className="font-headline font-bold text-sm mb-4 tracking-wider text-on-surface-variant uppercase">Visibility</h4>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <button
+                type="button"
+                onClick={() => { void handleToggleVisibility('private'); }}
+                disabled={visibilityUpdating}
+                className={`rounded-2xl border px-4 py-4 text-left transition-colors ${
+                  kit.visibility === 'private'
+                    ? 'border-on-surface bg-surface text-on-surface'
+                    : 'border-outline-variant/20 bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                <p className="text-sm font-bold">Private</p>
+                <p className="text-xs mt-1">Only visible inside your account.</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => { void handleToggleVisibility('public'); }}
+                disabled={visibilityUpdating}
+                className={`rounded-2xl border px-4 py-4 text-left transition-colors ${
+                  kit.visibility === 'public'
+                    ? 'border-primary bg-primary/8 text-on-surface'
+                    : 'border-outline-variant/20 bg-surface-container-low text-on-surface-variant hover:text-on-surface'
+                }`}
+              >
+                <p className="text-sm font-bold inline-flex items-center gap-2">
+                  <Globe2 className="w-4 h-4" />
+                  Public
+                </p>
+                <p className="text-xs mt-1">Read-only share page anyone can open.</p>
+              </button>
+            </div>
+
+            {kit.visibility === 'public' ? (
+              <div className="rounded-2xl bg-surface-container-low p-4 space-y-3">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-primary">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Share page live
+                </div>
+                <p className="text-sm text-on-surface-variant break-all">{sharedUrl}</p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => { void handleCopyShareLink(); }}>
+                    <Copy className="w-4 h-4" />
+                    Copy link
+                  </Button>
+                  <a
+                    href={sharedUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center justify-center rounded-full bg-surface px-4 py-2 text-sm font-bold text-on-surface"
+                  >
+                    Open share page
+                  </a>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-on-surface-variant">
+                Keep this private while you tune the questions, then switch it public when you want a read-only share page.
+              </p>
+            )}
+          </div>
+
+          <div className="bg-surface-container rounded-2xl p-6 border border-outline-variant/5">
             <h4 className="font-headline font-bold text-sm mb-4 tracking-wider text-on-surface-variant uppercase">Kit Performance</h4>
             <div className="space-y-4">
               <div>
@@ -273,6 +458,24 @@ export const ReviewKit = ({
             </div>
             <div className="absolute -right-4 -bottom-4 opacity-20 group-hover:scale-110 transition-transform">
               <Zap className="w-24 h-24 rotate-12" />
+            </div>
+          </div>
+
+          <div className="bg-surface-container rounded-2xl p-6 border border-outline-variant/5">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="font-headline font-bold text-sm tracking-wider text-on-surface uppercase mb-2">Refresh this kit</h4>
+                <p className="text-sm text-on-surface-variant leading-relaxed mb-4">
+                  Regeneration reruns question creation from the saved source material. Use it after cleaning notes or when the first pass feels too weak.
+                </p>
+                <Button variant="outline" size="sm" onClick={() => { void handleRegenerate(); }} disabled={regenerating}>
+                  <RotateCcw className={`w-4 h-4 ${regenerating ? 'animate-spin' : ''}`} />
+                  {regenerating ? 'Refreshing...' : 'Regenerate questions'}
+                </Button>
+              </div>
             </div>
           </div>
         </aside>

@@ -113,7 +113,7 @@ export const ProgressPage = ({
 
       {error ? (
         <div className="rounded-[22px] bg-tertiary/12 px-5 py-4 text-sm text-on-surface flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <span>Progress data is showing cached information because the latest refresh failed: {error}</span>
+          <span>Progress data could not refresh, so you are seeing the latest successful load: {error}</span>
           <Button variant="outline" className="rounded-full shrink-0" onClick={onRefresh}>
             <RefreshCw className="w-4 h-4" />
             Try again

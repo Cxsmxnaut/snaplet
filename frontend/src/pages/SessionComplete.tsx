@@ -17,6 +17,20 @@ interface SessionCompleteProps {
   onNew: () => void;
 }
 
+function formatDuration(durationSeconds: number): string {
+  if (durationSeconds < 60) {
+    return `${durationSeconds}s`;
+  }
+
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = durationSeconds % 60;
+  if (seconds === 0) {
+    return `${minutes}m`;
+  }
+
+  return `${minutes}m ${seconds}s`;
+}
+
 export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompleteProps) => {
   const attempts = result.correctCount + result.incorrectCount;
   const weakCount = result.weakQuestions.length;
@@ -35,7 +49,7 @@ export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompl
         <div>
           <span className="inline-block px-3 py-1 bg-secondary/10 text-secondary text-xs font-bold rounded-full mb-4 tracking-widest uppercase">Success</span>
           <h1 className="text-4xl md:text-6xl font-black text-on-surface tracking-tighter">Session Complete</h1>
-          <p className="text-on-surface-variant mt-2 text-lg">Your latest review run is saved and ready to build on.</p>
+          <p className="text-on-surface-variant mt-2 text-lg">Your latest review run is recorded and ready to build on.</p>
         </div>
         <Button variant="outline" onClick={onBack}>
           <ArrowLeft className="w-4 h-4" />
@@ -85,7 +99,7 @@ export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompl
               Session Summary
             </p>
             <p className="text-on-surface-variant mt-1 text-sm">
-              {attempts} total responses • Duration: {result.duration}
+              {attempts} total responses • Duration: {formatDuration(result.durationSeconds)}
             </p>
           </div>
         </div>
@@ -103,7 +117,7 @@ export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompl
           {weakCount === 0 ? (
             <div className="bg-surface-container-lowest p-6 rounded-xl ambient-shadow">
               <p className="text-on-surface font-semibold">No weak questions in this run.</p>
-              <p className="text-on-surface-variant text-sm mt-1">Start another session to keep the streak.</p>
+              <p className="text-on-surface-variant text-sm mt-1">Start another session to keep your review momentum going.</p>
             </div>
           ) : (
             result.weakQuestions.map((item, i) => (

@@ -13,13 +13,15 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Kit, SessionResult } from '../types';
-import { StudyMode, startSession, submitAttempt } from '../lib/api';
+import { StudyMode, getSessionDetails, startSession, submitAttempt } from '../lib/api';
 import { logDebug, logError } from '../lib/debug';
 
 interface StudySessionProps {
   kit: Kit;
   mode: StudyMode;
-  onComplete: (results: { sessionId: string; correct: number; incorrect: number; weak: SessionResult['weakQuestions'] }) => void;
+  sessionId: string | null;
+  onSessionReady: (sessionId: string) => void;
+  onComplete: (results: { sessionId: string; correct: number; incorrect: number; durationSeconds: number; weak: SessionResult['weakQuestions'] }) => void;
   onQuit: () => void;
 }
 
@@ -42,11 +44,12 @@ function modeLabel(mode: StudyMode): string {
   return 'Fast Drill';
 }
 
-export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProps) => {
+export const StudySession = ({ kit, mode, sessionId: routeSessionId, onSessionReady, onComplete, onQuit }: StudySessionProps) => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<ActiveQuestion | null>(null);
   const [queuedNextQuestion, setQueuedNextQuestion] = useState<ActiveQuestion | null>(null);
   const [sessionQuestionCap, setSessionQuestionCap] = useState<number | null>(null);
+  const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
   const [answer, setAnswer] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState('');
@@ -79,23 +82,47 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
     setRequestError(null);
 
     try {
-      const started = await startSession(
-        kit.id,
-        mode,
-        kit.questions.map((question) => ({
-          id: question.id,
-          sourceId: kit.id,
-          prompt: question.question,
-          answer: question.answer,
-          status: 'active',
-          createdAt: '',
-          updatedAt: '',
-        })),
-      );
+      if (routeSessionId) {
+        const resumed = await getSessionDetails(routeSessionId);
+        if (resumed.session.endedAt) {
+          setRequestError('This session is already complete. Open the completion summary or start a new session.');
+          setCurrentQuestion(null);
+          return;
+        }
+
+        setSessionId(resumed.session.id);
+        setSessionQuestionCap(resumed.session.questionCap);
+        setSessionStartedAt(resumed.session.startedAt);
+        setCurrentQuestion(resumed.currentQuestion);
+        setResults({
+          correct: resumed.session.correctCount,
+          incorrect: resumed.session.incorrectCount,
+          weak: [],
+        });
+        setNeedsRetry(
+          Boolean(
+            resumed.session.pendingRetry &&
+              resumed.currentQuestion &&
+              resumed.currentQuestion.questionId,
+          ),
+        );
+        setQueuedNextQuestion(null);
+        logDebug('study', 'Session resumed', {
+          sessionId: resumed.session.id,
+          hasCurrentQuestion: Boolean(resumed.currentQuestion),
+          questionCap: resumed.session.questionCap,
+          pendingRetry: resumed.session.pendingRetry,
+        });
+        return;
+      }
+
+      const started = await startSession(kit.id, mode);
       setSessionId(started.session.id);
       setSessionQuestionCap(started.session.questionCap);
+      setSessionStartedAt(new Date().toISOString());
       setCurrentQuestion(started.currentQuestion);
       setQueuedNextQuestion(null);
+      onSessionReady(started.session.id);
       logDebug('study', 'Session started', {
         sessionId: started.session.id,
         hasCurrentQuestion: Boolean(started.currentQuestion),
@@ -116,7 +143,7 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
     };
 
     void begin();
-  }, [kit.id, mode]);
+  }, [kit.id, mode, routeSessionId, onSessionReady]);
 
   useEffect(() => {
     if (mode !== 'fast_drill' || !showFeedback || needsRetry) {
@@ -171,6 +198,12 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
         sessionId,
         correct: results.correct + (correct ? 1 : 0),
         incorrect: results.incorrect + (correct ? 0 : 1),
+        durationSeconds: Math.max(
+          0,
+          Math.round(
+            ((Date.now() - new Date(sessionStartedAt ?? new Date().toISOString()).getTime()) / 1000),
+          ),
+        ),
         weak: correct
           ? results.weak
           : [
@@ -311,7 +344,7 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
           </div>
           <button onClick={onQuit} className="group flex items-center gap-2 px-4 py-2 rounded-full bg-surface-container-low text-on-surface-variant hover:bg-error-container hover:text-on-error-container transition-all duration-300">
             <X className="w-4 h-4" />
-            <span className="text-sm font-semibold">Quit Session</span>
+            <span className="text-sm font-semibold">Leave Session</span>
           </button>
         </nav>
         <div className="max-w-4xl mx-auto w-full px-4">
@@ -406,7 +439,7 @@ export const StudySession = ({ kit, mode, onComplete, onQuit }: StudySessionProp
             </div>
           </div>
           <div className="bg-surface-container-lowest/80 backdrop-blur-md px-5 py-3 rounded-full flex items-center gap-3 border border-outline-variant/10 pointer-events-auto ambient-shadow">
-            <div className="flex flex-col items-end"><span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">Correct</span><span className="text-sm font-headline font-bold text-secondary">{results.correct} streak</span></div>
+            <div className="flex flex-col items-end"><span className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest leading-none">Correct</span><span className="text-sm font-headline font-bold text-secondary">{results.correct} so far</span></div>
             <div aria-hidden="true" className="flex items-center justify-center h-8 w-8 rounded-full bg-surface-container"><Flame className="text-secondary w-4 h-4 fill-secondary" /></div>
           </div>
         </div>

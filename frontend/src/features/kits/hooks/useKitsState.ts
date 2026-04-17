@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { listSourceQuestions, listSources } from '../../../lib/api';
-import { Kit } from '../../../types';
+import { Kit, ProgressData } from '../../../types';
 import { mapSourceToKit } from '../services/kitMapper';
-import { loadLastSessionMap, loadMasteryMap } from '../services/kitStorage';
 
 function resolveCurrentKitId(
   nextKits: Kit[],
@@ -34,12 +33,8 @@ export function useKitsState(routeKitId: string | null) {
 
   const currentKit = useMemo(() => kits.find((kit) => kit.id === currentKitId) ?? null, [kits, currentKitId]);
 
-  const refreshKits = async (preferredKitId: string | null = null) => {
-    const [sources, masteryMap, lastSessionMap] = await Promise.all([
-      listSources(),
-      Promise.resolve(loadMasteryMap()),
-      Promise.resolve(loadLastSessionMap()),
-    ]);
+  const refreshKits = async (preferredKitId: string | null = null, progress: ProgressData | null = null) => {
+    const sources = await listSources();
 
     const questionsBySource = await Promise.all(
       sources.map(async (source) => ({
@@ -49,13 +44,8 @@ export function useKitsState(routeKitId: string | null) {
     );
 
     const questionMap = new Map(questionsBySource.map((row) => [row.sourceId, row.questions]));
-    const nextKits = sources.map((source, idx) => mapSourceToKit(source, questionMap.get(source.id) ?? [], idx, masteryMap, lastSessionMap));
+    const nextKits = sources.map((source, idx) => mapSourceToKit(source, questionMap.get(source.id) ?? [], idx, progress));
 
-    setKits(nextKits);
-    setCurrentKitId((prev) => resolveCurrentKitId(nextKits, preferredKitId, routeKitId, prev));
-  };
-
-  const hydrateKits = (nextKits: Kit[], preferredKitId: string | null) => {
     setKits(nextKits);
     setCurrentKitId((prev) => resolveCurrentKitId(nextKits, preferredKitId, routeKitId, prev));
   };
@@ -100,19 +90,23 @@ export function useKitsState(routeKitId: string | null) {
     );
   };
 
-  const updateKitStudyStats = (kitId: string, mastery: number, lastSession: Date) => {
+  const syncKitProgress = useCallback((progress: ProgressData | null) => {
+    if (!progress) {
+      return;
+    }
+
+    const breakdownBySourceId = new Map(progress.kitBreakdown.map((item) => [item.sourceId, item]));
     setKits((prev) =>
-      prev.map((kit) =>
-        kit.id === kitId
-          ? {
-              ...kit,
-              mastery,
-              lastSession,
-            }
-          : kit,
-      ),
+      prev.map((kit) => {
+        const breakdown = breakdownBySourceId.get(kit.id);
+        return {
+          ...kit,
+          mastery: breakdown?.mastery ?? 0,
+          lastSession: breakdown?.lastStudiedAt ? new Date(breakdown.lastStudiedAt) : undefined,
+        };
+      }),
     );
-  };
+  }, []);
 
   return {
     kits,
@@ -121,9 +115,8 @@ export function useKitsState(routeKitId: string | null) {
     currentKitId,
     setCurrentKitId,
     refreshKits,
-    hydrateKits,
     updateQuestionInKit,
     removeQuestionFromKit,
-    updateKitStudyStats,
+    syncKitProgress,
   };
 }

@@ -3,6 +3,8 @@ export type ExtractionStatus = "extracting" | "ready" | "needs_attention" | "fai
 export type ExtractorMode = "direct" | "ocr_fallback" | "csv";
 
 export type SourceKind = "paste" | "upload" | "csv";
+export type SourceVisibility = "private" | "public";
+export type GenerationProvenance = "provider" | "heuristic" | "none";
 
 export type AttemptOutcome =
   | "exact"
@@ -22,8 +24,12 @@ export interface StudySource {
   title: string;
   content: string;
   kind: SourceKind;
+  visibility: SourceVisibility;
   extractionStatus: ExtractionStatus;
   questionGenerationStatus: "pending" | "generating" | "ready" | "failed";
+  generationProvenance?: GenerationProvenance;
+  generationProvider?: string;
+  generationDegraded?: boolean;
   questionCount: number;
   createdAt: string;
   updatedAt: string;

@@ -1,3 +1,5 @@
+import { recordProductEvent } from "./product-events.js";
+
 type AnswerCheckProvider = "ollama" | "groq" | "openrouter";
 
 export type SemanticCheckResult = {
@@ -49,7 +51,7 @@ type ProviderDefinition = {
   } | null>;
 };
 
-const DEFAULT_PROVIDER_ORDER: AnswerCheckProvider[] = ["ollama", "groq", "openrouter"];
+const DEFAULT_PROVIDER_ORDER: AnswerCheckProvider[] = ["groq", "openrouter", "ollama"];
 
 const keyRotationCursor: Record<AnswerCheckProvider, number> = {
   ollama: 0,
@@ -114,10 +116,11 @@ function clampConfidence(value: unknown): number {
 }
 
 function providerModel(provider: AnswerCheckProvider, modelEnv: string, defaultModel: string): string {
+  const configuredModel = process.env[modelEnv]?.trim();
   if (provider === "ollama") {
-    return process.env[modelEnv] ?? process.env.OLLAMA_MODEL ?? defaultModel;
+    return configuredModel || process.env.OLLAMA_MODEL?.trim() || defaultModel;
   }
-  return process.env[modelEnv] ?? defaultModel;
+  return configuredModel || defaultModel;
 }
 
 function extractJsonObject(text: string): string | null {
@@ -447,6 +450,14 @@ export async function semanticCheckAnswer(payload: SemanticPayload): Promise<Sem
       }
     }
   }
+
+  await recordProductEvent({
+    name: "provider_failure",
+    properties: {
+      subsystem: "semantic_check",
+      providersTried: providers,
+    },
+  });
 
   return null;
 }

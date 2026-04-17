@@ -7,6 +7,7 @@ import {
   type ReviewState,
   type Session,
   type SessionQuestion,
+  type SourceVisibility,
   type StudySource,
   type UserBucket,
 } from "../domain/types.js";
@@ -16,6 +17,7 @@ import { extractTextFromUpload } from "../domain/extraction.js";
 import { generateQuestionPairs, generateStudyTitle } from "../domain/generation.js";
 import { buildSessionQueue, pickRevisitOffset } from "../domain/queue.js";
 import { semanticCheckAnswer, semanticPassesThreshold } from "./semantic-check.js";
+import { removePublishedSourceSnapshot, syncPublishedSourceSnapshot } from "./published-snapshots.js";
 import {
   ensureAnalyticsBackfill,
   getAnalyticsProgress,
@@ -24,16 +26,32 @@ import {
   syncSessionFinal,
   syncSessionStart,
 } from "./analytics.js";
-import { createId, mutateUserBucket, readUserBucket } from "./store.js";
+import { recordProductEvent } from "./product-events.js";
+import { createId, deleteSourceRecords, mutateUserBucket, readUserBucket } from "./store.js";
 
 function nowIso(): string {
   return new Date().toISOString();
 }
 
 function toSourceSummary(source: StudySource) {
-  return {
-    ...source,
-  };
+  const { content: _content, ...summary } = source;
+  return summary;
+}
+
+async function syncSharedSnapshotForSource(userId: string, sourceId: string): Promise<void> {
+  await readUserBucket(userId, async (bucket) => {
+    const source = bucket.sources[sourceId];
+    if (!source) {
+      await removePublishedSourceSnapshot(sourceId);
+      return;
+    }
+
+    const activeQuestions = Object.values(bucket.questions)
+      .filter((question) => question.sourceId === sourceId && question.status === "active")
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+    await syncPublishedSourceSnapshot(source, activeQuestions);
+  });
 }
 
 function listAttempts(bucket: { attempts: Record<string, Attempt> }): Attempt[] {
@@ -170,7 +188,7 @@ function maybeEndSession(session: Session): boolean {
 }
 
 async function generateQuestionsForSource(userId: string, sourceId: string): Promise<{ questionCount: number }> {
-  return mutateUserBucket(userId, async (bucket) => {
+  const result = await mutateUserBucket(userId, async (bucket) => {
     const source = bucket.sources[sourceId];
     if (!source) {
       throw new Error("Source not found");
@@ -180,9 +198,23 @@ async function generateQuestionsForSource(userId: string, sourceId: string): Pro
     source.updatedAt = nowIso();
 
     const generated = await generateQuestionPairs(source.content);
-    if (generated.length === 0) {
+    if (generated.pairs.length === 0) {
       source.questionGenerationStatus = "failed";
+      source.generationProvenance = generated.provenance;
+      source.generationProvider = generated.provider ?? undefined;
+      source.generationDegraded = generated.provenance !== "provider";
       source.updatedAt = nowIso();
+      await recordProductEvent({
+        name: "generation_failed",
+        userId,
+        sourceId: source.id,
+        properties: {
+          kind: source.kind,
+          reason: "no_questions_generated",
+          provenance: generated.provenance,
+          provider: generated.provider,
+        },
+      });
       return { questionCount: source.questionCount };
     }
 
@@ -192,7 +224,7 @@ async function generateQuestionsForSource(userId: string, sourceId: string): Pro
       question.updatedAt = nowIso();
     }
 
-    for (const pair of generated) {
+    for (const pair of generated.pairs) {
       const questionId = createId("q");
       bucket.questions[questionId] = {
         id: questionId,
@@ -208,22 +240,49 @@ async function generateQuestionsForSource(userId: string, sourceId: string): Pro
     }
 
     source.questionGenerationStatus = "ready";
-    source.questionCount = generated.length;
+    source.generationProvenance = generated.provenance;
+    source.generationProvider = generated.provider ?? undefined;
+    source.generationDegraded = generated.provenance !== "provider";
+    source.questionCount = generated.pairs.length;
     source.updatedAt = nowIso();
+    await recordProductEvent({
+      name: generated.provenance === "provider" ? "generation_succeeded" : "generation_failed",
+      userId,
+      sourceId: source.id,
+      properties: {
+        kind: source.kind,
+        questionCount: generated.pairs.length,
+        provenance: generated.provenance,
+        provider: generated.provider,
+        degraded: generated.provenance !== "provider",
+      },
+    });
 
-    return { questionCount: generated.length };
+    return { questionCount: generated.pairs.length };
   });
+
+  await syncSharedSnapshotForSource(userId, sourceId);
+  return result;
 }
 
 export async function listSources(userId: string): Promise<StudySource[]> {
   return readUserBucket(userId, (bucket) =>
     Object.values(bucket.sources)
-      .map((source) => toSourceSummary(source))
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
   );
 }
 
-export async function createPasteSource(userId: string, title: string, content: string): Promise<StudySource> {
+export async function listSourceSummaries(userId: string): Promise<Array<Omit<StudySource, "content">>> {
+  const sources = await listSources(userId);
+  return sources.map((source) => toSourceSummary(source));
+}
+
+export async function createPasteSource(
+  userId: string,
+  title: string,
+  content: string,
+  options?: { visibility?: SourceVisibility },
+): Promise<StudySource> {
   const trimmedContent = content.trim();
   if (trimmedContent.length < 8) {
     throw new Error("Source content is too short");
@@ -231,6 +290,7 @@ export async function createPasteSource(userId: string, title: string, content: 
 
   const generatedTitle = await generateStudyTitle(trimmedContent);
   const resolvedTitle = title.trim() || generatedTitle.trim() || "Untitled notes";
+  const visibility = options?.visibility ?? "private";
 
   const source = await mutateUserBucket(userId, (bucket) => {
     const sourceId = createId("src");
@@ -242,8 +302,11 @@ export async function createPasteSource(userId: string, title: string, content: 
       title: resolvedTitle,
       content: trimmedContent,
       kind: "paste",
+      visibility,
       extractionStatus: "ready",
       questionGenerationStatus: "pending",
+      generationProvenance: "none",
+      generationDegraded: false,
       questionCount: 0,
       createdAt,
       updatedAt: createdAt,
@@ -260,11 +323,137 @@ export async function createPasteSource(userId: string, title: string, content: 
     throw new Error("Source retrieval failed");
   }
 
+  await recordProductEvent({
+    name: "source_create_succeeded",
+    userId,
+    sourceId: updated.id,
+    properties: {
+      kind: updated.kind,
+      questionCount: updated.questionCount,
+      extractionStatus: updated.extractionStatus,
+      questionGenerationStatus: updated.questionGenerationStatus,
+    },
+  });
+
   return updated;
 }
 
-export async function uploadSource(userId: string, file: File): Promise<StudySource> {
+export async function uploadSource(
+  userId: string,
+  file: File,
+  options?: { visibility?: SourceVisibility },
+): Promise<StudySource> {
   const bytes = new Uint8Array(await file.arrayBuffer());
+  const isCsv = file.name.toLowerCase().endsWith(".csv");
+  const visibility = options?.visibility ?? "private";
+
+  if (isCsv) {
+    const startedAt = Date.now();
+    const csvText = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    const rows = parseCsv(csvText);
+    const mapping = suggestCsvMapping(rows);
+
+    const source = await mutateUserBucket(userId, (bucket) => {
+      const sourceId = createId("src");
+      const sourceFileId = createId("file");
+      const runId = createId("xrun");
+      const createdAt = nowIso();
+      const mapped = mapping ? mapCsvRows(rows, mapping) : [];
+      const serialized = mapped.map((row) => `${row.prompt}: ${row.answer}`).join("\n");
+      const extractionStatus = mapped.length > 0 ? "ready" : "failed";
+      const questionGenerationStatus = mapping && mapped.length > 0 ? "ready" : "failed";
+      const qualityScore = mapped.length > 0 ? 1 : 0;
+
+      const record: StudySource = {
+        id: sourceId,
+        userId,
+        title: file.name,
+        content: serialized,
+        kind: "csv",
+        visibility,
+        extractionStatus,
+        questionGenerationStatus,
+        generationProvenance: "none",
+        generationDegraded: false,
+        questionCount: mapped.length,
+        createdAt,
+        updatedAt: createdAt,
+      };
+
+      bucket.sources[sourceId] = record;
+      bucket.sourceFiles[sourceFileId] = {
+        id: sourceFileId,
+        userId,
+        sourceId,
+        fileName: file.name,
+        mimeType: file.type || "text/csv",
+        size: file.size,
+        extractorMode: "csv",
+        extractionStatus,
+        qualityScore,
+        createdAt,
+        updatedAt: createdAt,
+      };
+      bucket.extractionRuns[runId] = {
+        id: runId,
+        userId,
+        sourceFileId,
+        parserPath: "csv_parse",
+        ocrUsed: false,
+        durationMs: Date.now() - startedAt,
+        qualityScore,
+        status: extractionStatus,
+        errorDetails: mapping ? undefined : "CSV mapping could not be determined",
+        createdAt,
+      };
+
+      for (const pair of mapped) {
+        const questionId = createId("q");
+        bucket.questions[questionId] = {
+          id: questionId,
+          userId,
+          sourceId,
+          prompt: pair.prompt,
+          answer: pair.answer,
+          status: "active",
+          createdAt,
+          updatedAt: createdAt,
+        };
+        ensureReviewState(bucket, userId, questionId);
+      }
+
+      return record;
+    });
+
+    if (!mapping) {
+      await recordProductEvent({
+        name: "upload_failed",
+        userId,
+        sourceId: source.id,
+        properties: {
+          kind: "csv",
+          fileName: file.name,
+          reason: "csv_mapping_missing",
+        },
+      });
+      throw new Error("CSV mapping could not be determined");
+    }
+
+    await recordProductEvent({
+      name: "upload_succeeded",
+      userId,
+      sourceId: source.id,
+      properties: {
+        kind: "csv",
+        fileName: file.name,
+        questionCount: source.questionCount,
+        extractionStatus: source.extractionStatus,
+      },
+    });
+
+    await syncSharedSnapshotForSource(userId, source.id);
+    return source;
+  }
 
   const initial = await mutateUserBucket(userId, (bucket) => {
     const sourceId = createId("src");
@@ -277,9 +466,12 @@ export async function uploadSource(userId: string, file: File): Promise<StudySou
       userId,
       title: file.name,
       content: "",
-      kind: file.name.toLowerCase().endsWith(".csv") ? "csv" : "upload",
+      kind: "upload",
+      visibility,
       extractionStatus: "extracting",
       questionGenerationStatus: "pending",
+      generationProvenance: "none",
+      generationDegraded: false,
       questionCount: 0,
       createdAt,
       updatedAt: createdAt,
@@ -319,67 +511,38 @@ export async function uploadSource(userId: string, file: File): Promise<StudySou
     };
   });
 
-  if (file.name.toLowerCase().endsWith(".csv")) {
-    const csvText = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
-    const rows = parseCsv(csvText);
-    const mapping = suggestCsvMapping(rows);
-    if (!mapping) {
-      await mutateUserBucket(userId, (bucket) => {
-        const source = bucket.sources[initial.sourceId];
-        const sourceFile = bucket.sourceFiles[initial.sourceFileId];
-        const run = bucket.extractionRuns[initial.runId];
+  const extraction = await extractTextFromUpload(file.name, file.type, bytes);
 
-        source.extractionStatus = "failed";
-        source.updatedAt = nowIso();
-        source.questionGenerationStatus = "failed";
-
-        sourceFile.extractionStatus = "failed";
-        sourceFile.updatedAt = nowIso();
-
-        run.status = "failed";
-        run.parserPath = "csv_parse";
-        run.errorDetails = "CSV mapping could not be determined";
-        run.durationMs = Date.now() - initial.startedAt;
-      });
-
-      throw new Error("CSV mapping could not be determined");
+  await mutateUserBucket(userId, (bucket) => {
+    const source = bucket.sources[initial.sourceId];
+    const sourceFile = bucket.sourceFiles[initial.sourceFileId];
+    const run = bucket.extractionRuns[initial.runId];
+    if (!source || !sourceFile || !run) {
+      throw new Error("Source pipeline state missing");
     }
 
-    await importCsvRows(userId, initial.sourceId, rows, mapping, initial.sourceFileId, initial.runId, initial.startedAt);
-  } else {
-    const extraction = await extractTextFromUpload(file.name, file.type, bytes);
-
-    await mutateUserBucket(userId, (bucket) => {
-      const source = bucket.sources[initial.sourceId];
-      const sourceFile = bucket.sourceFiles[initial.sourceFileId];
-      const run = bucket.extractionRuns[initial.runId];
-      if (!source || !sourceFile || !run) {
-        throw new Error("Source pipeline state missing");
-      }
-
-      source.content = extraction.text;
-      source.extractionStatus = extraction.status;
-      source.updatedAt = nowIso();
-      const canAttemptGeneration = extraction.status !== "failed" && extraction.text.trim().length > 0;
-      source.questionGenerationStatus = canAttemptGeneration ? "pending" : "failed";
-
-      sourceFile.extractionStatus = extraction.status;
-      sourceFile.extractorMode = extraction.ocrUsed ? "ocr_fallback" : "direct";
-      sourceFile.qualityScore = extraction.qualityScore;
-      sourceFile.updatedAt = nowIso();
-
-      run.status = extraction.status;
-      run.parserPath = extraction.parserPath;
-      run.ocrUsed = extraction.ocrUsed;
-      run.qualityScore = extraction.qualityScore;
-      run.errorDetails = extraction.errorDetails;
-      run.durationMs = Date.now() - initial.startedAt;
-    });
-
+    source.content = extraction.text;
+    source.extractionStatus = extraction.status;
+    source.updatedAt = nowIso();
     const canAttemptGeneration = extraction.status !== "failed" && extraction.text.trim().length > 0;
-    if (canAttemptGeneration) {
-      await generateQuestionsForSource(userId, initial.sourceId);
-    }
+    source.questionGenerationStatus = canAttemptGeneration ? "pending" : "failed";
+
+    sourceFile.extractionStatus = extraction.status;
+    sourceFile.extractorMode = extraction.ocrUsed ? "ocr_fallback" : "direct";
+    sourceFile.qualityScore = extraction.qualityScore;
+    sourceFile.updatedAt = nowIso();
+
+    run.status = extraction.status;
+    run.parserPath = extraction.parserPath;
+    run.ocrUsed = extraction.ocrUsed;
+    run.qualityScore = extraction.qualityScore;
+    run.errorDetails = extraction.errorDetails;
+    run.durationMs = Date.now() - initial.startedAt;
+  });
+
+  const canAttemptGeneration = extraction.status !== "failed" && extraction.text.trim().length > 0;
+  if (canAttemptGeneration) {
+    await generateQuestionsForSource(userId, initial.sourceId);
   }
 
   const sources = await listSources(userId);
@@ -388,62 +551,21 @@ export async function uploadSource(userId: string, file: File): Promise<StudySou
     throw new Error("Source was not found after upload");
   }
 
-  return source;
-}
-
-async function importCsvRows(
-  userId: string,
-  sourceId: string,
-  rows: Array<Record<string, string>>,
-  mapping: CSVMapping,
-  sourceFileId: string,
-  runId: string,
-  startedAt: number,
-): Promise<void> {
-  const mapped = mapCsvRows(rows, mapping);
-
-  await mutateUserBucket(userId, (bucket) => {
-    const source = bucket.sources[sourceId];
-    const sourceFile = bucket.sourceFiles[sourceFileId];
-    const run = bucket.extractionRuns[runId];
-
-    if (!source || !sourceFile || !run) {
-      throw new Error("CSV state could not be found");
-    }
-
-    const serialized = mapped.map((row) => `${row.prompt}: ${row.answer}`).join("\n");
-    source.content = serialized;
-    source.extractionStatus = mapped.length > 0 ? "ready" : "failed";
-    source.questionGenerationStatus = mapped.length > 0 ? "ready" : "failed";
-    source.questionCount = mapped.length;
-    source.updatedAt = nowIso();
-
-    sourceFile.extractionStatus = source.extractionStatus;
-    sourceFile.extractorMode = "csv";
-    sourceFile.qualityScore = mapped.length > 0 ? 1 : 0;
-    sourceFile.updatedAt = nowIso();
-
-    run.status = source.extractionStatus;
-    run.parserPath = "csv_parse";
-    run.ocrUsed = false;
-    run.qualityScore = sourceFile.qualityScore;
-    run.durationMs = Date.now() - startedAt;
-
-    for (const pair of mapped) {
-      const questionId = createId("q");
-      bucket.questions[questionId] = {
-        id: questionId,
-        userId,
-        sourceId,
-        prompt: pair.prompt,
-        answer: pair.answer,
-        status: "active",
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-      };
-      ensureReviewState(bucket, userId, questionId);
-    }
+  await recordProductEvent({
+    name: source.extractionStatus === "failed" ? "upload_failed" : "upload_succeeded",
+    userId,
+    sourceId: source.id,
+    properties: {
+      kind: source.kind,
+      fileName: file.name,
+      extractionStatus: source.extractionStatus,
+      questionGenerationStatus: source.questionGenerationStatus,
+      questionCount: source.questionCount,
+    },
   });
+
+  await syncSharedSnapshotForSource(userId, source.id);
+  return source;
 }
 
 export async function previewCsv(fileText: string): Promise<{ rows: CSVPreviewRow[]; mapping: CSVMapping | null }> {
@@ -461,28 +583,39 @@ export async function importCsvFromText(
   title: string,
   csvText: string,
   mapping?: CSVMapping,
+  options?: { visibility?: SourceVisibility },
 ): Promise<StudySource> {
   const rows = parseCsv(csvText);
   const resolvedMapping = mapping ?? suggestCsvMapping(rows);
   if (!resolvedMapping) {
     throw new Error("CSV mapping is required");
   }
+  const startedAt = Date.now();
+  const mapped = mapCsvRows(rows, resolvedMapping);
+  const visibility = options?.visibility ?? "private";
 
-  const created = await mutateUserBucket(userId, (bucket) => {
+  const source = await mutateUserBucket(userId, (bucket) => {
     const sourceId = createId("src");
     const sourceFileId = createId("file");
     const runId = createId("xrun");
     const createdAt = nowIso();
+    const resolvedTitle = title.trim() || "CSV import";
+    const serialized = mapped.map((row) => `${row.prompt}: ${row.answer}`).join("\n");
+    const extractionStatus = mapped.length > 0 ? "ready" : "failed";
+    const qualityScore = mapped.length > 0 ? 1 : 0;
 
     const record: StudySource = {
       id: sourceId,
       userId,
-      title: title.trim() || "CSV import",
-      content: "",
+      title: resolvedTitle,
+      content: serialized,
       kind: "csv",
-      extractionStatus: "extracting",
-      questionGenerationStatus: "pending",
-      questionCount: 0,
+      visibility,
+      extractionStatus,
+      questionGenerationStatus: mapped.length > 0 ? "ready" : "failed",
+      generationProvenance: "none",
+      generationDegraded: false,
+      questionCount: mapped.length,
       createdAt,
       updatedAt: createdAt,
     };
@@ -492,12 +625,12 @@ export async function importCsvFromText(
       id: sourceFileId,
       userId,
       sourceId,
-      fileName: `${record.title}.csv`,
+      fileName: `${resolvedTitle}.csv`,
       mimeType: "text/csv",
       size: csvText.length,
       extractorMode: "csv",
-      extractionStatus: "extracting",
-      qualityScore: 0,
+      extractionStatus,
+      qualityScore,
       createdAt,
       updatedAt: createdAt,
     };
@@ -505,39 +638,34 @@ export async function importCsvFromText(
       id: runId,
       userId,
       sourceFileId,
-      parserPath: "pending",
+      parserPath: "csv_parse",
       ocrUsed: false,
-      durationMs: 0,
-      qualityScore: 0,
-      status: "extracting",
+      durationMs: Date.now() - startedAt,
+      qualityScore,
+      status: extractionStatus,
       createdAt,
     };
 
-    return {
-      source: record,
-      sourceFileId,
-      runId,
-      startedAt: Date.now(),
-    };
+    for (const pair of mapped) {
+      const questionId = createId("q");
+      bucket.questions[questionId] = {
+        id: questionId,
+        userId,
+        sourceId,
+        prompt: pair.prompt,
+        answer: pair.answer,
+        status: "active",
+        createdAt,
+        updatedAt: createdAt,
+      };
+      ensureReviewState(bucket, userId, questionId);
+    }
+
+    return record;
   });
 
-  await importCsvRows(
-    userId,
-    created.source.id,
-    rows,
-    resolvedMapping,
-    created.sourceFileId,
-    created.runId,
-    created.startedAt,
-  );
-
-  const sources = await listSources(userId);
-  const updated = sources.find((item) => item.id === created.source.id);
-  if (!updated) {
-    throw new Error("CSV source could not be read");
-  }
-
-  return updated;
+  await syncSharedSnapshotForSource(userId, source.id);
+  return source;
 }
 
 export async function generateSourceQuestions(userId: string, sourceId: string): Promise<{ questionCount: number }> {
@@ -562,6 +690,43 @@ export async function getSource(userId: string, sourceId: string): Promise<Study
   });
 }
 
+export async function updateSourceVisibility(
+  userId: string,
+  sourceId: string,
+  visibility: SourceVisibility,
+): Promise<StudySource> {
+  const { source, previousVisibility } = await mutateUserBucket(userId, async (bucket) => {
+    const source = bucket.sources[sourceId];
+    if (!source) {
+      throw new Error("Source not found");
+    }
+
+    const previousVisibility = source.visibility;
+    source.visibility = visibility;
+    source.updatedAt = nowIso();
+    return { source: { ...source }, previousVisibility };
+  });
+
+  try {
+    await syncSharedSnapshotForSource(userId, sourceId);
+  } catch (error) {
+    await mutateUserBucket(userId, async (bucket) => {
+      const source = bucket.sources[sourceId];
+      if (!source) {
+        return null;
+      }
+
+      source.visibility = previousVisibility;
+      source.updatedAt = nowIso();
+      return null;
+    });
+
+    throw error;
+  }
+
+  return source;
+}
+
 export async function createQuestionForSource(
   userId: string,
   sourceId: string,
@@ -573,7 +738,7 @@ export async function createQuestionForSource(
     throw new Error("Question prompt and answer are required");
   }
 
-  return mutateUserBucket(userId, async (bucket) => {
+  const question = await mutateUserBucket(userId, async (bucket) => {
     const source = bucket.sources[sourceId];
     if (!source) {
       throw new Error("Source not found");
@@ -596,6 +761,9 @@ export async function createQuestionForSource(
     recomputeSourceQuestionCount(bucket, sourceId);
     return question;
   });
+
+  await syncSharedSnapshotForSource(userId, sourceId);
+  return question;
 }
 
 export async function updateQuestion(
@@ -603,7 +771,7 @@ export async function updateQuestion(
   questionId: string,
   updates: { prompt?: string; answer?: string },
 ): Promise<Question> {
-  return mutateUserBucket(userId, async (bucket) => {
+  const question = await mutateUserBucket(userId, async (bucket) => {
     const question = bucket.questions[questionId];
     if (!question) {
       throw new Error("Question not found");
@@ -623,6 +791,9 @@ export async function updateQuestion(
     question.updatedAt = nowIso();
     return question;
   });
+
+  await syncSharedSnapshotForSource(userId, question.sourceId);
+  return question;
 }
 
 export async function deleteQuestions(userId: string, questionIds: string[]): Promise<{ deleted: number }> {
@@ -630,7 +801,7 @@ export async function deleteQuestions(userId: string, questionIds: string[]): Pr
     return { deleted: 0 };
   }
 
-  return mutateUserBucket(userId, (bucket) => {
+  const touchedSourceIds = await mutateUserBucket(userId, (bucket) => {
     let deleted = 0;
     const touched = new Set<string>();
 
@@ -649,12 +820,18 @@ export async function deleteQuestions(userId: string, questionIds: string[]): Pr
       recomputeSourceQuestionCount(bucket, sourceId);
     }
 
-    return { deleted };
+    return {
+      deleted,
+      touchedSourceIds: [...touched],
+    };
   });
+
+  await Promise.all(touchedSourceIds.touchedSourceIds.map((sourceId) => syncSharedSnapshotForSource(userId, sourceId)));
+  return { deleted: touchedSourceIds.deleted };
 }
 
 export async function archiveSource(userId: string, sourceId: string): Promise<void> {
-  return mutateUserBucket(userId, (bucket) => {
+  await mutateUserBucket(userId, (bucket) => {
     const source = bucket.sources[sourceId];
     if (!source) {
       throw new Error("Source not found");
@@ -681,6 +858,9 @@ export async function archiveSource(userId: string, sourceId: string): Promise<v
 
     delete bucket.sources[sourceId];
   });
+
+  await deleteSourceRecords(userId, sourceId);
+  await removePublishedSourceSnapshot(sourceId);
 }
 
 export async function duplicateSource(userId: string, sourceId: string): Promise<StudySource> {
@@ -696,6 +876,7 @@ export async function duplicateSource(userId: string, sourceId: string): Promise
       ...source,
       id: newSourceId,
       title: `${source.title} (Copy)`,
+      visibility: "private",
       createdAt: now,
       updatedAt: now,
     };
@@ -732,6 +913,25 @@ export async function startSession(
   return mutateUserBucket(userId, async (bucket) => {
     const mode = options?.mode ?? "standard";
     const sourceId = options?.sourceId?.trim();
+    const existingOpenSession = Object.values(bucket.sessions)
+      .filter((session) => !session.endedAt && (sourceId ? session.sourceId === sourceId : true))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+    if (existingOpenSession) {
+      const current = currentSessionQuestion(existingOpenSession, bucket);
+      return {
+        session: existingOpenSession,
+        currentQuestion: current
+          ? {
+              sessionId: current.sessionId,
+              questionId: current.questionId,
+              prompt: current.prompt,
+              position: current.position,
+              kind: current.kind,
+            }
+          : null,
+      };
+    }
+
     const allCandidates = sourceId
       ? sortedQuestions(bucket).filter((question) => question.sourceId === sourceId)
       : sortedQuestions(bucket);
@@ -833,6 +1033,16 @@ export async function startSession(
 
     bucket.sessions[sessionId] = session;
     await syncSessionStart(session, sourceId ? bucket.sources[sourceId] : undefined);
+    await recordProductEvent({
+      name: "session_started",
+      userId,
+      sourceId: sourceId ?? null,
+      sessionId,
+      properties: {
+        mode,
+        questionCap,
+      },
+    });
 
     const current = currentSessionQuestion(session, bucket);
     return {
@@ -846,6 +1056,138 @@ export async function startSession(
             kind: current.kind,
           }
         : null,
+    };
+  });
+}
+
+export async function getSessionDetails(
+  userId: string,
+  sessionId: string,
+): Promise<{
+  session: {
+    id: string;
+    sourceId: string | null;
+    mode: "standard" | "focus" | "weak_review" | "fast_drill";
+    questionCap: number;
+    answeredCount: number;
+    correctCount: number;
+    incorrectCount: number;
+    startedAt: string;
+    endedAt: string | null;
+    pendingRetry: boolean;
+  };
+  currentQuestion: Omit<SessionQuestion, "answer"> | null;
+  summary: {
+    sessionId: string;
+    sourceId: string | null;
+    sourceTitle: string | null;
+    accuracy: number;
+    correctCount: number;
+    incorrectCount: number;
+    durationSeconds: number;
+    completedAt: string;
+    weakQuestions: Array<{
+      question: string;
+      userAnswer: string;
+      correctAnswer: string;
+    }>;
+  } | null;
+}> {
+  return readUserBucket(userId, async (bucket) => {
+    const session = bucket.sessions[sessionId];
+    if (!session) {
+      throw new Error("Session not found");
+    }
+
+    const finalAttempts = Object.values(bucket.attempts)
+      .filter((attempt) => attempt.sessionId === session.id && attempt.final)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+    const sourceId = session.sourceId ?? deriveSessionSourceId(bucket, session.id);
+    const sourceTitle = sourceId ? bucket.sources[sourceId]?.title ?? null : null;
+    const correctCount = finalAttempts.filter((attempt) => isCorrect(attempt.outcome)).length;
+    const incorrectCount = finalAttempts.length - correctCount;
+    const attemptCount = finalAttempts.length;
+    const completedAt = session.endedAt ?? null;
+    const durationSeconds = Math.max(
+      0,
+      Math.round(
+        ((completedAt ? new Date(completedAt) : new Date()).getTime() - new Date(session.startedAt).getTime()) / 1000,
+      ),
+    );
+
+    return {
+      session: {
+        id: session.id,
+        sourceId,
+        mode: session.mode ?? "standard",
+        questionCap: session.questionCap,
+        answeredCount: session.answeredCount,
+        correctCount,
+        incorrectCount,
+        startedAt: session.startedAt,
+        endedAt: completedAt,
+        pendingRetry: session.pendingRetryQuestionId != null,
+      },
+      currentQuestion: session.endedAt ? null : toClientQuestion(currentSessionQuestion(session, bucket)),
+      summary: completedAt
+        ? {
+            sessionId: session.id,
+            sourceId,
+            sourceTitle,
+            accuracy: attemptCount > 0 ? Math.round((correctCount / attemptCount) * 100) : 0,
+            correctCount,
+            incorrectCount,
+            durationSeconds,
+            completedAt,
+            weakQuestions: finalAttempts
+              .filter((attempt) => !isCorrect(attempt.outcome))
+              .map((attempt) => ({
+                question: bucket.questions[attempt.questionId]?.prompt ?? "Question",
+                userAnswer: attempt.answer,
+                correctAnswer: attempt.canonicalAnswer,
+              })),
+          }
+        : null,
+    };
+  });
+}
+
+export async function getActiveSourceSession(
+  userId: string,
+  sourceId: string,
+): Promise<{
+  sessionId: string;
+  sourceId: string;
+  mode: "standard" | "focus" | "weak_review" | "fast_drill";
+  answeredCount: number;
+  questionCap: number;
+  startedAt: string;
+  updatedAt: string;
+  pendingRetry: boolean;
+  currentPosition: number | null;
+} | null> {
+  return readUserBucket(userId, async (bucket) => {
+    const activeSession = Object.values(bucket.sessions)
+      .filter((session) => session.sourceId === sourceId && !session.endedAt)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+
+    if (!activeSession) {
+      return null;
+    }
+
+    const currentQuestion = currentSessionQuestion(activeSession, bucket);
+
+    return {
+      sessionId: activeSession.id,
+      sourceId,
+      mode: activeSession.mode ?? "standard",
+      answeredCount: activeSession.answeredCount,
+      questionCap: activeSession.questionCap,
+      startedAt: activeSession.startedAt,
+      updatedAt: activeSession.updatedAt,
+      pendingRetry: activeSession.pendingRetryQuestionId != null,
+      currentPosition: currentQuestion?.position ?? null,
     };
   });
 }
@@ -1084,6 +1426,7 @@ function maybeUpsertAutoReviewKitForTopic(
     title: `${AUTO_REVIEW_TITLE_PREFIX} ${topicLabel(topic)}`,
     content: "",
     kind: "paste" as const,
+    visibility: "private" as const,
     extractionStatus: "ready" as const,
     questionGenerationStatus: "ready" as const,
     questionCount: 0,
@@ -1270,11 +1613,30 @@ export async function submitAttempt(
 
     const ended = maybeEndSession(session);
     if (ended) {
+      const sessionAttempts = Object.values(bucket.attempts).filter((attempt) => attempt.sessionId === session.id);
       await syncSessionFinal(
         session,
         session.sourceId ? bucket.sources[session.sourceId] : undefined,
-        Object.values(bucket.attempts).filter((attempt) => attempt.sessionId === session.id),
+        sessionAttempts,
       );
+      const correctCount = sessionAttempts.filter((attempt) => attempt.final && isCorrect(attempt.outcome)).length;
+      const incorrectCount = sessionAttempts.filter((attempt) => attempt.final).length - correctCount;
+      await recordProductEvent({
+        name: "session_completed",
+        userId,
+        sourceId: session.sourceId ?? question.sourceId,
+        sessionId: session.id,
+        properties: {
+          mode: session.mode ?? "standard",
+          answeredCount: session.answeredCount,
+          correctCount,
+          incorrectCount,
+          durationSeconds: Math.max(
+            0,
+            Math.round((new Date(session.endedAt ?? nowIso()).getTime() - new Date(session.startedAt).getTime()) / 1000),
+          ),
+        },
+      });
     }
     const next = ended ? null : currentSessionQuestion(session, bucket);
 
@@ -1378,10 +1740,22 @@ export async function getProgress(userId: string): Promise<{
   return readUserBucket(userId, async (bucket) => {
     const sourceCount = Object.keys(bucket.sources).length;
     const activeQuestionCount = Object.values(bucket.questions).filter((question) => question.status === "active").length;
-    await ensureAnalyticsBackfill(userId, bucket);
+    const hasStoredStudySignal =
+      Object.keys(bucket.sessions).length > 0 ||
+      Object.keys(bucket.attempts).length > 0 ||
+      Object.keys(bucket.reviewStates).length > 0;
+    const backfillReady = await ensureAnalyticsBackfill(userId, bucket);
     const analyticsProgress = await getAnalyticsProgress(userId, sourceCount, activeQuestionCount);
     if (analyticsProgress) {
       return analyticsProgress;
+    }
+
+    if (hasStoredStudySignal) {
+      if (!backfillReady) {
+        throw new Error("Progress is temporarily unavailable while analytics sync catches up.");
+      }
+
+      throw new Error("Progress data is temporarily unavailable. Try again in a moment.");
     }
 
     return buildEmptyProgress(sourceCount, activeQuestionCount);

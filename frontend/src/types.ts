@@ -12,6 +12,7 @@ export interface Kit {
   title: string;
   description: string;
   kind: 'paste' | 'upload' | 'csv';
+  visibility: 'private' | 'public';
   extractionStatus: 'extracting' | 'ready' | 'needs_attention' | 'failed';
   questionGenerationStatus: 'pending' | 'generating' | 'ready' | 'failed';
   questions: Question[];
@@ -20,6 +21,7 @@ export interface Kit {
   cardCount: number;
   icon: string;
   color: string;
+  isAutoReview: boolean;
 }
 
 export interface SessionResult {
@@ -29,7 +31,7 @@ export interface SessionResult {
   accuracy: number;
   correctCount: number;
   incorrectCount: number;
-  duration: string;
+  durationSeconds: number;
   weakQuestions: {
     question: string;
     userAnswer: string;

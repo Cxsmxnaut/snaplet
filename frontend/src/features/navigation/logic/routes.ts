@@ -45,6 +45,11 @@ export function deriveRoute(pathname: string): AppRoute {
     return { view: 'app', tab: 'study', kitId: studyMatch[1], sessionId: null };
   }
 
+  const resumableStudyMatch = pathname.match(/^\/app\/kits\/([^/]+)\/study\/([^/]+)$/);
+  if (resumableStudyMatch) {
+    return { view: 'app', tab: 'study', kitId: resumableStudyMatch[1], sessionId: resumableStudyMatch[2] };
+  }
+
   const completeMatch = pathname.match(/^\/app\/session\/([^/]+)\/complete$/);
   if (completeMatch) {
     return { view: 'app', tab: 'complete', kitId: null, sessionId: completeMatch[1] };
@@ -66,6 +71,9 @@ export function buildAppPath(tab: string, kitId: string | null, sessionId: strin
     return `/app/kits/${kitId}/study-mode`;
   }
   if (tab === 'study' && kitId) {
+    if (sessionId) {
+      return `/app/kits/${kitId}/study/${sessionId}?mode=${mode}`;
+    }
     return `/app/kits/${kitId}/study?mode=${mode}`;
   }
   if (tab === 'complete' && sessionId) {

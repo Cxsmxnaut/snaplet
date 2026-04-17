@@ -30,10 +30,8 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
     return bTime - aTime;
   })[0];
   const weakItems = progress?.weakQuestions ?? [];
-  const outcomeValues = progress ? Object.values(progress.outcomes) : [];
-  const chartBars = outcomeValues.length > 0
-    ? outcomeValues.map((value) => Math.max(12, Math.min(100, value * 12)))
-    : Array.from({ length: 7 }, () => 8);
+  const recentTrend = progress?.timeSeries.slice(-7) ?? [];
+  const maxTrendAttempts = Math.max(...recentTrend.map((point) => point.attempts), 1);
 
   const lastSessionLabel = recentKit?.lastSession
     ? recentKit.lastSession.toLocaleDateString()
@@ -146,10 +144,38 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
             <StatCard label="Questions" value={String(progress?.totals.questions ?? 0)} />
             <StatCard label="Sessions" value={String(progress?.totals.sessions ?? 0)} />
           </div>
-          <div className="bg-surface-container-low rounded-[28px] p-6 h-48 flex items-end gap-3 justify-between">
-            {chartBars.map((h, i) => (
-              <div key={i} className="flex-1 bg-primary/20 rounded-t-sm transition-all hover:bg-primary/40" style={{ height: `${h}%` }}></div>
-            ))}
+          <div className="bg-surface-container-low rounded-[28px] p-6">
+            {recentTrend.length === 0 ? (
+              <div className="h-48 rounded-[20px] bg-surface flex items-center justify-center text-sm text-on-surface-variant text-center px-6">
+                Complete a few study runs and your recent activity trend will appear here.
+              </div>
+            ) : (
+              <>
+                <div className="h-48 flex items-end gap-3 justify-between">
+                  {recentTrend.map((point) => {
+                    const height = Math.max(12, (point.attempts / maxTrendAttempts) * 100);
+                    return (
+                      <div key={point.date} className="flex-1 flex flex-col items-center justify-end gap-3 h-full">
+                        <div className="text-[11px] font-bold text-on-surface-variant">{point.attempts}</div>
+                        <div className="w-full flex-1 flex items-end">
+                          <div
+                            className="w-full rounded-t-[12px] bg-gradient-to-t from-primary to-primary-container"
+                            style={{ height: `${height}%` }}
+                            title={`${point.attempts} attempts · ${point.sessions} sessions · ${point.accuracy}% accuracy`}
+                          />
+                        </div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-on-surface-variant/75">
+                          {point.label}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <p className="mt-4 text-xs text-on-surface-variant">
+                  Bar height reflects real attempts per day. Accuracy and session counts are available in Progress.
+                </p>
+              </>
+            )}
           </div>
         </div>
 
@@ -163,7 +189,15 @@ export const Dashboard = ({ kits, onStudyKit, onCreateKit, onEditKit, onViewAll,
               {weakItems.length === 0 ? (
                 <li className="text-sm text-on-surface-variant">No weak items yet. Complete a session to generate focus items.</li>
               ) : weakItems.slice(0, 3).map((item) => (
-                <WeakItem key={item.questionId} label={item.prompt} rate={`${Math.max(0, 100 - Math.round(item.recentErrorCount * 20))}%`} />
+                <li key={item.questionId} className="flex items-center gap-4 p-4 rounded-xl bg-surface">
+                  <div className="h-2 w-2 rounded-full bg-tertiary"></div>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-on-surface">{item.prompt}</p>
+                    <p className="text-xs text-on-surface-variant">
+                      {item.recentErrorCount} recent miss{item.recentErrorCount === 1 ? '' : 'es'} · {item.nearMissCount} near miss{item.nearMissCount === 1 ? '' : 'es'}
+                    </p>
+                  </div>
+                </li>
               ))}
             </ul>
             <Button variant="tertiary" className="w-full py-4" onClick={() => onTabChange?.('progress')}>
@@ -184,16 +218,6 @@ const StatCard = ({ label, value, trend }: any) => (
       {trend && <p className="text-secondary text-xs font-bold mb-1">{trend}</p>}
     </div>
   </div>
-);
-
-const WeakItem = ({ label, rate }: any) => (
-  <li className="flex items-center gap-4 p-4 rounded-xl bg-surface">
-    <div className="h-2 w-2 rounded-full bg-tertiary"></div>
-    <div className="flex-1">
-      <p className="text-sm font-bold text-on-surface">{label}</p>
-      <p className="text-xs text-on-surface-variant">Success rate: {rate}</p>
-    </div>
-  </li>
 );
 
 function resolveKitIcon(icon: string) {

@@ -1,16 +1,19 @@
 import { useState, useRef, useEffect } from 'react';
-import { ChartSpline, Settings, LogOut, ChevronDown, Plus, Flame } from 'lucide-react';
+import { ChartSpline, Settings, LogOut, ChevronDown, Plus, CalendarDays } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
+import { ProgressData } from '../types';
 
 interface TopBarProps {
   onNavigate: (tab: string) => void;
   onLogout: () => void;
   isSidebarCollapsed: boolean;
+  progress: ProgressData | null;
   userProfile: {
     displayName: string;
     email: string;
     avatarUrl: string | null;
+    avatarPreset: string | null;
   };
 }
 
@@ -18,14 +21,14 @@ export const TopBar = ({
   onNavigate,
   onLogout,
   isSidebarCollapsed,
+  progress,
   userProfile,
 }: TopBarProps) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isStreakOpen, setIsStreakOpen] = useState(false);
+  const [isWeeklyActivityOpen, setIsWeeklyActivityOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const streakRef = useRef<HTMLDivElement>(null);
+  const weeklyActivityRef = useRef<HTMLDivElement>(null);
 
-  const streakCount = Number(window.localStorage.getItem('snaplet_streak_count') ?? 0);
   const today = new Date();
   const dayIndex = today.getDay();
   const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
@@ -34,14 +37,24 @@ export const TopBar = ({
   const msRemaining = nextMidnight.getTime() - today.getTime();
   const hoursRemaining = Math.floor(msRemaining / (1000 * 60 * 60));
   const minutesRemaining = Math.floor((msRemaining % (1000 * 60 * 60)) / (1000 * 60));
+  const weeklySessionCount = progress?.comparisons.current.sessions ?? 0;
+  const activeDays = new Set(
+    (progress?.recentSessions ?? [])
+      .filter((session) => {
+        const completed = new Date(session.completedAt);
+        const diff = today.getTime() - completed.getTime();
+        return diff >= 0 && diff < 7 * 24 * 60 * 60 * 1000;
+      })
+      .map((session) => new Date(session.completedAt).getDay()),
+  );
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
       }
-      if (streakRef.current && !streakRef.current.contains(event.target as Node)) {
-        setIsStreakOpen(false);
+      if (weeklyActivityRef.current && !weeklyActivityRef.current.contains(event.target as Node)) {
+        setIsWeeklyActivityOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -70,21 +83,21 @@ export const TopBar = ({
             <ChartSpline className="w-5 h-5" />
             <span className="absolute top-2 right-2 w-2 h-2 bg-secondary rounded-full"></span>
           </button>
-          <div className="relative" ref={streakRef}>
+          <div className="relative" ref={weeklyActivityRef}>
             <button
-              onClick={() => setIsStreakOpen((open) => !open)}
+              onClick={() => setIsWeeklyActivityOpen((open) => !open)}
               className={cn(
                 'h-11 px-3.5 rounded-full bg-surface-container-low text-on-surface flex items-center gap-2 transition-all',
-                isStreakOpen && 'bg-surface'
+                isWeeklyActivityOpen && 'bg-surface'
               )}
-              title="View streak"
+              title="View weekly activity"
             >
-              <Flame className="w-4 h-4 text-primary fill-primary/10" />
-              <span className="text-base font-black font-headline">{streakCount}</span>
+              <CalendarDays className="w-4 h-4 text-primary" />
+              <span className="text-base font-black font-headline">{weeklySessionCount}</span>
             </button>
 
             <AnimatePresence>
-              {isStreakOpen && (
+              {isWeeklyActivityOpen && (
                 <motion.div
                   initial={{ opacity: 0, y: 10, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -94,16 +107,16 @@ export const TopBar = ({
                 >
                   <div className="flex items-center justify-center gap-3 mb-5">
                     <div className="h-16 w-16 rounded-full bg-primary-container/55 flex items-center justify-center">
-                      <Flame className="w-8 h-8 text-primary fill-primary/10" />
+                      <CalendarDays className="w-8 h-8 text-primary" />
                     </div>
                     <div>
-                      <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-1">Current streak</p>
-                      <span className="text-5xl font-headline font-black text-on-surface leading-none">{streakCount}</span>
+                      <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-1">This week</p>
+                      <span className="text-5xl font-headline font-black text-on-surface leading-none">{weeklySessionCount}</span>
                     </div>
                   </div>
 
                   <p className="text-center text-xl font-headline font-black tracking-tight text-on-surface mb-2">
-                    Complete a session today to keep your rhythm
+                    Complete another session today to strengthen this week&apos;s activity
                   </p>
                   <p className="text-center text-sm text-on-surface-variant mb-7">
                     {hoursRemaining}h {minutesRemaining}m left before today closes.
@@ -113,7 +126,7 @@ export const TopBar = ({
                     <div className="grid grid-cols-7 gap-3">
                       {weekDays.map((day, index) => {
                         const isToday = index === dayIndex;
-                        const isCompleted = streakCount > 0 && index < dayIndex;
+                        const isCompleted = activeDays.has(index);
 
                         return (
                           <div key={`${day}-${index}`} className="flex flex-col items-center gap-2.5">
@@ -138,14 +151,14 @@ export const TopBar = ({
 
                   <div className="grid grid-cols-2 gap-3">
                     <button
-                      onClick={() => setIsStreakOpen(false)}
+                      onClick={() => setIsWeeklyActivityOpen(false)}
                       className="h-12 rounded-full bg-surface-container-low text-on-surface font-bold"
                     >
                       Keep going
                     </button>
                     <button
                       onClick={() => {
-                        setIsStreakOpen(false);
+                        setIsWeeklyActivityOpen(false);
                         onNavigate('progress');
                       }}
                       className="h-12 rounded-full gradient-primary text-on-primary font-bold"
@@ -173,6 +186,8 @@ export const TopBar = ({
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
                   />
+                ) : userProfile.avatarPreset ? (
+                  <div className={cn("w-full h-full bg-gradient-to-br", userProfile.avatarPreset)} />
                 ) : (
                   <div className="w-full h-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
                     {userProfile.displayName.slice(0, 1).toUpperCase()}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { getProgress } from '../../../lib/api';
+import { getProgress, trackProductEvent } from '../../../lib/api';
 import { ProgressData } from '../../../types';
 
 export function useProgressState() {
@@ -14,6 +14,11 @@ export function useProgressState() {
       const backendProgress = await getProgress();
       setProgress(backendProgress);
     } catch (error) {
+      void trackProductEvent('progress_load_failed', {
+        properties: {
+          message: error instanceof Error ? error.message : 'unknown_error',
+        },
+      });
       setProgressError(error instanceof Error ? error.message : 'Failed to load progress.');
     } finally {
       setProgressLoading(false);

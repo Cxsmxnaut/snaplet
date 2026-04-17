@@ -1,12 +1,9 @@
 import { useEffect, useState } from 'react';
-import { StudyMode } from '../../../lib/api';
+import { getSessionDetails, StudyMode } from '../../../lib/api';
 import { Kit, SessionResult } from '../../../types';
-import { loadLastSessionMap, loadMasteryMap, saveLastSessionMap, saveMasteryMap } from '../../kits/services/kitStorage';
-import { loadPersistedSessionResult, savePersistedSessionResult } from '../services/sessionStorage';
 
 type CompleteSessionOptions = {
   currentKit: Kit | null;
-  onUpdateKitStats: (kitId: string, mastery: number, lastSession: Date) => void;
   onNavigateToComplete: (sessionId: string) => void;
   onRefreshProgress: () => Promise<void> | void;
 };
@@ -14,6 +11,7 @@ type CompleteSessionOptions = {
 export function useStudyFlow(routeMode: StudyMode | null, routeSessionId: string | null) {
   const [selectedStudyMode, setSelectedStudyMode] = useState<StudyMode>(routeMode ?? 'standard');
   const [sessionResult, setSessionResult] = useState<SessionResult | null>(null);
+  const [sessionResultLoading, setSessionResultLoading] = useState(false);
 
   useEffect(() => {
     if (routeMode) {
@@ -26,14 +24,58 @@ export function useStudyFlow(routeMode: StudyMode | null, routeSessionId: string
       return;
     }
 
-    const persisted = loadPersistedSessionResult(routeSessionId);
-    if (persisted) {
-      setSessionResult(persisted);
-    }
+    let cancelled = false;
+    setSessionResult((current) => (current?.id === routeSessionId ? current : null));
+    setSessionResultLoading(true);
+
+    const loadSessionSummary = async () => {
+      try {
+        const details = await getSessionDetails(routeSessionId);
+        if (cancelled) {
+          return;
+        }
+
+        if (!details.summary) {
+          setSessionResult(null);
+          return;
+        }
+
+        setSessionResult({
+          id: details.summary.sessionId,
+          kitId: details.summary.sourceId ?? '',
+          date: new Date(details.summary.completedAt),
+          accuracy: details.summary.accuracy,
+          correctCount: details.summary.correctCount,
+          incorrectCount: details.summary.incorrectCount,
+          durationSeconds: details.summary.durationSeconds,
+          weakQuestions: details.summary.weakQuestions,
+        });
+      } catch {
+        if (!cancelled) {
+          setSessionResult(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setSessionResultLoading(false);
+        }
+      }
+    };
+
+    void loadSessionSummary();
+
+    return () => {
+      cancelled = true;
+    };
   }, [routeSessionId]);
 
   const handleCompleteSession = (
-    results: { sessionId: string; correct: number; incorrect: number; weak: SessionResult['weakQuestions'] },
+    results: {
+      sessionId: string;
+      correct: number;
+      incorrect: number;
+      durationSeconds: number;
+      weak: SessionResult['weakQuestions'];
+    },
     options: CompleteSessionOptions,
   ) => {
     const attempts = results.correct + results.incorrect;
@@ -46,27 +88,10 @@ export function useStudyFlow(routeMode: StudyMode | null, routeSessionId: string
       accuracy,
       correctCount: results.correct,
       incorrectCount: results.incorrect,
-      duration: 'Adaptive Session',
+      durationSeconds: results.durationSeconds,
       weakQuestions: results.weak,
     };
 
-    if (options.currentKit) {
-      const masteryMap = loadMasteryMap();
-      masteryMap[options.currentKit.id] = Math.max(masteryMap[options.currentKit.id] ?? 0, accuracy);
-      saveMasteryMap(masteryMap);
-
-      const lastSessionMap = loadLastSessionMap();
-      lastSessionMap[options.currentKit.id] = Date.now();
-      saveLastSessionMap(lastSessionMap);
-
-      options.onUpdateKitStats(
-        options.currentKit.id,
-        masteryMap[options.currentKit.id],
-        new Date(lastSessionMap[options.currentKit.id]),
-      );
-    }
-
-    savePersistedSessionResult(result);
     setSessionResult(result);
     options.onNavigateToComplete(result.id);
     void options.onRefreshProgress();
@@ -76,6 +101,7 @@ export function useStudyFlow(routeMode: StudyMode | null, routeSessionId: string
     selectedStudyMode,
     setSelectedStudyMode,
     sessionResult,
+    sessionResultLoading,
     handleCompleteSession,
   };
 }

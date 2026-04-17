@@ -63,6 +63,10 @@ async function extractPdfTextWithOcrSpace(
   fileBytes: Uint8Array,
   fileName: string,
 ): Promise<string | null> {
+  if (process.env.SNAPLET_ALLOW_OCR_SPACE !== "true") {
+    return null;
+  }
+
   const apiKey = process.env.OCR_SPACE_API_KEY;
   if (!apiKey) {
     return null;

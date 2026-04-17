@@ -1,17 +1,22 @@
 import { Session } from '@supabase/supabase-js';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { loadAvatarPreset, PROFILE_PREFERENCES_EVENT } from '../services/profilePreferences';
 import { logDebug } from '../../../lib/debug';
+import { trackProductEvent } from '../../../lib/api';
 import { supabase } from '../../../lib/supabase';
 
 export type UserProfile = {
   displayName: string;
   email: string;
   avatarUrl: string | null;
+  avatarPreset: string | null;
 };
 
 export function useAuthSession() {
   const [authReady, setAuthReady] = useState(false);
   const [authSession, setAuthSession] = useState<Session | null>(null);
+  const [profilePreferencesVersion, setProfilePreferencesVersion] = useState(0);
+  const lastTrackedSignIn = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -35,6 +40,37 @@ export function useAuthSession() {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       logDebug('auth', 'Auth state changed', { event, hasSession: Boolean(session), userId: session?.user.id });
       setAuthSession(session);
+
+      if (event === 'SIGNED_OUT') {
+        lastTrackedSignIn.current = null;
+        return;
+      }
+
+      if (event !== 'SIGNED_IN' || !session?.user) {
+        return;
+      }
+
+      const provider =
+        typeof session.user.app_metadata?.provider === 'string' && session.user.app_metadata.provider.trim().length > 0
+          ? session.user.app_metadata.provider.trim()
+          : 'unknown';
+
+      // Password sign-ins are already tracked directly from the auth form.
+      if (provider === 'email') {
+        return;
+      }
+
+      const signInKey = `${session.user.id}:${provider}:${session.access_token ?? 'no-token'}`;
+      if (lastTrackedSignIn.current === signInKey) {
+        return;
+      }
+
+      lastTrackedSignIn.current = signInKey;
+      void trackProductEvent('auth_signed_in', {
+        properties: {
+          method: provider,
+        },
+      });
     });
 
     return () => {
@@ -43,13 +79,21 @@ export function useAuthSession() {
     };
   }, []);
 
+  useEffect(() => {
+    const handlePreferencesChanged = () => setProfilePreferencesVersion((current) => current + 1);
+    window.addEventListener(PROFILE_PREFERENCES_EVENT, handlePreferencesChanged);
+    return () => window.removeEventListener(PROFILE_PREFERENCES_EVENT, handlePreferencesChanged);
+  }, []);
+
   const userProfile = useMemo<UserProfile>(() => {
     const user = authSession?.user;
+    const avatarPreset = loadAvatarPreset();
     if (!user) {
       return {
         displayName: 'Learner',
         email: '',
         avatarUrl: null,
+        avatarPreset,
       };
     }
 
@@ -73,8 +117,9 @@ export function useAuthSession() {
       displayName,
       email: user.email ?? '',
       avatarUrl,
+      avatarPreset,
     };
-  }, [authSession]);
+  }, [authSession, profilePreferencesVersion]);
 
   return {
     authReady,

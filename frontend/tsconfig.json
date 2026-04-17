@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
+    "baseUrl": ".",
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
     "module": "ESNext",
@@ -18,7 +19,7 @@
     "types": ["vite/client"],
     "paths": {
       "@/*": [
-        "./*"
+        "./src/*"
       ]
     },
     "allowImportingTsExtensions": true,

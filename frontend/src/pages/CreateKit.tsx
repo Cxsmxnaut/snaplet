@@ -1,6 +1,7 @@
 import { ChangeEvent, DragEvent, useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { Button } from '../components/Button';
+import { loadCreateDraft, saveCreateDraft } from '../features/kits/services/kitStorage';
 import { logDebug } from '../lib/debug';
 import { 
   CloudUpload, 
@@ -13,16 +14,18 @@ import {
 } from 'lucide-react';
 
 interface CreateKitProps {
-  onGenerate: (title: string, content: string) => void;
-  onUploadFile: (file: File) => Promise<void>;
+  userId: string;
+  onGenerate: (title: string, content: string, visibility: 'private' | 'public') => void;
+  onUploadFile: (file: File, visibility: 'private' | 'public') => Promise<void>;
 }
 
 const ACCEPTED_FILE_TYPES = '.pdf,.docx,.txt,.md,.csv';
 
-export const CreateKit = ({ onGenerate, onUploadFile }: CreateKitProps) => {
+export const CreateKit = ({ userId, onGenerate, onUploadFile }: CreateKitProps) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [description, setDescription] = useState('');
+  const [visibility, setVisibility] = useState<'private' | 'public'>('private');
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
@@ -31,31 +34,25 @@ export const CreateKit = ({ onGenerate, onUploadFile }: CreateKitProps) => {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    const rawDraft = window.localStorage.getItem('snaplet_create_draft');
-    if (!rawDraft) {
+    const draft = loadCreateDraft(userId);
+    if (!draft) {
       return;
     }
 
-    try {
-      const draft = JSON.parse(rawDraft) as { title?: string; description?: string; content?: string };
-      setTitle(draft.title ?? '');
-      setDescription(draft.description ?? '');
-      setContent(draft.content ?? '');
-    } catch {
-      window.localStorage.removeItem('snaplet_create_draft');
-    }
-  }, []);
+    setTitle(draft.title ?? '');
+    setDescription(draft.description ?? '');
+    setContent(draft.content ?? '');
+    setVisibility(draft.visibility ?? 'private');
+  }, [userId]);
 
   const saveDraft = () => {
-    window.localStorage.setItem(
-      'snaplet_create_draft',
-      JSON.stringify({
-        title,
-        description,
-        content,
-        updatedAt: new Date().toISOString(),
-      }),
-    );
+    saveCreateDraft(userId, {
+      title,
+      description,
+      content,
+      visibility,
+      updatedAt: new Date().toISOString(),
+    });
     setDraftSaved(true);
     window.setTimeout(() => setDraftSaved(false), 1800);
   };
@@ -72,7 +69,7 @@ export const CreateKit = ({ onGenerate, onUploadFile }: CreateKitProps) => {
     setUploadError(null);
     setUploading(true);
     try {
-      await onUploadFile(file);
+      await onUploadFile(file, visibility);
       setUploadedFileName(file.name);
     } catch (err) {
       setUploadError(err instanceof Error ? err.message : 'Upload failed.');
@@ -120,7 +117,7 @@ export const CreateKit = ({ onGenerate, onUploadFile }: CreateKitProps) => {
       contentLength: content.length,
     });
 
-    onGenerate(title, resolvedContent);
+    onGenerate(title, resolvedContent, visibility);
   };
 
   return (
@@ -151,8 +148,16 @@ export const CreateKit = ({ onGenerate, onUploadFile }: CreateKitProps) => {
 
       <div className="grid grid-cols-12 gap-8">
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-8">
-          <div className="inline-flex items-center rounded-full bg-surface-container-low px-5 py-3 text-sm font-bold text-on-surface-variant self-start">
-            Public
+          <div className="flex flex-col gap-3">
+            <div className="inline-flex items-center rounded-full bg-surface-container-low p-1 self-start">
+              <VisibilityPill active={visibility === 'private'} onClick={() => setVisibility('private')} label="Private" />
+              <VisibilityPill active={visibility === 'public'} onClick={() => setVisibility('public')} label="Public" />
+            </div>
+            <p className="text-sm text-on-surface-variant">
+              {visibility === 'public'
+                ? 'This kit will get a read-only share page you can copy from review once it is generated.'
+                : 'This kit stays private to your account until you explicitly make it public.'}
+            </p>
           </div>
 
           <div className="bg-surface/92 p-6 rounded-[28px] border border-outline-variant/10 ambient-shadow">
@@ -295,3 +300,23 @@ export const CreateKit = ({ onGenerate, onUploadFile }: CreateKitProps) => {
     </div>
   );
 };
+
+const VisibilityPill = ({
+  active,
+  onClick,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`h-10 rounded-full px-4 text-sm font-bold transition-colors ${
+      active ? 'bg-surface text-on-surface' : 'text-on-surface-variant'
+    }`}
+  >
+    {label}
+  </button>
+);
