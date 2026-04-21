@@ -60,6 +60,7 @@ export const ReviewKit = ({
   const failedUpload = kit.kind !== 'paste' && kit.extractionStatus === 'failed';
   const generationFailed = kit.questionGenerationStatus === 'failed';
   const sharedUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/shared/${kit.id}`;
+  const studyActionsDisabled = localQuestions.length === 0 || activeSessionLoading;
 
   const emptyState = (() => {
     if (failedUpload) {
@@ -132,6 +133,10 @@ export const ReviewKit = ({
   };
 
   const handleDeleteQuestion = async (id: string) => {
+    if (!window.confirm('Delete this question from the kit?')) {
+      return;
+    }
+
     setDeletingId(id);
     setItemError(null);
     try {
@@ -187,7 +192,7 @@ export const ReviewKit = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-12">
+    <div className="max-w-5xl mx-auto space-y-10">
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="max-w-2xl">
           <div className="flex items-center gap-3 mb-4">
@@ -211,20 +216,30 @@ export const ReviewKit = ({
             </span>
           </div>
           <h2 className="text-4xl font-headline font-extrabold text-on-surface mb-3 tracking-tight">{kit.title}</h2>
-          <p className="text-on-surface-variant text-lg leading-relaxed">Review the AI's interpretations before finalizing your study deck.</p>
+          <p className="text-on-surface-variant text-lg leading-relaxed">
+            Review the questions, make quick fixes if needed, then start studying.
+          </p>
         </div>
         <div className="flex flex-wrap gap-3">
+          {activeSession ? (
+            <>
+              <Button variant="outline" onClick={onStart} disabled={localQuestions.length === 0} className="border-outline-variant/20">
+                Start fresh
+              </Button>
+              <Button size="lg" onClick={onResumeSession}>
+                <RefreshCw className="w-4 h-4" />
+                Resume study
+              </Button>
+            </>
+          ) : (
+            <Button size="lg" onClick={onStart} disabled={studyActionsDisabled}>
+              <Play className="w-5 h-5" />
+              {activeSessionLoading ? 'Checking session...' : 'Start studying'}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => { void handleRegenerate(); }} disabled={regenerating} className="border-outline-variant/20">
             <RotateCcw className={`w-4 h-4 ${regenerating ? 'animate-spin' : ''}`} />
             {regenerating ? 'Regenerating...' : 'Regenerate'}
-          </Button>
-          <Button variant="outline" onClick={onDelete} className="text-error border-error/20 hover:bg-error/10">
-            <Trash2 className="w-5 h-5" />
-            Delete Kit
-          </Button>
-          <Button size="lg" onClick={onStart} disabled={localQuestions.length === 0}>
-            <Play className="w-5 h-5" />
-            Start Study Session
           </Button>
         </div>
       </header>
@@ -356,6 +371,42 @@ export const ReviewKit = ({
         </div>
 
         <aside className="lg:col-span-4 space-y-6">
+          <div className="bg-primary/8 rounded-2xl p-6 border border-primary/20">
+            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-primary mb-3">Next step</p>
+            <h4 className="font-headline font-bold text-xl text-on-surface mb-2">
+              {activeSession ? 'Pick up where you left off' : 'Start a study session'}
+            </h4>
+            <p className="text-sm text-on-surface-variant leading-relaxed mb-5">
+              {activeSession
+                ? 'You already have a live session for this kit. Resume it to keep your place, or start a fresh run if you want a reset.'
+                : 'Use the main start button for the guided mode picker, or jump straight into a fast drill when you want the quickest start.'}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {activeSession ? (
+                <>
+                  <Button onClick={onResumeSession}>
+                    <RefreshCw className="w-4 h-4" />
+                    Resume study
+                  </Button>
+                  <Button variant="outline" onClick={onStart} disabled={activeSessionLoading} className="border-outline-variant/20">
+                    Start fresh
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button onClick={onStart} disabled={studyActionsDisabled}>
+                    <Play className="w-4 h-4" />
+                    {activeSessionLoading ? 'Checking session...' : 'Choose study mode'}
+                  </Button>
+                  <Button variant="outline" onClick={onStartRapid} disabled={studyActionsDisabled} className="border-outline-variant/20">
+                    <Zap className="w-4 h-4" />
+                    Fast drill now
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
           <div className="bg-surface-container rounded-2xl p-6 border border-outline-variant/5">
             <h4 className="font-headline font-bold text-sm mb-4 tracking-wider text-on-surface-variant uppercase">Visibility</h4>
             <div className="grid grid-cols-2 gap-3 mb-4">
@@ -444,23 +495,6 @@ export const ReviewKit = ({
             </div>
           </div>
 
-          <div className="bg-primary rounded-2xl p-6 relative overflow-hidden group">
-            <div className="relative z-10">
-              <h4 className="font-headline font-bold text-sm mb-2 text-on-primary">Rapid Mode</h4>
-              <p className="text-xs text-on-primary/70 mb-4 leading-relaxed">Feeling confident? Enable Rapid Mode to reduce display time by 40%.</p>
-              <button
-                onClick={onStartRapid}
-                disabled={localQuestions.length === 0}
-                className="bg-surface/80 border border-outline-variant/20 text-on-surface text-[10px] font-bold py-2 px-4 rounded-full hover:bg-surface transition-colors"
-              >
-                ENABLE NOW
-              </button>
-            </div>
-            <div className="absolute -right-4 -bottom-4 opacity-20 group-hover:scale-110 transition-transform">
-              <Zap className="w-24 h-24 rotate-12" />
-            </div>
-          </div>
-
           <div className="bg-surface-container rounded-2xl p-6 border border-outline-variant/5">
             <div className="flex items-start gap-3">
               <div className="mt-0.5 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
@@ -477,6 +511,25 @@ export const ReviewKit = ({
                 </Button>
               </div>
             </div>
+          </div>
+
+          <div className="bg-surface-container rounded-2xl p-6 border border-error/10">
+            <h4 className="font-headline font-bold text-sm tracking-wider text-on-surface uppercase mb-2">Danger zone</h4>
+            <p className="text-sm text-on-surface-variant leading-relaxed mb-4">
+              Delete this kit only if you are done with its questions and history.
+            </p>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (window.confirm('Delete this kit and its study history? This cannot be undone.')) {
+                  onDelete();
+                }
+              }}
+              className="text-error border-error/20 hover:bg-error/10"
+            >
+              <Trash2 className="w-5 h-5" />
+              Delete kit
+            </Button>
           </div>
         </aside>
       </div>

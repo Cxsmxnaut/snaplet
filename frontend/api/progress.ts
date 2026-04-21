@@ -8,7 +8,7 @@ import { sendWebResponse, toWebRequest } from "./_lib/vercel-bridge.js";
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method !== "GET") {
-      return sendWebResponse(methodNotAllowed(), res);
+      return sendWebResponse(methodNotAllowed(["GET"]), res);
     }
 
     const request = await toWebRequest(req);

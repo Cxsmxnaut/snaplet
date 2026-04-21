@@ -80,6 +80,10 @@ export function saveCreateDraft(
   window.localStorage.setItem(createDraftKey(userId), JSON.stringify(draft));
 }
 
+export function clearCreateDraft(userId: string): void {
+  window.localStorage.removeItem(createDraftKey(userId));
+}
+
 export function purgeSensitiveLocalState(userId: string | null): void {
   if (userId) {
     window.localStorage.removeItem(userCacheKey(userId));

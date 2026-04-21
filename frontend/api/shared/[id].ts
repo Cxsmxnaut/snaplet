@@ -1,12 +1,12 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createSupabaseServerClient } from "../_lib/server/supabase-server.js";
-import { badRequest, methodNotAllowed, notFound, serverError } from "../_lib/server/http.js";
+import { badRequest, methodNotAllowed, notFound, ok, serverError, serviceUnavailable } from "../_lib/server/http.js";
 import { requireParam, sendWebResponse } from "../_lib/vercel-bridge.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method !== "GET") {
-      return sendWebResponse(methodNotAllowed(), res);
+      return sendWebResponse(methodNotAllowed(["GET"]), res);
     }
 
     const id = requireParam(req.query.id);
@@ -16,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const supabase = createSupabaseServerClient(null);
     if (!supabase) {
-      return sendWebResponse(serverError("Supabase client is not configured."), res);
+      return sendWebResponse(serviceUnavailable("Public sharing is temporarily unavailable."), res);
     }
 
     const { data: source, error: sourceError } = await supabase
@@ -27,15 +27,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (sourceError?.code === "42P01") {
       return sendWebResponse(
-        Response.json(
-          { error: "Public sharing is temporarily unavailable while published snapshots are being configured." },
-          { status: 503 },
-        ),
+        serviceUnavailable("Public sharing is temporarily unavailable while published snapshots are being configured."),
         res,
       );
     }
 
-    if (sourceError || !source) {
+    if (sourceError && sourceError.code !== "PGRST116") {
+      return sendWebResponse(serverError(sourceError.message), res);
+    }
+
+    if (!source) {
       return sendWebResponse(notFound("Shared kit not found."), res);
     }
 
@@ -47,10 +48,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (questionError?.code === "42P01") {
       return sendWebResponse(
-        Response.json(
-          { error: "Public sharing is temporarily unavailable while published snapshots are being configured." },
-          { status: 503 },
-        ),
+        serviceUnavailable("Public sharing is temporarily unavailable while published snapshots are being configured."),
         res,
       );
     }
@@ -60,7 +58,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return sendWebResponse(
-      Response.json({
+      ok({
         source: {
           id: source.source_id,
           title: source.title,

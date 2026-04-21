@@ -1,5 +1,4 @@
 import { ChangeEvent, DragEvent, useEffect, useRef, useState } from 'react';
-import { motion } from 'motion/react';
 import { Button } from '../components/Button';
 import { loadCreateDraft, saveCreateDraft } from '../features/kits/services/kitStorage';
 import { logDebug } from '../lib/debug';
@@ -15,13 +14,15 @@ import {
 
 interface CreateKitProps {
   userId: string;
+  launchIntent?: 'paste' | 'upload' | null;
+  onLaunchIntentHandled?: () => void;
   onGenerate: (title: string, content: string, visibility: 'private' | 'public') => void;
   onUploadFile: (file: File, visibility: 'private' | 'public') => Promise<void>;
 }
 
 const ACCEPTED_FILE_TYPES = '.pdf,.docx,.txt,.md,.csv';
 
-export const CreateKit = ({ userId, onGenerate, onUploadFile }: CreateKitProps) => {
+export const CreateKit = ({ userId, launchIntent = null, onLaunchIntentHandled, onGenerate, onUploadFile }: CreateKitProps) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [description, setDescription] = useState('');
@@ -32,9 +33,15 @@ export const CreateKit = ({ userId, onGenerate, onUploadFile }: CreateKitProps) 
   const [isDragOver, setIsDragOver] = useState(false);
   const [draftSaved, setDraftSaved] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const contentTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const uploadSectionRef = useRef<HTMLDivElement | null>(null);
+  const [highlightUpload, setHighlightUpload] = useState(false);
+  const handledIntentRef = useRef<string | null>(null);
+  const draftHydratedRef = useRef(false);
 
   useEffect(() => {
     const draft = loadCreateDraft(userId);
+    draftHydratedRef.current = true;
     if (!draft) {
       return;
     }
@@ -44,6 +51,49 @@ export const CreateKit = ({ userId, onGenerate, onUploadFile }: CreateKitProps) 
     setContent(draft.content ?? '');
     setVisibility(draft.visibility ?? 'private');
   }, [userId]);
+
+  useEffect(() => {
+    if (!draftHydratedRef.current) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      saveCreateDraft(userId, {
+        title,
+        description,
+        content,
+        visibility,
+        updatedAt: new Date().toISOString(),
+      });
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [content, description, title, userId, visibility]);
+
+  useEffect(() => {
+    if (!launchIntent || handledIntentRef.current === launchIntent) {
+      return;
+    }
+
+    handledIntentRef.current = launchIntent;
+
+    const timeoutId = window.setTimeout(() => {
+      if (launchIntent === 'paste') {
+        contentTextareaRef.current?.focus();
+      }
+
+      if (launchIntent === 'upload') {
+        uploadSectionRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        setHighlightUpload(true);
+        fileInputRef.current?.click();
+        window.setTimeout(() => setHighlightUpload(false), 1800);
+      }
+
+      onLaunchIntentHandled?.();
+    }, 120);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [launchIntent, onLaunchIntentHandled]);
 
   const saveDraft = () => {
     saveCreateDraft(userId, {
@@ -121,18 +171,18 @@ export const CreateKit = ({ userId, onGenerate, onUploadFile }: CreateKitProps) 
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-10">
-      <header className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6 rounded-[32px] bg-surface/82 backdrop-blur-xl border border-outline-variant/10 ambient-shadow p-8">
-        <div className="max-w-3xl">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-3">Creator</p>
-          <h2 className="text-5xl font-black font-headline text-on-surface leading-[1.1] tracking-tight mb-4">
-            Create a new study kit
+    <div className="max-w-6xl mx-auto space-y-8">
+      <header className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5 rounded-[32px] bg-surface/82 backdrop-blur-xl border border-outline-variant/10 ambient-shadow p-8">
+        <div className="max-w-2xl">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-3">Create</p>
+          <h2 className="text-4xl md:text-5xl font-black font-headline text-on-surface leading-[1.08] tracking-tight mb-3">
+            Turn notes into a study kit
           </h2>
-          <p className="text-on-surface-variant text-lg leading-relaxed">
-            Build a study kit from notes, files, or pasted material, then turn it into high-quality questions.
+          <p className="text-on-surface-variant text-base md:text-lg leading-relaxed">
+            Paste notes below or upload a file. Pasting gives you the most control. Uploading starts processing right away.
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <Button
             variant="ghost"
             className="rounded-full h-12 px-6 bg-primary-container text-primary hover:bg-primary-container/80 shadow-none text-base"
@@ -147,61 +197,84 @@ export const CreateKit = ({ userId, onGenerate, onUploadFile }: CreateKitProps) 
       </header>
 
       <div className="grid grid-cols-12 gap-8">
-        <div className="col-span-12 lg:col-span-8 flex flex-col gap-8">
-          <div className="flex flex-col gap-3">
-            <div className="inline-flex items-center rounded-full bg-surface-container-low p-1 self-start">
+        <div className="col-span-12 lg:col-span-8 flex flex-col gap-6">
+          <div className="rounded-[28px] border border-outline-variant/10 bg-surface/92 p-6 ambient-shadow space-y-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-primary">Study kit setup</p>
+                <h3 className="mt-2 text-2xl font-headline font-bold text-on-surface">Paste the source you want to study</h3>
+              </div>
+              <div className="inline-flex items-center rounded-full bg-surface-container-low p-1 self-start">
               <VisibilityPill active={visibility === 'private'} onClick={() => setVisibility('private')} label="Private" />
               <VisibilityPill active={visibility === 'public'} onClick={() => setVisibility('public')} label="Public" />
+              </div>
             </div>
             <p className="text-sm text-on-surface-variant">
               {visibility === 'public'
                 ? 'This kit will get a read-only share page you can copy from review once it is generated.'
                 : 'This kit stays private to your account until you explicitly make it public.'}
             </p>
-          </div>
-
-          <div className="bg-surface/92 p-6 rounded-[28px] border border-outline-variant/10 ambient-shadow">
-            <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4 block">Title</label>
-            <input 
-              type="text" 
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Add a clear title for your set"
-              className="w-full bg-surface text-on-surface text-xl font-headline font-semibold p-5 rounded-xl border border-outline-variant/12 focus:ring-2 focus:ring-primary/25 focus:outline-none transition-all placeholder:text-on-surface-variant/30"
-            />
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add a description..."
-              className="mt-4 w-full bg-surface text-on-surface text-base p-5 rounded-xl border border-outline-variant/12 focus:ring-2 focus:ring-primary/25 focus:outline-none transition-all placeholder:text-on-surface-variant/30"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3">
-            <button onClick={() => fileInputRef.current?.click()} className="rounded-full bg-surface-container-low px-5 py-3 text-sm font-bold text-on-surface-variant">+ Import</button>
-            <button onClick={insertDiagramTemplate} className="rounded-full bg-surface-container-low px-5 py-3 text-sm font-bold text-on-surface-variant">+ Add diagram</button>
-            <div className="ml-auto rounded-full bg-primary-container/60 px-4 py-2 text-sm font-bold text-primary">
-              AI suggestions included
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3 block">Title</label>
+                <input
+                  type="text"
+                  id="create-kit-title"
+                  name="title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Biology Chapter 5"
+                  className="w-full bg-surface text-on-surface text-lg font-headline font-semibold p-5 rounded-xl border border-outline-variant/12 focus:ring-2 focus:ring-primary/25 focus:outline-none transition-all placeholder:text-on-surface-variant/30"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-3 block">Optional context</label>
+                <input
+                  type="text"
+                  id="create-kit-description"
+                  name="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Lecture recap, vocab list, review packet..."
+                  className="w-full bg-surface text-on-surface text-base p-5 rounded-xl border border-outline-variant/12 focus:ring-2 focus:ring-primary/25 focus:outline-none transition-all placeholder:text-on-surface-variant/30"
+                />
+              </div>
             </div>
           </div>
 
-          <div className="bg-surface/95 deep-bloom rounded-[30px] flex flex-col min-h-[540px] border border-outline-variant/10 overflow-hidden">
-            <div className="p-6 border-b border-outline-variant/10 flex justify-between items-center bg-surface-container-low/40">
-              <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Source material</label>
-              <button onClick={() => setContent('')} className="text-xs font-semibold text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1">
-                <Trash2 className="w-3 h-3" /> Clear
-              </button>
+          <div className="bg-surface/95 deep-bloom rounded-[30px] flex flex-col min-h-[520px] border border-outline-variant/10 overflow-hidden">
+            <div className="p-6 border-b border-outline-variant/10 flex flex-col gap-3 bg-surface-container-low/40 md:flex-row md:items-center md:justify-between">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block">Source material</label>
+                <p className="mt-2 text-sm text-on-surface-variant">Paste the notes you want turned into questions. Clear headings and bullets help the generator a lot.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={insertDiagramTemplate}
+                  className="rounded-full bg-surface-container-low px-4 py-2 text-xs font-bold text-on-surface-variant hover:text-on-surface"
+                >
+                  Add diagram prompt
+                </button>
+                <button onClick={() => setContent('')} className="text-xs font-semibold text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1">
+                  <Trash2 className="w-3 h-3" /> Clear
+                </button>
+              </div>
             </div>
-            <textarea 
+            <textarea
+              ref={contentTextareaRef}
+              id="create-kit-content"
+              name="content"
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Paste your notes, vocab, or content here to generate questions..."
               className="flex-grow bg-transparent p-8 text-on-surface text-lg leading-relaxed resize-none border-none focus:ring-0 focus:outline-none placeholder:text-on-surface-variant/20 font-sans"
             />
-            <div className="p-6 bg-surface-container-low/35 flex justify-end">
-              <Button 
-                size="lg" 
+            <div className="p-6 bg-surface-container-low/35 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <p className="text-sm text-on-surface-variant">
+                When you are ready, we will generate questions and take you straight into review.
+              </p>
+              <Button
+                size="lg"
                 onClick={handleGenerate}
                 disabled={!content.trim()}
                 className="px-10 rounded-full"
@@ -213,12 +286,15 @@ export const CreateKit = ({ userId, onGenerate, onUploadFile }: CreateKitProps) 
           </div>
         </div>
 
-        <div className="col-span-12 lg:col-span-4 flex flex-col gap-8">
+        <div className="col-span-12 lg:col-span-4 flex flex-col gap-6">
           <section className="bg-surface/92 rounded-[28px] p-8 flex flex-col gap-6 relative overflow-hidden group border border-outline-variant/10 ambient-shadow">
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-primary/10 transition-colors"></div>
             <div className="relative z-10">
-              <h3 className="text-xl font-headline font-bold text-on-surface mb-2">Import Documents</h3>
-              <p className="text-sm text-on-surface-variant mb-6">Drop your PDFs, DOCX, or text files here for automated parsing.</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-3">Upload instead</p>
+              <h3 className="text-xl font-headline font-bold text-on-surface mb-2">Create from a file</h3>
+              <p className="text-sm text-on-surface-variant mb-6">
+                Uploading skips the editor and starts processing immediately. Use this when your notes are already in a clean file.
+              </p>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -229,6 +305,7 @@ export const CreateKit = ({ userId, onGenerate, onUploadFile }: CreateKitProps) 
                 }}
               />
               <div
+                ref={uploadSectionRef}
                 onDragOver={(event) => {
                   event.preventDefault();
                   setIsDragOver(true);
@@ -239,7 +316,9 @@ export const CreateKit = ({ userId, onGenerate, onUploadFile }: CreateKitProps) 
                 }}
                 onClick={() => fileInputRef.current?.click()}
                 className={`border-2 border-dashed rounded-[24px] p-10 flex flex-col items-center justify-center gap-4 transition-all cursor-pointer bg-surface-container-low group/upload ${
-                  isDragOver ? 'border-primary/80' : 'border-outline-variant/30 hover:border-primary/50'
+                  isDragOver || highlightUpload
+                    ? 'border-primary/80 bg-primary/5'
+                    : 'border-outline-variant/30 hover:border-primary/50'
                 }`}
               >
                 <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center group-hover/upload:scale-110 transition-transform">
@@ -272,29 +351,17 @@ export const CreateKit = ({ userId, onGenerate, onUploadFile }: CreateKitProps) 
             </div>
           </section>
 
-          {/* Tips */}
           <section className="bg-surface/92 rounded-[28px] border border-outline-variant/10 p-8 ambient-shadow">
             <div className="flex items-center gap-3 mb-4">
               <Lightbulb className="text-tertiary w-5 h-5" />
-              <h4 className="font-headline font-bold text-tertiary">Pro Tip</h4>
+              <h4 className="font-headline font-bold text-tertiary">Best results</h4>
             </div>
-            <p className="text-sm text-on-surface-variant leading-relaxed">
-              For the best results with our kinetic intelligence engine, ensure your notes include clear headings and key terms. Use bullet points to help the AI identify relationship clusters.
-            </p>
+            <ul className="space-y-3 text-sm text-on-surface-variant leading-relaxed">
+              <li>Use headings and bullets when you can.</li>
+              <li>Keep one topic per kit so the generated deck stays focused.</li>
+              <li>Add a short title now so the kit is easier to find later.</li>
+            </ul>
           </section>
-
-          {/* Decorative */}
-          <div className="h-48 rounded-[24px] overflow-hidden relative border border-outline-variant/10">
-            <img 
-              src="https://picsum.photos/seed/kinetic/400/300" 
-              alt="Abstract" 
-              className="w-full h-full object-cover grayscale opacity-40"
-              referrerPolicy="no-referrer"
-            />
-            <div className="absolute bottom-4 left-4 right-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Kinetic Intelligence Active</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

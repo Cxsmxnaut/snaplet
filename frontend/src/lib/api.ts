@@ -1,5 +1,6 @@
 import { logDebug, logError } from './debug';
 import type { ProductEventName } from '../../shared/product-events';
+import type { AssistantRequest, AssistantResponse } from '../../shared/assistant';
 import { supabase } from './supabase';
 
 export type BackendSource = {
@@ -405,4 +406,11 @@ export async function submitAttempt(
 
 export async function getProgress(): Promise<BackendProgress> {
   return apiRequest<BackendProgress>("/api/progress");
+}
+
+export async function sendAssistantMessage(payload: AssistantRequest): Promise<AssistantResponse> {
+  return apiRequest<AssistantResponse>("/api/assistant", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }

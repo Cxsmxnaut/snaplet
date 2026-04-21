@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from '../components/Button';
 import {
@@ -64,6 +64,12 @@ export const StudySession = ({ kit, mode, sessionId: routeSessionId, onSessionRe
     incorrect: 0,
     weak: [],
   });
+  const startRequestKeyRef = useRef<string | null>(null);
+  const onSessionReadyRef = useRef(onSessionReady);
+
+  useEffect(() => {
+    onSessionReadyRef.current = onSessionReady;
+  }, [onSessionReady]);
 
   const totalQuestions = useMemo(
     () => sessionQuestionCap ?? Math.max(kit.questions.length, 10),
@@ -71,12 +77,19 @@ export const StudySession = ({ kit, mode, sessionId: routeSessionId, onSessionRe
   );
   const progress = currentQuestion ? ((currentQuestion.position - 1) / totalQuestions) * 100 : 0;
 
-  const beginSession = async () => {
+  const beginSession = async (options?: { force?: boolean }) => {
+    const requestKey = `${kit.id}:${mode}:${routeSessionId ?? 'new'}`;
+    if (!options?.force && startRequestKeyRef.current === requestKey) {
+      return;
+    }
+
     if (kit.questions.length === 0) {
       setRequestError('This kit has no questions yet. Add content or regenerate questions first.');
       setLoading(false);
       return;
     }
+
+    startRequestKeyRef.current = requestKey;
     logDebug('study', 'Starting backend session', { sourceId: kit.id, mode });
     setLoading(true);
     setRequestError(null);
@@ -122,7 +135,7 @@ export const StudySession = ({ kit, mode, sessionId: routeSessionId, onSessionRe
       setSessionStartedAt(new Date().toISOString());
       setCurrentQuestion(started.currentQuestion);
       setQueuedNextQuestion(null);
-      onSessionReady(started.session.id);
+      onSessionReadyRef.current(started.session.id);
       logDebug('study', 'Session started', {
         sessionId: started.session.id,
         hasCurrentQuestion: Boolean(started.currentQuestion),
@@ -133,6 +146,9 @@ export const StudySession = ({ kit, mode, sessionId: routeSessionId, onSessionRe
       logError('study', 'Failed to start backend session', err);
       setRequestError(err instanceof Error ? err.message : 'Failed to start session.');
     } finally {
+      if (startRequestKeyRef.current === requestKey) {
+        startRequestKeyRef.current = null;
+      }
       setLoading(false);
     }
   };
@@ -143,7 +159,7 @@ export const StudySession = ({ kit, mode, sessionId: routeSessionId, onSessionRe
     };
 
     void begin();
-  }, [kit.id, mode, routeSessionId, onSessionReady]);
+  }, [kit.id, mode, routeSessionId]);
 
   useEffect(() => {
     if (mode !== 'fast_drill' || !showFeedback || needsRetry) {
@@ -311,7 +327,7 @@ export const StudySession = ({ kit, mode, sessionId: routeSessionId, onSessionRe
         <div className="flex items-center gap-3">
           <Button
             onClick={() => {
-              void beginSession();
+              void beginSession({ force: true });
             }}
           >
             Retry Start
@@ -366,7 +382,7 @@ export const StudySession = ({ kit, mode, sessionId: routeSessionId, onSessionRe
               <h1 className="text-3xl md:text-4xl font-headline font-bold leading-tight text-on-surface tracking-tight">{currentQuestion.prompt}</h1>
             </div>
             <div className="flex flex-col gap-6">
-              <textarea value={answer} onChange={(e) => setAnswer(e.target.value)} disabled={showFeedback || submitting} className="w-full bg-surface-container-low text-on-surface placeholder:text-on-surface-variant/30 border border-outline-variant/25 rounded-xl p-6 text-lg md:text-xl resize-none focus:ring-4 focus:ring-primary/5 focus:border-primary/40 focus:bg-surface-container-lowest focus:outline-none transition-all" placeholder="Type your answer here..." rows={4} />
+              <textarea id="study-answer" name="answer" value={answer} onChange={(e) => setAnswer(e.target.value)} disabled={showFeedback || submitting} className="w-full bg-surface-container-low text-on-surface placeholder:text-on-surface-variant/30 border border-outline-variant/25 rounded-xl p-6 text-lg md:text-xl resize-none focus:ring-4 focus:ring-primary/5 focus:border-primary/40 focus:bg-surface-container-lowest focus:outline-none transition-all" placeholder="Type your answer here..." rows={4} />
               {!showFeedback && <Button size="lg" className="w-full py-5" onClick={() => { void handleSubmit(); }} disabled={!answer.trim() || submitting}>{submitting ? 'Submitting...' : 'Submit Answer'} <ArrowRight className="w-5 h-5" /></Button>}
             </div>
           </motion.div>
@@ -425,7 +441,21 @@ export const StudySession = ({ kit, mode, sessionId: routeSessionId, onSessionRe
             )}
           </AnimatePresence>
 
-          {requestError ? <p className="text-sm text-error">{requestError}</p> : null}
+          {requestError ? (
+            <div className="flex flex-col gap-3 rounded-2xl border border-error/25 bg-error/10 px-4 py-3 text-sm text-error md:flex-row md:items-center md:justify-between">
+              <span>{requestError}</span>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  void handleSubmit();
+                }}
+                disabled={!answer.trim() || submitting || showFeedback}
+                className="border-error/25 text-error hover:bg-error/10"
+              >
+                Retry submit
+              </Button>
+            </div>
+          ) : null}
         </div>
       </div>
 

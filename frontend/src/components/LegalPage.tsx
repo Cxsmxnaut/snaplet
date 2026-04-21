@@ -9,16 +9,27 @@ export function LegalPage({
   intro,
   sections,
   footer,
+  onBackToApp,
 }: {
   eyebrow: string;
   title: string;
   intro: string;
   sections: readonly LegalSection[];
   footer?: string;
+  onBackToApp?: (() => void) | null;
 }) {
   return (
     <div className="min-h-screen bg-background px-6 py-20">
       <div className="max-w-4xl mx-auto rounded-[28px] bg-surface p-10 ambient-shadow border border-outline-variant/10">
+        {onBackToApp ? (
+          <button
+            type="button"
+            onClick={onBackToApp}
+            className="mb-6 inline-flex items-center rounded-full border border-outline-variant/16 bg-surface-container-low px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-surface-container"
+          >
+            Back to app
+          </button>
+        ) : null}
         <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-4">{eyebrow}</p>
         <h1 className="text-4xl md:text-5xl font-headline font-black tracking-tight text-on-surface mb-4">{title}</h1>
         <p className="text-on-surface-variant leading-relaxed text-lg max-w-3xl">{intro}</p>

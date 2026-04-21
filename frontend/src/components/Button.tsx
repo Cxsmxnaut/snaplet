@@ -22,11 +22,11 @@ export const Button = ({
   ...props 
 }: ButtonProps) => {
   const variants = {
-    primary: 'gradient-primary text-on-primary shadow-sm shadow-primary/10 hover:shadow-[0_14px_30px_rgba(99,173,158,0.24)]',
-    secondary: 'bg-surface-container-lowest border border-outline-variant/20 text-on-surface hover:bg-surface-container-low hover:shadow-[0_12px_24px_rgba(40,46,62,0.08)]',
+    primary: 'gradient-primary text-on-primary shadow-none',
+    secondary: 'bg-surface-container-lowest border border-outline-variant/20 text-on-surface hover:bg-surface-container-low',
     tertiary: 'bg-transparent text-primary hover:text-primary-strong',
     ghost: 'bg-transparent text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface',
-    outline: 'bg-surface-container-lowest border border-outline-variant/20 text-on-surface hover:bg-surface-container-low hover:shadow-[0_12px_24px_rgba(40,46,62,0.08)]',
+    outline: 'bg-surface-container-lowest border border-outline-variant/20 text-on-surface hover:bg-surface-container-low',
   };
 
   const sizes = {

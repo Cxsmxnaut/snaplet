@@ -4,6 +4,7 @@ export const APP_TAB_PATHS: Record<string, string> = {
   dashboard: '/app/dashboard',
   kits: '/app/kits',
   progress: '/app/progress',
+  assistant: '/app/assistant',
   help: '/app/help',
   settings: '/app/settings',
   create: '/app/create',

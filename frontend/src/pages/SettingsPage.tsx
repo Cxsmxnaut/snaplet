@@ -69,27 +69,17 @@ export const SettingsPage = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-1 pb-12">
-      <header className="mb-10">
+    <div className="knowt-page-shell max-w-4xl px-1 pb-12">
+      <header className="mb-8">
         <h1 className="text-4xl md:text-5xl font-headline font-black tracking-tight text-on-surface mb-2">Settings</h1>
-        <p className="text-base md:text-lg text-on-surface-variant">Manage how Snaplet feels, what it reminds you about, and how your account behaves.</p>
+        <p className="text-base md:text-lg text-on-surface-variant">Account details, this-device preferences, and support actions in one place.</p>
       </header>
 
-      <section className="mb-8 rounded-[28px] bg-[#15113A] text-white px-6 py-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-white/65 mb-2">Subscription</p>
-          <p className="text-2xl font-headline font-black tracking-tight">Level up your study flow</p>
-        </div>
-        <button
-          onClick={() => setShowUpgradeSheet(true)}
-          className="h-11 rounded-full bg-[#FFCD3C] px-5 text-sm font-black text-[#241A00] shrink-0"
-        >
-          Upgrade now
-        </button>
-      </section>
-
       <div className="space-y-8">
-        <SettingsSection label="Personal information">
+        <SettingsSection
+          label="Account"
+          caption="These details come from your sign-in provider and follow your account."
+        >
           <div className="px-6 py-6 border-b border-outline-variant/35">
             <div className="mb-4">
               <p className="text-sm font-bold text-on-surface mb-3">Profile picture</p>
@@ -129,81 +119,112 @@ export const SettingsPage = ({
 
           <SettingRow label="Name" value={userProfile.displayName} meta="Provider-managed" />
           <SettingRow label="Email" value={userProfile.email || 'No email available'} meta="Provider-managed" />
+          <ActionRow
+            label="Sign out"
+            description="End this session on the current device."
+            action={(
+              <button
+                onClick={onLogout}
+                className="h-10 rounded-full bg-surface-container-low px-4 text-sm font-bold text-on-surface inline-flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign out
+              </button>
+            )}
+          />
+          <ActionRow
+            label="Delete account"
+            description="This opens a real support request so we can complete deletion safely."
+            action={(
+              <a
+                href="mailto:support@snaplet.app?subject=Delete%20my%20Snaplet%20account"
+                className="h-10 rounded-full bg-error/12 px-4 text-sm font-bold text-error inline-flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete account
+              </a>
+            )}
+            withDivider={false}
+          />
         </SettingsSection>
 
-        <SettingsSection label="Appearance">
+        <SettingsSection
+          label="This device"
+          caption="These preferences are stored locally on this browser. They do not sync across devices yet."
+        >
+          <div className="px-6 py-4 border-b border-outline-variant/35 bg-surface-container-low text-sm text-on-surface-variant">
+            Use this area for how Snaplet looks and behaves on this device only.
+          </div>
           <div className="px-6 py-5 border-b border-outline-variant/35 flex items-center justify-between gap-6">
             <div>
               <p className="text-sm font-bold text-on-surface">Theme</p>
-              <p className="text-sm text-on-surface-variant">Choose how the signed-in app looks.</p>
+              <p className="text-sm text-on-surface-variant">Choose how the signed-in app looks on this browser.</p>
             </div>
             <ThemeSelect value={theme} onChange={onThemeChange} />
           </div>
-          <div className="px-6 py-5 flex items-center justify-between gap-6">
+          <div className="px-6 py-5 border-b border-outline-variant/35 flex items-center justify-between gap-6">
             <div>
               <p className="text-sm font-bold text-on-surface">Session length</p>
-              <p className="text-sm text-on-surface-variant">Default number of questions per study run.</p>
+              <p className="text-sm text-on-surface-variant">Default number of questions per study run on this device.</p>
             </div>
             <SessionLengthSelect value={sessionLength} onChange={setSessionLengthAndPersist} />
           </div>
-        </SettingsSection>
-
-        <SettingsSection label="Notifications">
           <ToggleRow
-            label="Personalized study updates"
-            description="Get nudges when a kit or practice pattern needs attention."
+            label="Study updates"
+            description="Show local nudges when a kit or practice pattern needs attention."
             checked={studyUpdates}
             onChange={updateStudyUpdates}
           />
           <ToggleRow
             label="Study reminders"
-            description="Stay on track with reminders to return and review weaker kits."
+            description="Keep local reminder prompts on for this browser."
             checked={reviewReminders}
             onChange={updateReviewReminders}
+          />
+          <ToggleRow
+            label="Private profile view"
+            description="Hide your name and study activity within this device view only."
+            checked={privateProfile}
+            onChange={updatePrivateProfile}
             withDivider={false}
           />
         </SettingsSection>
 
-        <SettingsSection label="Account and privacy">
-          <div className="px-6 py-5 border-b border-outline-variant/35 flex items-center justify-between gap-6">
-            <div>
-              <p className="text-sm font-bold text-on-surface">Sign out</p>
-              <p className="text-sm text-on-surface-variant">End this session on the current device.</p>
-            </div>
-            <button
-              onClick={onLogout}
-              className="h-10 rounded-full bg-surface-container-low px-4 text-sm font-bold text-on-surface inline-flex items-center gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign out
-            </button>
-          </div>
-
-          <ToggleRow
-            label="Private profile"
-            description="Keep your name and study activity visible only to you on this device."
-            checked={privateProfile}
-            onChange={updatePrivateProfile}
+        <SettingsSection
+          label="Support"
+          caption="Account upgrades and support still route through a direct team request."
+        >
+          <ActionRow
+            label="Snaplet Plus"
+            description="Billing is not live yet, but you can join the early upgrade list."
+            action={(
+              <button
+                onClick={() => setShowUpgradeSheet(true)}
+                className="h-10 rounded-full bg-surface-container-low px-4 text-sm font-bold text-on-surface shrink-0"
+              >
+                Upgrade
+              </button>
+            )}
           />
-
-          <div className="px-6 py-5 flex items-center justify-between gap-6">
-            <div>
-              <p className="text-sm font-bold text-on-surface">Delete account</p>
-              <p className="text-sm text-on-surface-variant">This opens a real support request so we can complete account deletion safely.</p>
-            </div>
-            <a
-              href="mailto:support@snaplet.app?subject=Delete%20my%20Snaplet%20account"
-              className="h-10 rounded-full bg-error/12 px-4 text-sm font-bold text-error inline-flex items-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete account
-            </a>
-          </div>
+          <ActionRow
+            label="Contact support"
+            description="Email the team if something looks off or you need help with your account."
+            action={(
+              <a
+                href="mailto:support@snaplet.app?subject=Snaplet%20Support%20Request"
+                className="h-10 rounded-full bg-surface-container-low px-4 text-sm font-bold text-on-surface inline-flex items-center gap-2"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Email support
+              </a>
+            )}
+            withDivider={false}
+          />
         </SettingsSection>
 
         <div className="flex items-center gap-2 text-sm text-on-surface-variant">
           <ShieldCheck className="w-4 h-4" />
-          <span>Your preferences are stored safely and theme choices stay local to this device.</span>
+          <span>Provider-managed details sync with your account. Theme, reminders, and session defaults stay on this device.</span>
         </div>
       </div>
 
@@ -262,14 +283,19 @@ export const SettingsPage = ({
 
 const SettingsSection = ({
   label,
+  caption,
   children,
 }: {
   label: string;
+  caption?: string;
   children: ReactNode;
 }) => (
   <section>
-    <p className="text-xs font-black uppercase tracking-[0.18em] text-on-surface-variant/65 mb-3">{label}</p>
-    <div className="rounded-[24px] bg-surface overflow-hidden">{children}</div>
+    <div className="mb-3">
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-on-surface-variant/65">{label}</p>
+      {caption ? <p className="mt-2 text-sm text-on-surface-variant">{caption}</p> : null}
+    </div>
+    <div className="rounded-[24px] bg-surface overflow-hidden border border-outline-variant/20">{children}</div>
   </section>
 );
 
@@ -313,6 +339,26 @@ const ToggleRow = ({
   </div>
 );
 
+const ActionRow = ({
+  label,
+  description,
+  action,
+  withDivider = true,
+}: {
+  label: string;
+  description: string;
+  action: ReactNode;
+  withDivider?: boolean;
+}) => (
+  <div className={cn('px-6 py-5 flex items-center justify-between gap-6', withDivider && 'border-b border-outline-variant/35')}>
+    <div className="min-w-0 flex-1">
+      <p className="text-sm font-bold text-on-surface">{label}</p>
+      <p className="text-sm text-on-surface-variant">{description}</p>
+    </div>
+    <div className="shrink-0">{action}</div>
+  </div>
+);
+
 const ThemeSelect = ({
   value,
   onChange,
@@ -320,7 +366,7 @@ const ThemeSelect = ({
   value: ThemeMode;
   onChange: (value: ThemeMode) => void;
 }) => (
-  <div className="flex items-center rounded-full bg-surface-container-low p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.5)]">
+  <div className="flex items-center rounded-full border border-outline-variant/30 bg-surface-container-low p-1">
     <ThemePill active={value === 'light'} onClick={() => onChange('light')} icon={<Sun className="w-4 h-4" />} label="Light" />
     <ThemePill active={value === 'dark'} onClick={() => onChange('dark')} icon={<Moon className="w-4 h-4" />} label="Dark" />
   </div>

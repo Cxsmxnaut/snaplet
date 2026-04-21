@@ -38,25 +38,29 @@ export const ProgressPage = ({
   }
 
   const hasHistory = progress.totals.attempts > 0;
+  const recommendationSummary = condenseSummary(progress.recommendations.summary);
   if (!hasHistory) {
     return (
-      <div className="max-w-7xl mx-auto space-y-10">
-        <header className="px-1">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-3">Progress</p>
-          <h1 className="text-4xl md:text-5xl font-headline font-black tracking-tight text-on-surface">
-            Understand what is sticking and what needs another pass
-          </h1>
-          <p className="mt-3 text-on-surface-variant text-lg leading-relaxed max-w-3xl">
-            A calmer overview of your learning rhythm, retention trends, and the kits that deserve your next session.
-          </p>
+    <div className="knowt-page-shell space-y-8">
+        <header className="px-1 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-2">Progress</p>
+            <h1 className="text-3xl md:text-4xl font-headline font-black tracking-tight text-on-surface">
+              No study signal yet
+            </h1>
+          </div>
+          <Button variant="outline" className="rounded-full self-start md:self-auto shrink-0" onClick={onRefresh}>
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </Button>
         </header>
 
         {error ? (
           <div className="rounded-[22px] bg-tertiary/12 px-5 py-4 text-sm text-on-surface flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <span>Progress could not refresh right now: {error}</span>
+            <span>Couldn&apos;t refresh progress: {error}</span>
             <Button variant="outline" className="rounded-full shrink-0" onClick={onRefresh}>
               <RefreshCw className="w-4 h-4" />
-              Try again
+              Retry
             </Button>
           </div>
         ) : null}
@@ -100,188 +104,178 @@ export const ProgressPage = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-10">
-      <header className="px-1">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-3">Progress</p>
-        <h1 className="text-4xl md:text-5xl font-headline font-black tracking-tight text-on-surface">
-          Understand what is sticking and what needs another pass
-        </h1>
-        <p className="mt-3 text-on-surface-variant text-lg leading-relaxed max-w-3xl">
-          A calmer overview of your learning rhythm, retention trends, and the kits that deserve your next session.
-        </p>
+    <div className="knowt-page-shell space-y-6">
+      <header className="px-1 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-2">Progress</p>
+          <h1 className="text-3xl md:text-4xl font-headline font-black tracking-tight text-on-surface">
+            Progress at a glance
+          </h1>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" className="rounded-full px-5" onClick={onRefresh}>
+            <RefreshCw className="w-4 h-4" />
+            Refresh
+          </Button>
+          <Button className="rounded-full px-5" onClick={primaryAction}>
+            {progress.recommendations.actionLabel}
+            <ArrowRight className="w-4 h-4" />
+          </Button>
+        </div>
       </header>
 
       {error ? (
         <div className="rounded-[22px] bg-tertiary/12 px-5 py-4 text-sm text-on-surface flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <span>Progress data could not refresh, so you are seeing the latest successful load: {error}</span>
+          <span>Showing the latest successful load: {error}</span>
           <Button variant="outline" className="rounded-full shrink-0" onClick={onRefresh}>
             <RefreshCw className="w-4 h-4" />
-            Try again
+            Retry
           </Button>
         </div>
       ) : null}
 
-      <>
-          <section className="rounded-[32px] bg-surface overflow-hidden">
-            <div className="grid lg:grid-cols-[1.25fr_0.95fr]">
-              <div className="px-8 py-8 md:px-10 md:py-10">
-                <div className="inline-flex items-center gap-2 rounded-full bg-primary-container/55 px-4 py-2 text-sm font-bold text-primary mb-6">
-                  <Sparkles className="w-4 h-4" />
-                  Study coach
-                </div>
-                <h2 className="text-3xl md:text-4xl font-headline font-black tracking-tight text-on-surface mb-4">
-                  {progress.recommendations.headline}
-                </h2>
-                <p className="text-on-surface-variant text-lg leading-relaxed max-w-2xl mb-8">
-                  {progress.recommendations.summary}
-                </p>
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button className="rounded-full px-6" onClick={primaryAction}>
-                    {progress.recommendations.actionLabel}
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
-                  <Button variant="outline" className="rounded-full px-6" onClick={onRefresh}>
-                    <RefreshCw className="w-4 h-4" />
-                    Refresh insights
-                  </Button>
-                </div>
-              </div>
+      <section className="knowt-panel px-6 py-6 md:px-8 md:py-7">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary-container/55 px-4 py-2 text-sm font-bold text-primary mb-4">
+              <Sparkles className="w-4 h-4" />
+              Study coach
+            </div>
+            <h2 className="text-2xl md:text-3xl font-headline font-black tracking-tight text-on-surface mb-2">
+              {progress.recommendations.headline}
+            </h2>
+            <p className="text-sm md:text-base text-on-surface-variant leading-relaxed">
+              {recommendationSummary}
+            </p>
+          </div>
 
-              <div className="bg-surface-container-low px-8 py-8 md:px-10 md:py-10">
-                <div className="grid gap-4">
-                  {heroMetrics.map((metric) => (
-                    <HeroMetricCard key={metric.label} {...metric} />
-                  ))}
-                </div>
+          <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[420px]">
+            {heroMetrics.map((metric) => (
+              <HeroMetricCard key={metric.label} {...metric} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1.15fr_0.85fr] gap-6">
+        <section className="knowt-panel px-6 py-6 md:px-8 md:py-7">
+          <div className="flex items-start justify-between gap-4 mb-6">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-2">Trend</p>
+              <h2 className="text-2xl font-headline font-black text-on-surface">Learning momentum</h2>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-on-surface-variant/60 mb-1">Vs prior week</p>
+              <p className={cn('text-lg font-headline font-black', deltaClass(progress.comparisons.deltas.retention))}>
+                {formatDelta(progress.comparisons.deltas.retention)} retention
+              </p>
+            </div>
+          </div>
+
+          <TrendChart data={progress.timeSeries} />
+
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <CompactComparison label="Attempt volume" current={progress.comparisons.current.attempts} previous={progress.comparisons.previous.attempts} delta={progress.comparisons.deltas.attempts} />
+            <CompactComparison label="Session count" current={progress.comparisons.current.sessions} previous={progress.comparisons.previous.sessions} delta={progress.comparisons.deltas.sessions} />
+            <CompactComparison label="Retention rate" current={progress.comparisons.current.retention} previous={progress.comparisons.previous.retention} delta={progress.comparisons.deltas.retention} unit="%" />
+          </div>
+        </section>
+
+        <section className="knowt-panel px-6 py-6 md:px-8 md:py-7">
+          <div className="mb-5">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-2">Focus</p>
+            <h2 className="text-2xl font-headline font-black text-on-surface">Needs another pass</h2>
+          </div>
+
+          <div className="space-y-3">
+            {progress.weakQuestions.length === 0 ? (
+              <div className="rounded-[22px] bg-surface-container-low px-5 py-5">
+                <p className="text-on-surface font-bold">No active weak spots right now.</p>
+              </div>
+            ) : (
+              progress.weakQuestions.slice(0, 4).map((item) => (
+                <WeakFocusRow key={item.questionId} item={item} />
+              ))
+            )}
+          </div>
+        </section>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-[1.08fr_0.92fr] gap-6">
+        <section className="knowt-panel overflow-hidden">
+          <div className="px-6 py-5 md:px-8 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-2">Sessions</p>
+              <h2 className="text-2xl font-headline font-black text-on-surface">Recent runs</h2>
+            </div>
+            <span className="text-sm text-on-surface-variant">{progress.recentSessions.length} sessions</span>
+          </div>
+
+          {progress.recentSessions.length === 0 ? (
+            <div className="px-6 pb-6 md:px-8 md:pb-8">
+              <div className="rounded-[22px] bg-surface-container-low px-5 py-5">
+                <p className="text-on-surface font-bold">Completed sessions will show up here.</p>
               </div>
             </div>
-          </section>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[680px]">
+                <thead>
+                  <tr className="text-left text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant/60 border-y border-outline-variant/20">
+                    <th className="px-6 py-4 md:px-8">Study kit</th>
+                    <th className="px-4 py-4 md:px-6">Mode</th>
+                    <th className="px-4 py-4 md:px-6 text-center">Accuracy</th>
+                    <th className="px-4 py-4 md:px-6 text-center">Attempts</th>
+                    <th className="px-4 py-4 md:px-6 text-center">Duration</th>
+                    <th className="px-6 py-4 md:px-8 text-right">Completed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {progress.recentSessions.map((session) => (
+                    <tr key={session.sessionId} className="border-b border-outline-variant/12 last:border-b-0">
+                      <td className="px-6 py-4 md:px-8">
+                        <div>
+                          <p className="font-bold text-on-surface">{session.sourceTitle}</p>
+                          <p className="text-sm text-on-surface-variant">{session.correctCount} correct / {session.incorrectCount} missed</p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 md:px-6 text-sm font-semibold text-on-surface-variant">{modeLabel(session.mode)}</td>
+                      <td className="px-4 py-4 md:px-6 text-center">
+                        <span className={cn('inline-flex min-w-16 justify-center rounded-full px-3 py-1 text-sm font-bold', accuracyBadgeClass(session.accuracy))}>
+                          {session.accuracy}%
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 md:px-6 text-center text-sm font-semibold text-on-surface">{session.attemptCount}</td>
+                      <td className="px-4 py-4 md:px-6 text-center text-sm text-on-surface-variant">{formatDuration(session.durationSeconds)}</td>
+                      <td className="px-6 py-4 md:px-8 text-right text-sm text-on-surface-variant">{relativeDate(session.completedAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <section className="lg:col-span-7 rounded-[28px] bg-surface px-8 py-8">
-              <div className="flex items-start justify-between gap-4 mb-8">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-2">Trend</p>
-                  <h2 className="text-2xl font-headline font-black text-on-surface">Learning momentum</h2>
-                  <p className="text-sm text-on-surface-variant mt-2">Last 14 days of attempts, sessions, and rolling retention.</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-on-surface-variant/60 mb-1">Compared with prior week</p>
-                  <p className={cn('text-xl font-headline font-black', deltaClass(progress.comparisons.deltas.retention))}>
-                    {formatDelta(progress.comparisons.deltas.retention)} retention
-                  </p>
-                </div>
-              </div>
-
-              <TrendChart data={progress.timeSeries} />
-
-              <div className="mt-8 grid sm:grid-cols-3 gap-4">
-                <ComparisonCard label="Attempt volume" current={progress.comparisons.current.attempts} previous={progress.comparisons.previous.attempts} delta={progress.comparisons.deltas.attempts} />
-                <ComparisonCard label="Session count" current={progress.comparisons.current.sessions} previous={progress.comparisons.previous.sessions} delta={progress.comparisons.deltas.sessions} />
-                <ComparisonCard label="Retention rate" current={progress.comparisons.current.retention} previous={progress.comparisons.previous.retention} delta={progress.comparisons.deltas.retention} unit="%" />
-              </div>
-            </section>
-
-            <section className="lg:col-span-5 rounded-[28px] bg-surface px-8 py-8">
-              <div className="mb-8">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-2">Focus</p>
-                <h2 className="text-2xl font-headline font-black text-on-surface">What is slipping</h2>
-                <p className="text-sm text-on-surface-variant mt-2">The prompts below have the highest recent error pressure or repeat near-misses.</p>
-              </div>
-
-              <div className="space-y-4">
-                {progress.weakQuestions.length === 0 ? (
-                  <div className="rounded-[24px] bg-surface-container-low px-5 py-6">
-                    <p className="text-on-surface font-bold mb-2">No active weak spots right now.</p>
-                    <p className="text-sm text-on-surface-variant">Keep studying to maintain the signal or open a kit for another pass.</p>
-                  </div>
-                ) : (
-                  progress.weakQuestions.slice(0, 4).map((item) => (
-                    <WeakFocusRow key={item.questionId} item={item} />
-                  ))
-                )}
-              </div>
-            </section>
+        <section className="knowt-panel px-6 py-6 md:px-8 md:py-7">
+          <div className="mb-5">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-2">Kit ranking</p>
+            <h2 className="text-2xl font-headline font-black text-on-surface">Highest opportunity kits</h2>
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_0.9fr] gap-8">
-            <section className="rounded-[28px] bg-surface overflow-hidden">
-              <div className="px-8 py-6 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-2">Sessions</p>
-                  <h2 className="text-2xl font-headline font-black text-on-surface">Recent study sessions</h2>
-                </div>
-                <span className="text-sm text-on-surface-variant">{progress.recentSessions.length} recent runs</span>
+          <div className="space-y-3">
+            {progress.kitBreakdown.length === 0 ? (
+              <div className="rounded-[22px] bg-surface-container-low px-5 py-5">
+                <p className="text-on-surface font-bold">Kit performance will show up here soon.</p>
               </div>
-
-              {progress.recentSessions.length === 0 ? (
-                <div className="px-8 pb-8">
-                  <div className="rounded-[24px] bg-surface-container-low px-5 py-6">
-                    <p className="text-on-surface font-bold mb-2">Completed sessions will show up here.</p>
-                    <p className="text-sm text-on-surface-variant">Once you finish a run, Snaplet will keep a table of recent outcomes, modes, and durations.</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[720px]">
-                    <thead>
-                      <tr className="text-left text-[11px] font-black uppercase tracking-[0.18em] text-on-surface-variant/60 border-y border-outline-variant/20">
-                        <th className="px-8 py-4">Study kit</th>
-                        <th className="px-6 py-4">Mode</th>
-                        <th className="px-6 py-4 text-center">Accuracy</th>
-                        <th className="px-6 py-4 text-center">Attempts</th>
-                        <th className="px-6 py-4 text-center">Duration</th>
-                        <th className="px-8 py-4 text-right">Completed</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {progress.recentSessions.map((session) => (
-                      <tr key={session.sessionId} className="border-b border-outline-variant/12 last:border-b-0">
-                        <td className="px-8 py-5">
-                          <div>
-                            <p className="font-bold text-on-surface">{session.sourceTitle}</p>
-                            <p className="text-sm text-on-surface-variant">{session.correctCount} correct / {session.incorrectCount} missed</p>
-                          </div>
-                        </td>
-                        <td className="px-6 py-5 text-sm font-semibold text-on-surface-variant">{modeLabel(session.mode)}</td>
-                        <td className="px-6 py-5 text-center">
-                          <span className={cn('inline-flex min-w-16 justify-center rounded-full px-3 py-1 text-sm font-bold', accuracyBadgeClass(session.accuracy))}>
-                            {session.accuracy}%
-                          </span>
-                        </td>
-                        <td className="px-6 py-5 text-center text-sm font-semibold text-on-surface">{session.attemptCount}</td>
-                        <td className="px-6 py-5 text-center text-sm text-on-surface-variant">{formatDuration(session.durationSeconds)}</td>
-                        <td className="px-8 py-5 text-right text-sm text-on-surface-variant">{relativeDate(session.completedAt)}</td>
-                      </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </section>
-
-            <section className="rounded-[28px] bg-surface px-8 py-8">
-              <div className="mb-8">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-2">Kit ranking</p>
-                <h2 className="text-2xl font-headline font-black text-on-surface">Highest opportunity kits</h2>
-                <p className="text-sm text-on-surface-variant mt-2">Ranked by weak-pressure, retained accuracy, and recent study volume.</p>
-              </div>
-
-              <div className="space-y-4">
-                {progress.kitBreakdown.length === 0 ? (
-                  <div className="rounded-[24px] bg-surface-container-low px-5 py-6">
-                    <p className="text-on-surface font-bold mb-2">Kit performance will show up here soon.</p>
-                    <p className="text-sm text-on-surface-variant">Complete a few runs and Snaplet will rank where the biggest gains are hiding.</p>
-                  </div>
-                ) : (
-                  progress.kitBreakdown.slice(0, 5).map((kit, index) => (
-                    <KitBreakdownRow key={kit.sourceId} kit={kit} index={index} />
-                  ))
-                )}
-              </div>
-            </section>
+            ) : (
+              progress.kitBreakdown.slice(0, 5).map((kit, index) => (
+                <KitBreakdownRow key={kit.sourceId} kit={kit} index={index} />
+              ))
+            )}
           </div>
-      </>
+        </section>
+      </div>
     </div>
   );
 };
@@ -296,11 +290,11 @@ interface HeroMetricCardProps {
 
 function HeroMetricCard({ label, value, delta, tone }: HeroMetricCardProps) {
   return (
-    <div className="rounded-[24px] bg-surface px-5 py-5">
-      <p className="text-sm font-semibold text-on-surface-variant mb-2">{label}</p>
+    <div className="rounded-[20px] bg-surface-container-low px-4 py-4">
+      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-on-surface-variant/70 mb-1">{label}</p>
       <div className="flex items-end justify-between gap-4">
-        <span className="text-3xl font-headline font-black text-on-surface">{value}</span>
-        <span className={cn('text-sm font-bold', toneAccent(tone), deltaClass(delta))}>{formatDelta(delta)}</span>
+        <span className="text-2xl font-headline font-black text-on-surface">{value}</span>
+        <span className={cn('text-xs font-bold', toneAccent(tone), deltaClass(delta))}>{formatDelta(delta)}</span>
       </div>
     </div>
   );
@@ -312,32 +306,136 @@ const TrendChart = ({
   data: ProgressData['timeSeries'];
 }) => {
   const maxAttempts = Math.max(...data.map((item) => item.attempts), 1);
+  const maxAccuracy = Math.max(...data.map((item) => item.accuracy), 100);
+  const width = 760;
+  const height = 220;
+  const paddingX = 18;
+  const paddingTop = 18;
+  const paddingBottom = 26;
+  const chartHeight = height - paddingTop - paddingBottom;
+  const usableWidth = width - paddingX * 2;
+  const stepX = data.length > 1 ? usableWidth / (data.length - 1) : usableWidth;
+
+  const attemptPoints = data.map((point, index) => ({
+    x: paddingX + index * stepX,
+    y: paddingTop + chartHeight - (point.attempts / maxAttempts) * chartHeight,
+  }));
+
+  const accuracyPoints = data.map((point, index) => ({
+    x: paddingX + index * stepX,
+    y: paddingTop + chartHeight - (point.accuracy / maxAccuracy) * chartHeight,
+  }));
+
+  const attemptsLinePath = buildSmoothPath(attemptPoints);
+  const attemptsAreaPath = buildAreaPath(attemptPoints, height - paddingBottom);
+  const accuracyLinePath = buildSmoothPath(accuracyPoints);
+  const gridLines = [0.25, 0.5, 0.75].map((ratio) => paddingTop + chartHeight * ratio);
 
   return (
-    <div className="rounded-[24px] bg-surface-container-low px-5 py-6">
-      <div className="h-72 flex items-end gap-3">
-        {data.map((point) => {
-          const height = Math.max(12, (point.attempts / maxAttempts) * 100);
-          return (
-            <div key={point.date} className="flex-1 flex flex-col items-center gap-3 h-full justify-end">
-              <div className="text-[11px] font-bold text-on-surface-variant">{point.accuracy}%</div>
-              <div className="relative w-full flex-1 flex items-end">
-                <motion.div
-                  initial={{ height: 0 }}
-                  animate={{ height: `${height}%` }}
-                  className="w-full rounded-t-[16px] bg-gradient-to-t from-primary to-primary-container"
-                />
-              </div>
-              <div className="text-[11px] font-bold uppercase tracking-[0.12em] text-on-surface-variant/75">{point.label}</div>
+    <div className="rounded-[24px] bg-surface-container-low px-5 py-5">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex flex-wrap items-center gap-4 text-[11px] font-black uppercase tracking-[0.14em] text-on-surface-variant/70">
+          <span className="inline-flex items-center gap-2">
+            <span className="h-2.5 w-2.5 rounded-full bg-primary" />
+            Attempts
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <span className="h-0.5 w-4 rounded-full bg-secondary" />
+            Accuracy
+          </span>
+        </div>
+        <span className="text-[11px] font-black uppercase tracking-[0.14em] text-on-surface-variant/70">
+          Last {data.length} days
+        </span>
+      </div>
+
+      <div className="relative">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-[240px]" aria-hidden>
+          <defs>
+            <linearGradient id="attempts-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="currentColor" stopOpacity="0.32" className="text-primary" />
+              <stop offset="100%" stopColor="currentColor" stopOpacity="0.02" className="text-primary" />
+            </linearGradient>
+          </defs>
+
+          {gridLines.map((y) => (
+            <line
+              key={y}
+              x1={paddingX}
+              x2={width - paddingX}
+              y1={y}
+              y2={y}
+              className="text-outline-variant/20"
+              stroke="currentColor"
+              strokeWidth="1"
+              strokeDasharray="4 8"
+            />
+          ))}
+
+          <motion.path
+            d={attemptsAreaPath}
+            fill="url(#attempts-fill)"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, ease: 'easeOut' }}
+          />
+
+          <motion.path
+            d={attemptsLinePath}
+            fill="none"
+            className="text-primary"
+            stroke="currentColor"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            initial={{ pathLength: 0, opacity: 0.6 }}
+            animate={{ pathLength: 1, opacity: 1 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+          />
+
+          <motion.path
+            d={accuracyLinePath}
+            fill="none"
+            className="text-secondary"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeDasharray="0"
+            initial={{ pathLength: 0, opacity: 0.4 }}
+            animate={{ pathLength: 1, opacity: 0.95 }}
+            transition={{ duration: 0.9, ease: 'easeOut', delay: 0.08 }}
+          />
+
+          {accuracyPoints.map((point, index) => (
+            <motion.circle
+              key={data[index]?.date}
+              cx={point.x}
+              cy={point.y}
+              r="4.5"
+              className="text-secondary"
+              fill="currentColor"
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.25, delay: 0.12 + index * 0.03 }}
+            />
+          ))}
+        </svg>
+
+        <div className="mt-3 grid grid-cols-7 gap-2">
+          {data.map((point) => (
+            <div key={point.date} className="text-center">
+              <div className="text-[11px] font-black uppercase tracking-[0.12em] text-on-surface-variant/75">{point.label}</div>
+              <div className="text-[11px] text-on-surface-variant mt-1">{point.accuracy}%</div>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
     </div>
   );
 };
 
-const ComparisonCard = ({
+const CompactComparison = ({
   label,
   current,
   previous,
@@ -350,15 +448,20 @@ const ComparisonCard = ({
   delta: number;
   unit?: string;
 }) => (
-  <div className="rounded-[22px] bg-surface-container-low px-5 py-5">
-    <p className="text-sm font-semibold text-on-surface-variant mb-2">{label}</p>
-    <p className="text-2xl font-headline font-black text-on-surface mb-2">
-      {current}
-      {unit}
-    </p>
-    <p className="text-sm text-on-surface-variant">
-      Previously {previous}
-      {unit} · <span className={cn('font-bold', deltaClass(delta))}>{formatDelta(delta)}</span>
+  <div className="rounded-[20px] bg-surface-container-low px-4 py-4">
+    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-on-surface-variant/70 mb-2">{label}</p>
+    <div className="flex items-end justify-between gap-3">
+      <p className="text-lg font-headline font-black text-on-surface">
+        {current}
+        {unit}
+      </p>
+      <p className="text-[11px] uppercase tracking-[0.12em] text-on-surface-variant">
+        Prev {previous}
+        {unit}
+      </p>
+    </div>
+    <p className={cn('mt-2 text-xs font-bold uppercase tracking-[0.12em]', deltaClass(delta))}>
+      {formatDelta(delta)}
     </p>
   </div>
 );
@@ -372,17 +475,17 @@ function WeakFocusRow({ item }: WeakFocusRowProps) {
   const severity = item.recentErrorCount >= 2 ? 'Critical' : item.nearMissCount >= 2 ? 'Watchlist' : 'Recovering';
   const bar = Math.min(100, Math.round(item.recentErrorCount * 28 + item.nearMissCount * 14 + 18));
   const summary = item.recentErrorCount >= 2
-    ? 'Repeated misses are piling up here.'
+    ? 'Repeated misses'
     : item.nearMissCount >= 2
-      ? 'You are close, but still missing the exact retrieval.'
-      : 'This prompt still needs another clean pass.';
+      ? 'Near misses'
+      : 'Needs one more pass';
 
   return (
-    <div className="rounded-[24px] bg-surface-container-low px-5 py-5">
-      <div className="flex items-start justify-between gap-4 mb-3">
+    <div className="rounded-[22px] bg-surface-container-low px-5 py-4">
+      <div className="flex items-start justify-between gap-4 mb-2">
         <div>
-          <p className="text-base font-bold text-on-surface leading-snug">{item.prompt}</p>
-          <p className="text-sm text-on-surface-variant mt-1">{item.sourceTitle ?? 'Study kit'} · {summary}</p>
+          <p className="text-sm font-bold text-on-surface leading-snug">{item.prompt}</p>
+          <p className="text-xs text-on-surface-variant mt-1">{item.sourceTitle ?? 'Study kit'} · {summary}</p>
         </div>
         <span className={cn('shrink-0 rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.14em]', severityBadgeClass(severity))}>
           {severity}
@@ -403,45 +506,40 @@ interface KitBreakdownRowProps {
 
 function KitBreakdownRow({ kit, index }: KitBreakdownRowProps) {
   return (
-    <div className="rounded-[24px] bg-surface-container-low px-5 py-5">
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <div className="flex items-start gap-4">
+    <div className="rounded-[22px] bg-surface-container-low px-5 py-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4 min-w-0">
           <div className="h-9 w-9 rounded-full bg-primary-container/60 flex items-center justify-center text-sm font-black text-primary shrink-0">
             {index + 1}
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="font-bold text-on-surface">{kit.sourceTitle}</p>
-            <p className="text-sm text-on-surface-variant mt-1">
+            <p className="mt-1 text-xs text-on-surface-variant">
               {kit.attempts} attempts · {kit.sessionCount} sessions · last active {kit.lastStudiedAt ? relativeDate(kit.lastStudiedAt) : 'recently'}
             </p>
           </div>
         </div>
-        <span className={cn('text-sm font-black', deltaClass(kit.masteryDelta))}>{formatDelta(kit.masteryDelta)}</span>
-      </div>
-      <div className="grid grid-cols-3 gap-3 text-sm">
-        <MetricPill icon={<Target className="w-4 h-4" />} label="Accuracy" value={`${kit.accuracy}%`} />
-        <MetricPill icon={<ChartSpline className="w-4 h-4" />} label="Mastery" value={`${kit.mastery}%`} />
-        <MetricPill icon={<Clock3 className="w-4 h-4" />} label="Pressure" value={kit.weakPressure.toFixed(1)} />
+        <div className="flex items-center gap-2 shrink-0">
+          <MiniMetric icon={<Target className="w-3.5 h-3.5" />} label={`${kit.accuracy}%`} />
+          <MiniMetric icon={<ChartSpline className="w-3.5 h-3.5" />} label={`${kit.mastery}%`} />
+          <MiniMetric icon={<Clock3 className="w-3.5 h-3.5" />} label={kit.weakPressure.toFixed(1)} />
+          <span className={cn('text-xs font-black', deltaClass(kit.masteryDelta))}>{formatDelta(kit.masteryDelta)}</span>
+        </div>
       </div>
     </div>
   );
 }
 
-const MetricPill = ({
+const MiniMetric = ({
   icon,
   label,
-  value,
 }: {
   icon: ReactNode;
   label: string;
-  value: string;
 }) => (
-  <div className="rounded-[18px] bg-surface px-4 py-3">
-    <div className="flex items-center gap-2 text-on-surface-variant mb-1">
-      {icon}
-      <span className="text-xs font-bold uppercase tracking-[0.12em]">{label}</span>
-    </div>
-    <p className="text-lg font-headline font-black text-on-surface">{value}</p>
+  <div className="inline-flex items-center gap-1.5 rounded-full bg-surface px-3 py-2 text-xs font-bold text-on-surface">
+    <span className="text-on-surface-variant">{icon}</span>
+    <span>{label}</span>
   </div>
 );
 
@@ -460,10 +558,10 @@ const ProgressEmptyState = ({
       <h2 className="text-3xl md:text-4xl font-headline font-black tracking-tight text-on-surface mb-4">
         {hasSources ? 'Run a study session to unlock coaching and trend data' : 'Create a study kit to start building your progress signal'}
       </h2>
-      <p className="text-lg text-on-surface-variant leading-relaxed mb-8">
+      <p className="text-base text-on-surface-variant leading-relaxed mb-8">
         {hasSources
-          ? 'You already have study material in Snaplet. Complete a real session and this page will begin surfacing retention, weak spots, and per-kit momentum.'
-          : 'Once you create your first kit and start answering questions, this page will show retention, session momentum, weak-question pressure, and where to focus next.'}
+          ? 'Complete one real session and this page starts filling in.'
+          : 'Create a kit, answer a few prompts, and the signal appears here.'}
       </p>
       <div className="flex flex-wrap gap-3">
         <Button className="rounded-full px-6" onClick={hasSources ? onOpenKits : onCreateKit}>
@@ -487,7 +585,7 @@ const ProgressErrorState = ({
   <section className="rounded-[32px] bg-surface px-8 py-10 md:px-10 md:py-12">
     <p className="text-xs font-black uppercase tracking-[0.18em] text-primary mb-3">Progress unavailable</p>
     <h2 className="text-3xl font-headline font-black tracking-tight text-on-surface mb-4">We couldn&apos;t load your progress right now</h2>
-    <p className="text-lg text-on-surface-variant leading-relaxed mb-8">{error}</p>
+    <p className="text-base text-on-surface-variant leading-relaxed mb-8">{error}</p>
     <Button className="rounded-full px-6" onClick={onRefresh}>
       <RefreshCw className="w-4 h-4" />
       Retry
@@ -560,6 +658,44 @@ function modeLabel(mode: StudyMode): string {
 function formatDuration(durationSeconds: number): string {
   const minutes = Math.max(1, Math.round(durationSeconds / 60));
   return `${minutes}m`;
+}
+
+function condenseSummary(summary: string): string {
+  const trimmed = summary.trim();
+  if (!trimmed) {
+    return 'Open the next best study move.';
+  }
+
+  const firstSentence = trimmed.match(/.*?[.!?](\s|$)/)?.[0]?.trim() ?? trimmed;
+  return firstSentence.length <= 120 ? firstSentence : `${firstSentence.slice(0, 117).trimEnd()}...`;
+}
+
+function buildSmoothPath(points: Array<{ x: number; y: number }>): string {
+  if (points.length === 0) return '';
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+
+  const [first, ...rest] = points;
+  let path = `M ${first.x} ${first.y}`;
+
+  for (let index = 0; index < rest.length; index += 1) {
+    const current = points[index];
+    const next = points[index + 1];
+    const midX = (current.x + next.x) / 2;
+    const midY = (current.y + next.y) / 2;
+    path += ` Q ${current.x} ${current.y} ${midX} ${midY}`;
+  }
+
+  const last = points[points.length - 1];
+  path += ` T ${last.x} ${last.y}`;
+  return path;
+}
+
+function buildAreaPath(points: Array<{ x: number; y: number }>, baselineY: number): string {
+  if (points.length === 0) return '';
+  const linePath = buildSmoothPath(points);
+  const first = points[0];
+  const last = points[points.length - 1];
+  return `${linePath} L ${last.x} ${baselineY} L ${first.x} ${baselineY} Z`;
 }
 
 function relativeDate(iso: string): string {

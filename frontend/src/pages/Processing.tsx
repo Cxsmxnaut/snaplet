@@ -1,7 +1,11 @@
 import { motion } from 'motion/react';
 import { Brain, CheckCircle2, Loader2 } from 'lucide-react';
 
-export const Processing = () => {
+interface ProcessingProps {
+  onBack: () => void;
+}
+
+export const Processing = ({ onBack }: ProcessingProps) => {
   return (
     <div className="min-h-[80vh] flex flex-col items-center justify-center p-6 text-center">
       <div className="relative mb-16">
@@ -53,6 +57,19 @@ export const Processing = () => {
             className="h-full bg-gradient-to-r from-primary to-secondary rounded-full shadow-[0_0_12px_rgba(78,222,163,0.3)]"
           />
         </div>
+      </div>
+
+      <div className="mt-8 max-w-xl space-y-3">
+        <p className="text-sm text-on-surface-variant">
+          If this hangs longer than expected, you can go back without losing your draft and try again.
+        </p>
+        <button
+          type="button"
+          onClick={onBack}
+          className="inline-flex items-center justify-center rounded-full border border-outline-variant/20 bg-surface px-5 py-2.5 text-sm font-bold text-on-surface transition-colors hover:bg-surface-container-low"
+        >
+          Back to create
+        </button>
       </div>
     </div>
   );

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { AuthPage } from './pages/AuthPage';
+import { AssistantPage } from './pages/AssistantPage';
 import { CreateKit } from './pages/CreateKit';
 import { Dashboard } from './pages/Dashboard';
+import { FeedbackPage } from './pages/FeedbackPage';
 import { HelpPage } from './pages/HelpPage';
 import { KitsPage } from './pages/KitsPage';
 import { LandingPage } from './pages/LandingPage';
@@ -20,8 +22,9 @@ import { MissingState } from './components/MissingState';
 import { PageTransition } from './components/PageTransition';
 import { useAuthSession } from './features/auth/hooks/useAuthSession';
 import { useKitsState } from './features/kits/hooks/useKitsState';
-import { loadUserCache, purgeSensitiveLocalState, saveUserCache } from './features/kits/services/kitStorage';
+import { clearCreateDraft, loadUserCache, purgeSensitiveLocalState, saveUserCache } from './features/kits/services/kitStorage';
 import { buildAppPath, deriveRoute } from './features/navigation/logic/routes';
+import type { AssistantAction } from '../shared/assistant';
 import { useProgressState } from './features/progress/hooks/useProgressState';
 import { useStudyFlow } from './features/study/hooks/useStudyFlow';
 import {
@@ -168,6 +171,7 @@ const LEGAL_PAGES = {
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     if (typeof window === 'undefined') {
       return 'light';
@@ -178,14 +182,19 @@ export default function App() {
     return explicitChoice === 'true' && stored === 'dark' ? 'dark' : 'light';
   });
   const route = useMemo(() => deriveRoute(location.pathname), [location.pathname]);
+  const isStandaloneAppRoute = location.pathname.startsWith('/legal/') || location.pathname === '/feedback';
+  const topBarSearchQuery = searchParams.get('q') ?? '';
+  const createIntent = useMemo(() => {
+    const rawIntent = searchParams.get('intent');
+    return rawIntent === 'paste' || rawIntent === 'upload' ? rawIntent : null;
+  }, [searchParams]);
   const routeMode = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const raw = params.get('mode');
+    const raw = searchParams.get('mode');
     if (raw === 'focus' || raw === 'weak_review' || raw === 'fast_drill' || raw === 'standard') {
       return raw;
     }
     return null;
-  }, [location.search]);
+  }, [searchParams]);
 
   const { authReady, authSession, userProfile } = useAuthSession();
   const {
@@ -231,12 +240,30 @@ export default function App() {
     });
   }, [route.view, route.tab, currentKitId, error]);
 
+  useEffect(() => {
+    setError(null);
+  }, [location.pathname, location.search]);
+
   const navigateToTab = (
     tab: string,
     nextKitId: string | null = currentKitId,
     nextSessionId: string | null = sessionResult?.id ?? null,
   ) => {
     navigate(buildAppPath(tab, nextKitId, nextSessionId, selectedStudyMode));
+  };
+
+  const handleTopBarSearch = (query: string) => {
+    const trimmedQuery = query.trim();
+    navigate(trimmedQuery ? `/app/kits?q=${encodeURIComponent(trimmedQuery)}` : '/app/kits');
+  };
+
+  const handleQuickCreate = (intent: 'default' | 'paste' | 'upload') => {
+    if (intent === 'default') {
+      navigate('/app/create');
+      return;
+    }
+
+    navigate(`/app/create?intent=${intent}`);
   };
 
   const enterApp = async () => {
@@ -286,7 +313,7 @@ export default function App() {
     }
 
     if (loadedUserId === authSession.user.id) {
-      if (route.view !== 'app') {
+      if (route.view !== 'app' && !isStandaloneAppRoute) {
         navigate('/app/dashboard', { replace: true });
       }
       return;
@@ -304,7 +331,7 @@ export default function App() {
 
     setLoadedUserId(authSession.user.id);
     void enterApp();
-  }, [authReady, authSession, loadedUserId, navigate, route.view]);
+  }, [authReady, authSession, isStandaloneAppRoute, loadedUserId, navigate, route.view]);
 
   useEffect(() => {
     if (!authSession?.user?.id || !currentKitId) {
@@ -379,6 +406,7 @@ export default function App() {
 
     try {
       const source = await createSourceFromText(title, content, visibility);
+      clearCreateDraft(authSession.user.id);
       await refreshKits(source.id);
       await refreshProgress();
       setCurrentKitId(source.id);
@@ -415,6 +443,7 @@ export default function App() {
     setError(null);
     try {
       const source = await uploadSourceFile(file, visibility);
+      clearCreateDraft(authSession.user.id);
       await refreshKits(source.id);
       await refreshProgress();
       setCurrentKitId(source.id);
@@ -519,6 +548,26 @@ export default function App() {
     navigate(buildAppPath('study', sourceId, null, mode));
   };
 
+  const handleAssistantAction = async (action: AssistantAction) => {
+    if (action.type === 'navigate') {
+      navigateToTab(action.target);
+      return;
+    }
+
+    if (action.type === 'open_help_topic') {
+      navigate(`/app/help${action.topic === 'streaks' ? '?topic=streaks' : ''}`);
+      return;
+    }
+
+    if (action.type === 'open_kit') {
+      setCurrentKitId(action.sourceId);
+      navigateToTab(action.destination === 'study-mode' ? 'study-mode' : 'review', action.sourceId);
+      return;
+    }
+
+    await handleGenerateKit(action.title, action.content, action.visibility);
+  };
+
   const handleResumeSession = (session: BackendActiveSourceSession) => {
     setCurrentKitId(session.sourceId);
     setSelectedStudyMode(session.mode);
@@ -579,7 +628,7 @@ export default function App() {
   if (location.pathname === '/legal/privacy') {
     return (
       <PageTransition transitionKey="legal-privacy">
-        <LegalPage {...LEGAL_PAGES.privacy} />
+        <LegalPage {...LEGAL_PAGES.privacy} onBackToApp={authSession ? () => navigate('/app/dashboard') : null} />
       </PageTransition>
     );
   }
@@ -599,21 +648,28 @@ export default function App() {
   if (location.pathname === '/legal/terms') {
     return (
       <PageTransition transitionKey="legal-terms">
-        <LegalPage {...LEGAL_PAGES.terms} />
+        <LegalPage {...LEGAL_PAGES.terms} onBackToApp={authSession ? () => navigate('/app/dashboard') : null} />
       </PageTransition>
     );
   }
   if (location.pathname === '/legal/methodology') {
     return (
       <PageTransition transitionKey="legal-methodology">
-        <LegalPage {...LEGAL_PAGES.methodology} />
+        <LegalPage {...LEGAL_PAGES.methodology} onBackToApp={authSession ? () => navigate('/app/dashboard') : null} />
       </PageTransition>
     );
   }
   if (location.pathname === '/legal/contact') {
     return (
       <PageTransition transitionKey="legal-contact">
-        <LegalPage {...LEGAL_PAGES.contact} />
+        <LegalPage {...LEGAL_PAGES.contact} onBackToApp={authSession ? () => navigate('/app/dashboard') : null} />
+      </PageTransition>
+    );
+  }
+  if (location.pathname === '/feedback') {
+    return (
+      <PageTransition transitionKey="feedback">
+        <FeedbackPage onBackToApp={authSession ? () => navigate('/app/dashboard') : null} />
       </PageTransition>
     );
   }
@@ -639,14 +695,46 @@ export default function App() {
     <AppShell
       hideShell={hideShell}
       activeTab={route.tab}
+      kits={kits}
+      searchQuery={topBarSearchQuery}
       onTabChange={(tab) => navigateToTab(tab)}
+      onOpenKit={(id) => {
+        setCurrentKitId(id);
+        navigateToTab('review', id);
+      }}
+      onOpenSuggestedReview={() => {
+        const recommendation = progress?.recommendations;
+        if (!recommendation) {
+          navigateToTab(kits.length > 0 ? 'progress' : 'create');
+          return;
+        }
+
+        if (recommendation.actionType === 'create_kit') {
+          navigateToTab('create');
+          return;
+        }
+
+        if (recommendation.actionType === 'open_kits') {
+          navigateToTab('kits');
+          return;
+        }
+
+        handleOpenRecommendedReview(recommendation.sourceId, recommendation.mode);
+      }}
+      onSearch={handleTopBarSearch}
+      onQuickCreate={handleQuickCreate}
       onLogout={() => {
         void handleLogout();
       }}
+      onOpenStreakHelp={() => navigate('/app/help?topic=streaks')}
+      onOpenLegalPage={(page) => navigate(`/legal/${page}`)}
+      onOpenFeedback={() => navigate('/feedback')}
       userProfile={userProfile}
       progress={progress}
       error={error}
       routeKey={`${route.tab}:${route.kitId ?? 'none'}:${route.sessionId ?? 'none'}:${routeMode ?? 'none'}`}
+      theme={theme}
+      onThemeChange={handleThemeChange}
     >
       {route.tab === 'dashboard' && (
         <Dashboard
@@ -666,6 +754,7 @@ export default function App() {
       {route.tab === 'kits' && (
         <KitsPage
           kits={kits}
+          initialSearchQuery={topBarSearchQuery}
           onStudyKit={handleStudyKit}
           onCreateKit={() => navigateToTab('create')}
           onEditKit={(id) => {
@@ -688,7 +777,23 @@ export default function App() {
           onReviewWeakKit={(sourceId, mode) => handleOpenRecommendedReview(sourceId, mode)}
         />
       )}
-      {route.tab === 'help' && <HelpPage onCreateKit={() => navigateToTab('create')} onGoDashboard={() => navigateToTab('dashboard')} />}
+      {route.tab === 'assistant' && (
+        <AssistantPage
+          progress={progress}
+          currentTab={route.tab}
+          currentKitId={currentKitId}
+          onRunAction={handleAssistantAction}
+          onQuickCreate={() => handleQuickCreate('default')}
+          onOpenSettings={() => navigateToTab('settings')}
+        />
+      )}
+      {route.tab === 'help' && (
+        <HelpPage
+          onCreateKit={() => navigateToTab('create')}
+          onGoDashboard={() => navigateToTab('dashboard')}
+          focusTopic={searchParams.get('topic')}
+        />
+      )}
       {route.tab === 'settings' && (
         <SettingsPage
           onLogout={() => {
@@ -702,11 +807,17 @@ export default function App() {
       {route.tab === 'create' && (
         <CreateKit
           userId={authSession.user.id}
+          launchIntent={createIntent}
+          onLaunchIntentHandled={() => {
+            if (createIntent) {
+              navigate('/app/create', { replace: true });
+            }
+          }}
           onGenerate={handleGenerateKit}
           onUploadFile={handleUploadKitFile}
         />
       )}
-      {route.tab === 'processing' && isProcessing && <Processing />}
+      {route.tab === 'processing' && isProcessing && <Processing onBack={() => navigateToTab('create')} />}
 
       {route.tab === 'review' &&
         (currentKit ? (

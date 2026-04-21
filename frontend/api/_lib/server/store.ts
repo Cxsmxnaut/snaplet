@@ -12,7 +12,7 @@ import {
 } from "../domain/types.js";
 import { getRequestContext } from "./request-context.js";
 import { createSupabaseServerClient } from "./supabase-server.js";
-let writeChain = Promise.resolve();
+const userWriteChains = new Map<string, Promise<void>>();
 const bucketCache = new Map<string, UserBucket>();
 
 type BucketLoadResult =
@@ -108,6 +108,9 @@ type SessionAttemptRow = {
   user_id: string;
   session_id: string;
   question_id: string;
+  source_id: string | null;
+  source_title: string;
+  prompt: string;
   answer: string;
   canonical_answer: string;
   outcome: Attempt["outcome"];
@@ -263,12 +266,16 @@ function questionFromRow(row: QuestionRow): Question {
     id: row.id,
     userId: row.user_id,
     sourceId: row.source_id,
-    prompt: row.prompt,
-    answer: row.answer,
+    prompt: row.prompt ?? "Question",
+    answer: row.answer ?? "Answer",
     status: row.status,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function ensureNonNullString(value: unknown, fallback: string): string {
+  return typeof value === "string" ? value : fallback;
 }
 
 function isQueue(value: unknown): value is Session["queue"] {
@@ -309,8 +316,8 @@ function attemptFromRow(row: SessionAttemptRow): Attempt {
     userId: row.user_id,
     sessionId: row.session_id,
     questionId: row.question_id,
-    answer: row.answer,
-    canonicalAnswer: row.canonical_answer,
+    answer: row.answer ?? "Answer",
+    canonicalAnswer: row.canonical_answer ?? "",
     outcome: row.outcome,
     isRetry: row.is_retry,
     final: row.final,
@@ -390,8 +397,8 @@ function questionToRow(question: Question): QuestionRow {
     id: question.id,
     user_id: question.userId,
     source_id: question.sourceId,
-    prompt: question.prompt,
-    answer: question.answer,
+    prompt: ensureNonNullString(question.prompt, "Question"),
+    answer: ensureNonNullString(question.answer, "Answer"),
     status: question.status,
     created_at: question.createdAt,
     updated_at: question.updatedAt,
@@ -438,14 +445,20 @@ function sessionToRow(session: Session, bucket: UserBucket): StudySessionRow {
   };
 }
 
-function attemptToRow(attempt: Attempt): SessionAttemptRow {
+function attemptToRow(attempt: Attempt, bucket: UserBucket): SessionAttemptRow {
+  const question = bucket.questions[attempt.questionId];
+  const source = question?.sourceId ? bucket.sources[question.sourceId] : undefined;
+
   return {
     id: attempt.id,
     user_id: attempt.userId,
     session_id: attempt.sessionId,
     question_id: attempt.questionId,
-    answer: attempt.answer,
-    canonical_answer: attempt.canonicalAnswer,
+    source_id: question?.sourceId ?? null,
+    source_title: source?.title ?? "Study kit",
+    prompt: ensureNonNullString(question?.prompt, "Question"),
+    answer: ensureNonNullString(attempt.answer, "Answer"),
+    canonical_answer: ensureNonNullString(attempt.canonicalAnswer, ensureNonNullString(attempt.answer, "")),
     outcome: attempt.outcome,
     is_retry: attempt.isRetry,
     final: attempt.final,
@@ -576,7 +589,7 @@ async function persistRelationalBucketToSupabase(userId: string, bucket: UserBuc
     .filter((question) => bucket.sources[question.sourceId])
     .map(questionToRow);
   const sessions = Object.values(bucket.sessions).map((session) => sessionToRow(session, bucket));
-  const attempts = Object.values(bucket.attempts).map(attemptToRow);
+  const attempts = Object.values(bucket.attempts).map((attempt) => attemptToRow(attempt, bucket));
   const reviewStates = Object.values(bucket.reviewStates).map((reviewState) => reviewStateToRow(reviewState, bucket));
 
   const upsertOperations: UpsertResponse[] = [];
@@ -689,11 +702,19 @@ export async function mutateUserBucket<T>(
     return result;
   };
 
-  const scheduled = writeChain.then(run, run);
-  writeChain = scheduled.then(
+  const existingChain = userWriteChains.get(userId) ?? Promise.resolve();
+  const scheduled = existingChain.then(run, run);
+  const settledChain = scheduled.then(
     () => undefined,
     () => undefined,
   );
+  userWriteChains.set(userId, settledChain);
+
+  settledChain.finally(() => {
+    if (userWriteChains.get(userId) === settledChain) {
+      userWriteChains.delete(userId);
+    }
+  });
 
   return scheduled;
 }
@@ -706,6 +727,53 @@ export async function deleteSourceRecords(userId: string, sourceId: string): Pro
   const supabase = getSupabaseClient();
   if (!supabase) {
     throw persistenceUnavailableError("Supabase client is not configured");
+  }
+
+  const { data: sourceFiles, error: sourceFilesError } = await supabase
+    .from("source_files")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("source_id", sourceId);
+  if (sourceFilesError) {
+    throw new Error(`Source file lookup failed (${sourceFilesError.message})`);
+  }
+
+  const sourceFileIds = (sourceFiles ?? [])
+    .map((row) => (typeof row.id === "string" ? row.id : null))
+    .filter((value): value is string => Boolean(value));
+
+  if (sourceFileIds.length > 0) {
+    const { error: extractionRunsError } = await supabase
+      .from("extraction_runs")
+      .delete()
+      .eq("user_id", userId)
+      .in("source_file_id", sourceFileIds);
+    if (extractionRunsError) {
+      throw new Error(`Extraction run deletion failed (${extractionRunsError.message})`);
+    }
+  }
+
+  const deletions = await Promise.all([
+    supabase.from("session_attempts").delete().eq("user_id", userId).eq("source_id", sourceId),
+    supabase.from("question_progress").delete().eq("user_id", userId).eq("source_id", sourceId),
+    supabase.from("study_sessions").delete().eq("user_id", userId).eq("source_id", sourceId),
+    supabase.from("study_questions").delete().eq("user_id", userId).eq("source_id", sourceId),
+    supabase.from("source_files").delete().eq("user_id", userId).eq("source_id", sourceId),
+  ]);
+
+  for (const [index, result] of deletions.entries()) {
+    if (!result.error) {
+      continue;
+    }
+
+    const labels = [
+      "Session attempt deletion failed",
+      "Question progress deletion failed",
+      "Study session deletion failed",
+      "Question deletion failed",
+      "Source file deletion failed",
+    ];
+    throw new Error(`${labels[index]} (${result.error.message})`);
   }
 
   const { error } = await supabase.from("study_sources").delete().eq("user_id", userId).eq("id", sourceId);

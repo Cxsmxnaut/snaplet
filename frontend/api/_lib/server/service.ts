@@ -19,12 +19,8 @@ import { buildSessionQueue, pickRevisitOffset } from "../domain/queue.js";
 import { semanticCheckAnswer, semanticPassesThreshold } from "./semantic-check.js";
 import { removePublishedSourceSnapshot, syncPublishedSourceSnapshot } from "./published-snapshots.js";
 import {
-  ensureAnalyticsBackfill,
+  buildFallbackProgressFromBucket,
   getAnalyticsProgress,
-  syncAttemptRecord,
-  syncQuestionProgressRecord,
-  syncSessionFinal,
-  syncSessionStart,
 } from "./analytics.js";
 import { recordProductEvent } from "./product-events.js";
 import { createId, deleteSourceRecords, mutateUserBucket, readUserBucket } from "./store.js";
@@ -174,6 +170,78 @@ function currentSessionQuestion(session: Session, bucket: { questions: Record<st
   };
 }
 
+function sessionExpiryTime(session: Session): number {
+  return new Date(session.startedAt).getTime() + session.timeCapSeconds * 1000;
+}
+
+function sessionEffectiveEndIso(session: Session): string {
+  return new Date(sessionExpiryTime(session)).toISOString();
+}
+
+function sanitizeSessionDurationSeconds(
+  durationSeconds: number,
+  {
+    timeCapSeconds,
+    answeredCount,
+    questionCap,
+  }: {
+    timeCapSeconds: number;
+    answeredCount: number;
+    questionCap: number;
+  },
+): number {
+  const safeDuration = Number.isFinite(durationSeconds) ? Math.max(0, Math.round(durationSeconds)) : 0;
+  const safeTimeCap = Number.isFinite(timeCapSeconds) ? Math.max(60, Math.round(timeCapSeconds)) : 300;
+  const expectedAttemptWindow = Math.max(60, Math.min(45 * 60, Math.max(answeredCount, questionCap, 1) * 90));
+  return Math.min(safeDuration, Math.max(safeTimeCap, expectedAttemptWindow));
+}
+
+function shouldAutoCloseSession(session: Session): boolean {
+  if (session.endedAt) {
+    return false;
+  }
+
+  if (session.answeredCount >= session.questionCap || session.pointer >= session.queue.length) {
+    return true;
+  }
+
+  return Date.now() >= sessionExpiryTime(session);
+}
+
+async function finalizeSession(
+  bucket: UserBucket,
+  session: Session,
+  endedAt?: string,
+): Promise<void> {
+  if (session.endedAt) {
+    return;
+  }
+
+  const effectiveEndedAt = endedAt ?? nowIso();
+  session.endedAt = effectiveEndedAt;
+  session.updatedAt = effectiveEndedAt;
+  session.pendingRetryQuestionId = undefined;
+}
+
+async function closeExpiredSessionsForSource(
+  bucket: UserBucket,
+  sourceId: string | null,
+): Promise<Session[]> {
+  const openSessions = getOpenSessionsForSource(bucket, sourceId);
+  const validSessions: Session[] = [];
+
+  for (const session of openSessions) {
+    if (shouldAutoCloseSession(session)) {
+      await finalizeSession(bucket, session, sessionEffectiveEndIso(session));
+      continue;
+    }
+
+    validSessions.push(session);
+  }
+
+  return validSessions.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
 function maybeEndSession(session: Session): boolean {
   const ageSeconds = (Date.now() - new Date(session.startedAt).getTime()) / 1000;
   const reachedCap = session.answeredCount >= session.questionCap;
@@ -185,6 +253,43 @@ function maybeEndSession(session: Session): boolean {
   }
 
   return false;
+}
+
+function normalizeSourceId(sourceId?: string): string | null {
+  const trimmed = sourceId?.trim();
+  return trimmed && trimmed.length > 0 ? trimmed : null;
+}
+
+function getOpenSessionsForSource(bucket: UserBucket, sourceId: string | null): Session[] {
+  return Object.values(bucket.sessions)
+    .filter((session) => !session.endedAt && session.sourceId === sourceId)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+}
+
+function toBackendSessionStartResult(bucket: UserBucket, session: Session): {
+  session: Session;
+  currentQuestion: Omit<SessionQuestion, "answer"> | null;
+} {
+  const current = currentSessionQuestion(session, bucket);
+  return {
+    session,
+    currentQuestion: current
+      ? {
+          sessionId: current.sessionId,
+          questionId: current.questionId,
+          prompt: current.prompt,
+          position: current.position,
+          kind: current.kind,
+        }
+      : null,
+  };
+}
+
+function isOpenSessionConflictError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.message.includes("study_sessions_one_open_session_per_source_idx")
+  );
 }
 
 async function generateQuestionsForSource(userId: string, sourceId: string): Promise<{ questionCount: number }> {
@@ -837,10 +942,32 @@ export async function archiveSource(userId: string, sourceId: string): Promise<v
       throw new Error("Source not found");
     }
 
+    const questionIdsForSource = new Set<string>();
+    const sessionIdsForSource = new Set<string>();
+
     for (const question of Object.values(bucket.questions)) {
       if (question.sourceId === sourceId) {
-        question.status = "archived";
-        question.updatedAt = nowIso();
+        questionIdsForSource.add(question.id);
+        delete bucket.questions[question.id];
+      }
+    }
+
+    for (const reviewState of Object.values(bucket.reviewStates)) {
+      if (questionIdsForSource.has(reviewState.questionId)) {
+        delete bucket.reviewStates[reviewState.questionId];
+      }
+    }
+
+    for (const session of Object.values(bucket.sessions)) {
+      if (session.sourceId === sourceId) {
+        sessionIdsForSource.add(session.id);
+        delete bucket.sessions[session.id];
+      }
+    }
+
+    for (const attempt of Object.values(bucket.attempts)) {
+      if (sessionIdsForSource.has(attempt.sessionId) || questionIdsForSource.has(attempt.questionId)) {
+        delete bucket.attempts[attempt.id];
       }
     }
 
@@ -910,154 +1037,152 @@ export async function startSession(
   session: Session;
   currentQuestion: Omit<SessionQuestion, "answer"> | null;
 }> {
-  return mutateUserBucket(userId, async (bucket) => {
-    const mode = options?.mode ?? "standard";
-    const sourceId = options?.sourceId?.trim();
-    const existingOpenSession = Object.values(bucket.sessions)
-      .filter((session) => !session.endedAt && (sourceId ? session.sourceId === sourceId : true))
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
-    if (existingOpenSession) {
-      const current = currentSessionQuestion(existingOpenSession, bucket);
-      return {
-        session: existingOpenSession,
-        currentQuestion: current
-          ? {
-              sessionId: current.sessionId,
-              questionId: current.questionId,
-              prompt: current.prompt,
-              position: current.position,
-              kind: current.kind,
+  const requestedSourceId = normalizeSourceId(options?.sourceId);
+  const mode = options?.mode ?? "standard";
+
+  const run = async () =>
+    mutateUserBucket(userId, async (bucket) => {
+      const sourceId = requestedSourceId;
+      const existingOpenSessions = await closeExpiredSessionsForSource(bucket, sourceId);
+      if (existingOpenSessions.length > 0) {
+        if (existingOpenSessions.length > 1) {
+          for (const stale of existingOpenSessions.slice(1)) {
+            await finalizeSession(bucket, stale);
+          }
+        }
+        return toBackendSessionStartResult(bucket, existingOpenSessions[0]);
+      }
+
+      const allCandidates = sourceId
+        ? sortedQuestions(bucket).filter((question) => question.sourceId === sourceId)
+        : sortedQuestions(bucket);
+      if (allCandidates.length === 0) {
+        throw new Error("No active questions available. Add material first.");
+      }
+
+      for (const question of allCandidates) {
+        ensureReviewState(bucket, userId, question.id);
+      }
+
+      const finalAttempts = listAttempts(bucket).filter((attempt) => attempt.final);
+      const recentAttempts = finalAttempts.slice(-30);
+      const recentCorrect = recentAttempts.filter((attempt) =>
+        attempt.outcome === "exact" || attempt.outcome === "accent_near" || attempt.outcome === "correct_after_retry"
+      ).length;
+      const recentAccuracy = recentAttempts.length > 0 ? recentCorrect / recentAttempts.length : 1;
+
+      const weakQuestions = allCandidates.filter((question) => {
+        const review = bucket.reviewStates[question.id];
+        if (!review) {
+          return false;
+        }
+
+        return review.recentErrorCount > 0 || review.nearMissCount > 0 || review.lastOutcome === "incorrect";
+      });
+      const weakRatio = allCandidates.length > 0 ? weakQuestions.length / allCandidates.length : 0;
+
+      let questionCap = 10;
+      let maxReviewStreak = 2;
+      let candidates = allCandidates;
+
+      if (mode === "focus") {
+        questionCap = 10;
+        maxReviewStreak = 2;
+      } else if (mode === "weak_review") {
+        questionCap = 10;
+        maxReviewStreak = 4;
+        candidates = weakQuestions.length > 0 ? weakQuestions : allCandidates;
+      } else if (mode === "fast_drill") {
+        questionCap = 16;
+        maxReviewStreak = 1;
+      }
+
+      // Adaptive behavior: when struggling, shrink sessions and lean harder into weak items.
+      if (recentAccuracy < 0.6 || weakRatio > 0.45) {
+        questionCap = Math.max(6, Math.min(questionCap, 8));
+        if (mode === "standard" || mode === "fast_drill") {
+          candidates = [...weakQuestions, ...allCandidates.filter((question) => !weakQuestions.includes(question))];
+        }
+      }
+
+      // Adaptive behavior: when performing well, widen the set and favor newer items.
+      if (recentAccuracy > 0.85 && weakRatio < 0.2) {
+        questionCap = Math.min(20, questionCap + 4);
+        if (mode === "standard" || mode === "fast_drill") {
+          candidates = [...candidates].sort((a, b) => {
+            const attemptsA = bucket.reviewStates[a.id]?.totalAttempts ?? 0;
+            const attemptsB = bucket.reviewStates[b.id]?.totalAttempts ?? 0;
+            if (attemptsA !== attemptsB) {
+              return attemptsA - attemptsB;
             }
-          : null,
-      };
-    }
-
-    const allCandidates = sourceId
-      ? sortedQuestions(bucket).filter((question) => question.sourceId === sourceId)
-      : sortedQuestions(bucket);
-    if (allCandidates.length === 0) {
-      throw new Error("No active questions available. Add material first.");
-    }
-
-    for (const question of allCandidates) {
-      ensureReviewState(bucket, userId, question.id);
-    }
-
-    const finalAttempts = listAttempts(bucket).filter((attempt) => attempt.final);
-    const recentAttempts = finalAttempts.slice(-30);
-    const recentCorrect = recentAttempts.filter((attempt) =>
-      attempt.outcome === "exact" || attempt.outcome === "accent_near" || attempt.outcome === "correct_after_retry"
-    ).length;
-    const recentAccuracy = recentAttempts.length > 0 ? recentCorrect / recentAttempts.length : 1;
-
-    const weakQuestions = allCandidates.filter((question) => {
-      const review = bucket.reviewStates[question.id];
-      if (!review) {
-        return false;
+            return b.updatedAt.localeCompare(a.updatedAt);
+          });
+        }
       }
 
-      return review.recentErrorCount > 0 || review.nearMissCount > 0 || review.lastOutcome === "incorrect";
-    });
-    const weakRatio = allCandidates.length > 0 ? weakQuestions.length / allCandidates.length : 0;
+      const queue = buildSessionQueue({
+        questions: candidates,
+        reviewStates: bucket.reviewStates,
+        attempts: finalAttempts,
+        config: {
+          questionCap,
+          maxReviewStreak,
+        },
+      });
 
-    let questionCap = 10;
-    let maxReviewStreak = 2;
-    let candidates = allCandidates;
-
-    if (mode === "focus") {
-      questionCap = 10;
-      maxReviewStreak = 2;
-    } else if (mode === "weak_review") {
-      questionCap = 10;
-      maxReviewStreak = 4;
-      candidates = weakQuestions.length > 0 ? weakQuestions : allCandidates;
-    } else if (mode === "fast_drill") {
-      questionCap = 16;
-      maxReviewStreak = 1;
-    }
-
-    // Adaptive behavior: when struggling, shrink sessions and lean harder into weak items.
-    if (recentAccuracy < 0.6 || weakRatio > 0.45) {
-      questionCap = Math.max(6, Math.min(questionCap, 8));
-      if (mode === "standard" || mode === "fast_drill") {
-        candidates = [...weakQuestions, ...allCandidates.filter((question) => !weakQuestions.includes(question))];
+      if (queue.length === 0) {
+        throw new Error("Unable to build a review queue");
       }
-    }
 
-    // Adaptive behavior: when performing well, widen the set and favor newer items.
-    if (recentAccuracy > 0.85 && weakRatio < 0.2) {
-      questionCap = Math.min(20, questionCap + 4);
-      if (mode === "standard" || mode === "fast_drill") {
-        candidates = [...candidates].sort((a, b) => {
-          const attemptsA = bucket.reviewStates[a.id]?.totalAttempts ?? 0;
-          const attemptsB = bucket.reviewStates[b.id]?.totalAttempts ?? 0;
-          if (attemptsA !== attemptsB) {
-            return attemptsA - attemptsB;
-          }
-          return b.updatedAt.localeCompare(a.updatedAt);
-        });
-      }
-    }
+      const sessionId = createId("ses");
+      const createdAt = nowIso();
 
-    const queue = buildSessionQueue({
-      questions: candidates,
-      reviewStates: bucket.reviewStates,
-      attempts: finalAttempts,
-      config: {
-        questionCap,
-        maxReviewStreak,
-      },
-    });
-
-    if (queue.length === 0) {
-      throw new Error("Unable to build a review queue");
-    }
-
-    const sessionId = createId("ses");
-    const createdAt = nowIso();
-
-    const session: Session = {
-      id: sessionId,
-      userId,
-      sourceId,
-      mode,
-      startedAt: createdAt,
-      questionCap,
-      timeCapSeconds: 300,
-      pointer: 0,
-      answeredCount: 0,
-      queue,
-      createdAt,
-      updatedAt: createdAt,
-    };
-
-    bucket.sessions[sessionId] = session;
-    await syncSessionStart(session, sourceId ? bucket.sources[sourceId] : undefined);
-    await recordProductEvent({
-      name: "session_started",
-      userId,
-      sourceId: sourceId ?? null,
-      sessionId,
-      properties: {
+      const session: Session = {
+        id: sessionId,
+        userId,
+        sourceId,
         mode,
+        startedAt: createdAt,
         questionCap,
-      },
+        timeCapSeconds: 300,
+        pointer: 0,
+        answeredCount: 0,
+        queue,
+        createdAt,
+        updatedAt: createdAt,
+      };
+
+      bucket.sessions[sessionId] = session;
+      await recordProductEvent({
+        name: "session_started",
+        userId,
+        sourceId: sourceId ?? null,
+        sessionId,
+        properties: {
+          mode,
+          questionCap,
+        },
+      });
+
+      return toBackendSessionStartResult(bucket, session);
     });
 
-    const current = currentSessionQuestion(session, bucket);
-    return {
-      session,
-      currentQuestion: current
-        ? {
-            sessionId: current.sessionId,
-            questionId: current.questionId,
-            prompt: current.prompt,
-            position: current.position,
-            kind: current.kind,
-          }
-        : null,
-    };
-  });
+  try {
+    return await run();
+  } catch (error) {
+    if (!isOpenSessionConflictError(error)) {
+      throw error;
+    }
+
+    return mutateUserBucket(userId, async (bucket) => {
+      const recovered = (await closeExpiredSessionsForSource(bucket, requestedSourceId))[0];
+      if (!recovered) {
+        throw error;
+      }
+
+      return toBackendSessionStartResult(bucket, recovered);
+    });
+  }
 }
 
 export async function getSessionDetails(
@@ -1093,10 +1218,14 @@ export async function getSessionDetails(
     }>;
   } | null;
 }> {
-  return readUserBucket(userId, async (bucket) => {
+  return mutateUserBucket(userId, async (bucket) => {
     const session = bucket.sessions[sessionId];
     if (!session) {
       throw new Error("Session not found");
+    }
+
+    if (shouldAutoCloseSession(session)) {
+      await finalizeSession(bucket, session, sessionEffectiveEndIso(session));
     }
 
     const finalAttempts = Object.values(bucket.attempts)
@@ -1115,6 +1244,11 @@ export async function getSessionDetails(
         ((completedAt ? new Date(completedAt) : new Date()).getTime() - new Date(session.startedAt).getTime()) / 1000,
       ),
     );
+    const sanitizedDurationSeconds = sanitizeSessionDurationSeconds(durationSeconds, {
+      timeCapSeconds: session.timeCapSeconds,
+      answeredCount: session.answeredCount,
+      questionCap: session.questionCap,
+    });
 
     return {
       session: {
@@ -1138,7 +1272,7 @@ export async function getSessionDetails(
             accuracy: attemptCount > 0 ? Math.round((correctCount / attemptCount) * 100) : 0,
             correctCount,
             incorrectCount,
-            durationSeconds,
+            durationSeconds: sanitizedDurationSeconds,
             completedAt,
             weakQuestions: finalAttempts
               .filter((attempt) => !isCorrect(attempt.outcome))
@@ -1167,10 +1301,8 @@ export async function getActiveSourceSession(
   pendingRetry: boolean;
   currentPosition: number | null;
 } | null> {
-  return readUserBucket(userId, async (bucket) => {
-    const activeSession = Object.values(bucket.sessions)
-      .filter((session) => session.sourceId === sourceId && !session.endedAt)
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0];
+  return mutateUserBucket(userId, async (bucket) => {
+    const activeSession = (await closeExpiredSessionsForSource(bucket, sourceId))[0];
 
     if (!activeSession) {
       return null;
@@ -1543,17 +1675,6 @@ export async function submitAttempt(
 
       const reviewState = ensureReviewState(bucket, userId, question.id);
       applyReviewUpdate(reviewState, "typo_near");
-      await syncAttemptRecord(
-        bucket.attempts[attemptId],
-        question,
-        bucket.sources[question.sourceId],
-      );
-      await syncQuestionProgressRecord(
-        userId,
-        question,
-        bucket.sources[question.sourceId],
-        reviewState,
-      );
 
       return {
         needsRetry: true,
@@ -1589,17 +1710,6 @@ export async function submitAttempt(
 
     const reviewState = ensureReviewState(bucket, userId, question.id);
     applyReviewUpdate(reviewState, finalOutcome);
-    await syncAttemptRecord(
-      bucket.attempts[attemptId],
-      question,
-      bucket.sources[question.sourceId],
-    );
-    await syncQuestionProgressRecord(
-      userId,
-      question,
-      bucket.sources[question.sourceId],
-      reviewState,
-    );
 
     if (!isCorrect(finalOutcome)) {
       const topic = topicForQuestion(bucket, question);
@@ -1614,11 +1724,6 @@ export async function submitAttempt(
     const ended = maybeEndSession(session);
     if (ended) {
       const sessionAttempts = Object.values(bucket.attempts).filter((attempt) => attempt.sessionId === session.id);
-      await syncSessionFinal(
-        session,
-        session.sourceId ? bucket.sources[session.sourceId] : undefined,
-        sessionAttempts,
-      );
       const correctCount = sessionAttempts.filter((attempt) => attempt.final && isCorrect(attempt.outcome)).length;
       const incorrectCount = sessionAttempts.filter((attempt) => attempt.final).length - correctCount;
       await recordProductEvent({
@@ -1744,18 +1849,20 @@ export async function getProgress(userId: string): Promise<{
       Object.keys(bucket.sessions).length > 0 ||
       Object.keys(bucket.attempts).length > 0 ||
       Object.keys(bucket.reviewStates).length > 0;
-    const backfillReady = await ensureAnalyticsBackfill(userId, bucket);
     const analyticsProgress = await getAnalyticsProgress(userId, sourceCount, activeQuestionCount);
     if (analyticsProgress) {
       return analyticsProgress;
     }
 
-    if (hasStoredStudySignal) {
-      if (!backfillReady) {
-        throw new Error("Progress is temporarily unavailable while analytics sync catches up.");
-      }
+    const fallbackProgress = hasStoredStudySignal
+      ? buildFallbackProgressFromBucket(userId, bucket, sourceCount, activeQuestionCount)
+      : null;
+    if (fallbackProgress) {
+      return fallbackProgress;
+    }
 
-      throw new Error("Progress data is temporarily unavailable. Try again in a moment.");
+    if (hasStoredStudySignal) {
+      return buildEmptyProgress(sourceCount, activeQuestionCount);
     }
 
     return buildEmptyProgress(sourceCount, activeQuestionCount);

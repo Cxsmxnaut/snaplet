@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   ChevronDown,
-  Edit3,
   Plus,
   Search,
   Zap,
@@ -17,15 +16,20 @@ import { cn } from '../lib/utils';
 
 interface KitsPageProps {
   kits: Kit[];
+  initialSearchQuery?: string;
   onStudyKit: (id: string) => void;
   onCreateKit: () => void;
   onEditKit: (id: string) => void;
 }
 
-export const KitsPage = ({ kits, onStudyKit, onCreateKit, onEditKit }: KitsPageProps) => {
+export const KitsPage = ({ kits, initialSearchQuery = '', onStudyKit, onCreateKit, onEditKit }: KitsPageProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'recent' | 'mastered'>('all');
   const [sortBy, setSortBy] = useState<'recent' | 'mastery' | 'title' | 'questions'>('recent');
+
+  useEffect(() => {
+    setSearchQuery(initialSearchQuery);
+  }, [initialSearchQuery]);
 
   const filteredKits = useMemo(() => {
     return [...kits]
@@ -62,7 +66,7 @@ export const KitsPage = ({ kits, onStudyKit, onCreateKit, onEditKit }: KitsPageP
       : 'Most recent';
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="knowt-page-shell">
       <header className="max-w-4xl px-1 mb-10">
         <h1 className="text-4xl md:text-5xl font-headline font-black tracking-tight text-on-surface">Your study kits</h1>
       </header>
@@ -75,7 +79,7 @@ export const KitsPage = ({ kits, onStudyKit, onCreateKit, onEditKit }: KitsPageP
         </div>
       </section>
 
-      <section className="mb-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <section className="mb-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3 text-sm font-bold text-on-surface-variant">
           <div className="relative">
             <select
@@ -105,13 +109,13 @@ export const KitsPage = ({ kits, onStudyKit, onCreateKit, onEditKit }: KitsPageP
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search your kits"
-              className="w-full rounded-full bg-surface-container-low px-11 py-3 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/45 focus:outline-none"
+              placeholder="Search kits"
+              className="w-full rounded-full border border-outline-variant/25 bg-surface-container-low px-11 py-3 text-sm font-medium text-on-surface placeholder:text-on-surface-variant/45 focus:outline-none"
             />
           </div>
           <Button onClick={onCreateKit} className="rounded-full px-6 shrink-0">
             <Plus className="w-4 h-4" />
-            New Kit
+            Create kit
           </Button>
         </div>
       </section>
@@ -179,8 +183,8 @@ const EmptyLibraryState = ({
       </h2>
       <p className="text-lg text-on-surface-variant leading-relaxed mb-8">
         {hasSearch
-          ? 'Try a different search term or create a new kit from notes, readings, or a study guide.'
-          : 'Create a kit from your notes or source material and it will show up here.'}
+          ? 'Try a different search or create a new kit from notes or a file.'
+          : 'Create a kit from notes or a file and it will show up here.'}
       </p>
       <div className="flex justify-center">
         <Button className="rounded-full px-8" onClick={onCreateKit}>
@@ -204,19 +208,12 @@ function KitLibraryCard({ kit, onStudy, onEdit }: KitLibraryCardProps) {
   return (
     <motion.article
       whileHover={{ y: -3 }}
-      className="rounded-[24px] bg-surface-container-low p-6 transition-all"
+      className="knowt-panel bg-surface-container-low p-6 transition-all"
     >
       <div className="flex items-start justify-between gap-4 mb-5">
         <div className={cn('h-12 w-12 rounded-xl flex items-center justify-center', kit.color)}>
           <Icon className="w-6 h-6" />
         </div>
-        <button
-          onClick={onEdit}
-          className="h-10 w-10 rounded-full bg-surface flex items-center justify-center text-on-surface-variant hover:text-on-surface transition-colors"
-          aria-label={`Edit ${kit.title}`}
-        >
-          <Edit3 className="w-4 h-4" />
-        </button>
       </div>
 
       <div className="mb-6">
@@ -238,7 +235,7 @@ function KitLibraryCard({ kit, onStudy, onEdit }: KitLibraryCardProps) {
         <p className="text-sm text-on-surface-variant">
           {kit.cardCount} questions
           <span className="mx-2 text-on-surface-variant/40">•</span>
-          {kit.lastSession ? kit.lastSession.toLocaleDateString() : 'No sessions yet'}
+          {kit.lastSession ? kit.lastSession.toLocaleDateString() : 'Ready to review'}
         </p>
       </div>
 
@@ -260,7 +257,7 @@ function KitLibraryCard({ kit, onStudy, onEdit }: KitLibraryCardProps) {
           onClick={onEdit}
           className="rounded-full px-4 py-3 bg-surface text-sm font-bold text-on-surface-variant hover:text-on-surface transition-colors"
         >
-          Edit
+          Review
         </button>
       </div>
     </motion.article>

@@ -150,13 +150,20 @@ export const SessionComplete = ({ result, onBack, onRetry, onNew }: SessionCompl
           <div className="bg-surface-container-low rounded-xl p-8 sticky top-28 ambient-shadow">
             <h3 className="text-xl font-bold mb-6">Next Steps</h3>
             <div className="space-y-4">
-              <Button className="w-full py-4" onClick={onRetry} disabled={weakCount === 0}>
-                <RefreshCw className="w-5 h-5" />
-                Retry Weak Items
-              </Button>
-              <Button variant="outline" className="w-full py-4" onClick={onNew}>
+              {weakCount > 0 ? (
+                <Button className="w-full py-4" onClick={onRetry}>
+                  <RefreshCw className="w-5 h-5" />
+                  Retry Weak Items
+                </Button>
+              ) : (
+                <Button className="w-full py-4" onClick={onNew}>
+                  <Play className="w-5 h-5" />
+                  Start Another Session
+                </Button>
+              )}
+              <Button variant="outline" className="w-full py-4" onClick={weakCount > 0 ? onNew : onBack}>
                 <Play className="w-5 h-5" />
-                Start Another Session
+                {weakCount > 0 ? 'Start Another Session' : 'Back to Home'}
               </Button>
             </div>
             <div className="mt-8 pt-8 border-t border-outline-variant/10">

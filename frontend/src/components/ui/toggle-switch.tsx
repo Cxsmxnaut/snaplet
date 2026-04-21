@@ -20,7 +20,7 @@ export default function ToggleSwitch({
   return (
     <label
       className={cn(
-        "relative inline-flex items-center gap-3 text-gray-900",
+        "relative inline-flex items-center gap-3 text-on-surface",
         disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer",
         className,
       )}
@@ -33,8 +33,8 @@ export default function ToggleSwitch({
         disabled={disabled}
         onChange={(event) => onCheckedChange(event.target.checked)}
       />
-      <div className="h-7 w-12 rounded-full bg-slate-300 ring-offset-1 transition-colors duration-200 peer-checked:bg-indigo-600 peer-focus:ring-2 peer-focus:ring-indigo-500 dark:bg-slate-600 dark:peer-checked:bg-primary" />
-      <span className="pointer-events-none absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 ease-in-out peer-checked:translate-x-5" />
+      <div className="h-7 w-12 rounded-full border border-outline-variant/50 bg-surface-container-high transition-colors duration-200 peer-checked:border-primary/30 peer-checked:bg-primary/75 peer-focus:ring-2 peer-focus:ring-primary/30" />
+      <span className="pointer-events-none absolute left-1 top-1 h-5 w-5 rounded-full bg-surface shadow-sm transition-transform duration-200 ease-in-out peer-checked:translate-x-5" />
       {label ? <span>{label}</span> : null}
     </label>
   );

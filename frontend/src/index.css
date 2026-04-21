@@ -57,31 +57,31 @@
 }
 
 [data-theme="dark"] {
-  --color-background: #0b1326;
-  --color-surface: #0b1326;
-  --color-surface-container-lowest: #10192e;
-  --color-surface-container-low: #15203a;
-  --color-surface-container: #1a243f;
-  --color-surface-container-high: #24304b;
-  --color-surface-container-highest: #313d59;
-  --color-surface-bright: #364361;
+  --color-background: #0b0b0c;
+  --color-surface: #1e1e1f;
+  --color-surface-container-lowest: #121213;
+  --color-surface-container-low: #202123;
+  --color-surface-container: #252628;
+  --color-surface-container-high: #2d2f33;
+  --color-surface-container-highest: #3a3d43;
+  --color-surface-bright: #444851;
 
-  --color-primary: #b7e7dd;
-  --color-primary-strong: #84cfc1;
-  --color-primary-container: #2f665d;
-  --color-on-primary: #173732;
-  --color-on-primary-container: #def6f0;
+  --color-primary: #73dfd6;
+  --color-primary-strong: #94e8e0;
+  --color-primary-container: #253534;
+  --color-on-primary: #102121;
+  --color-on-primary-container: #cff7f1;
   --color-primary-foreground: var(--color-on-primary);
 
-  --color-secondary: #4edea3;
-  --color-on-secondary: #003824;
-  --color-secondary-container: #0f3b2f;
-  --color-on-secondary-container: #cbfbe4;
+  --color-secondary: #73dfd6;
+  --color-on-secondary: #102121;
+  --color-secondary-container: #203534;
+  --color-on-secondary-container: #cff7f1;
   --color-secondary-foreground: var(--color-on-secondary);
 
-  --color-tertiary: #ffb95f;
-  --color-on-tertiary: #472a00;
-  --color-tertiary-container: #5b421f;
+  --color-tertiary: #f2b85f;
+  --color-on-tertiary: #2d1d00;
+  --color-tertiary-container: #43331d;
 
   --color-error: #ffb4ab;
   --color-on-error: #690005;
@@ -90,20 +90,20 @@
   --color-destructive: var(--color-error);
   --color-destructive-foreground: var(--color-on-error);
 
-  --color-on-surface: #dae2fd;
-  --color-on-surface-variant: #c7c4d7;
-  --color-outline: #dae2fd;
-  --color-outline-variant: #55607d;
+  --color-on-surface: #f4f4f5;
+  --color-on-surface-variant: #a2a7b0;
+  --color-outline: #d8dce6;
+  --color-outline-variant: #34363b;
   --color-muted-foreground: var(--color-on-surface-variant);
-  --color-accent: #1f2a44;
+  --color-accent: #23262b;
   --color-accent-foreground: var(--color-on-surface);
   --color-input: var(--color-outline-variant);
   --color-ring: var(--color-primary);
   --color-scheme: dark;
-  --surface-stack-start: #1b2540;
-  --surface-stack-end: #10182d;
-  --ambient-shadow-elevation: 0px 18px 48px rgba(0, 0, 0, 0.3);
-  --deep-shadow-elevation: 0px 28px 60px -18px rgba(0, 0, 0, 0.55);
+  --surface-stack-start: #1b1c1f;
+  --surface-stack-end: #111214;
+  --ambient-shadow-elevation: 0px 14px 30px rgba(0, 0, 0, 0.18);
+  --deep-shadow-elevation: 0px 18px 42px -18px rgba(0, 0, 0, 0.36);
 
   color-scheme: dark;
 }
@@ -266,6 +266,22 @@
   transform: translateY(0) scale(0.995);
 }
 
+.assistant-shell input:focus,
+.assistant-shell textarea:focus,
+.assistant-shell select:focus {
+  box-shadow: none;
+  transform: none;
+}
+
+.assistant-shell button:focus,
+.assistant-shell button:focus-visible,
+.assistant-shell input:focus-visible,
+.assistant-shell textarea:focus-visible,
+.assistant-shell select:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .shimmer-skeleton {
   position: relative;
   overflow: hidden;
@@ -290,4 +306,42 @@
   100% {
     transform: translateX(100%);
   }
+}
+
+@keyframes marquee-x {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.knowt-page-shell {
+  width: 100%;
+  max-width: 1100px;
+  margin-inline: auto;
+}
+
+.knowt-panel {
+  border: 1px solid color-mix(in srgb, var(--color-outline-variant) 65%, transparent);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  border-radius: 24px;
+}
+
+.knowt-section-label {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-on-surface-variant);
 }

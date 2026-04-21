@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { listSourceQuestions, listSources } from '../../../lib/api';
 import { Kit, ProgressData } from '../../../types';
 import { mapSourceToKit } from '../services/kitMapper';
@@ -24,6 +24,7 @@ function resolveCurrentKitId(
 export function useKitsState(routeKitId: string | null) {
   const [kits, setKits] = useState<Kit[]>([]);
   const [currentKitId, setCurrentKitId] = useState<string | null>(routeKitId);
+  const refreshRequestIdRef = useRef(0);
 
   useEffect(() => {
     if (routeKitId) {
@@ -33,7 +34,9 @@ export function useKitsState(routeKitId: string | null) {
 
   const currentKit = useMemo(() => kits.find((kit) => kit.id === currentKitId) ?? null, [kits, currentKitId]);
 
-  const refreshKits = async (preferredKitId: string | null = null, progress: ProgressData | null = null) => {
+  const refreshKits = useCallback(async (preferredKitId: string | null = null, progress: ProgressData | null = null) => {
+    const requestId = refreshRequestIdRef.current + 1;
+    refreshRequestIdRef.current = requestId;
     const sources = await listSources();
 
     const questionsBySource = await Promise.all(
@@ -46,9 +49,13 @@ export function useKitsState(routeKitId: string | null) {
     const questionMap = new Map(questionsBySource.map((row) => [row.sourceId, row.questions]));
     const nextKits = sources.map((source, idx) => mapSourceToKit(source, questionMap.get(source.id) ?? [], idx, progress));
 
+    if (refreshRequestIdRef.current !== requestId) {
+      return;
+    }
+
     setKits(nextKits);
     setCurrentKitId((prev) => resolveCurrentKitId(nextKits, preferredKitId, routeKitId, prev));
-  };
+  }, [routeKitId]);
 
   const updateQuestionInKit = (kitId: string, questionId: string, question: string, answer: string) => {
     setKits((prev) =>

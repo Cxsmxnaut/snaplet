@@ -61,7 +61,10 @@ export async function removePublishedSourceSnapshot(sourceId: string): Promise<v
     return;
   }
 
-  await client.from("published_sources").delete().eq("source_id", sourceId);
+  const { error } = await client.from("published_sources").delete().eq("source_id", sourceId);
+  if (error) {
+    throw toPublishedSnapshotError("source", error);
+  }
 }
 
 export async function syncPublishedSourceSnapshot(

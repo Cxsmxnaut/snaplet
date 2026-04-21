@@ -25,7 +25,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (action === "active-session") {
       if (req.method !== "GET") {
-        return sendWebResponse(methodNotAllowed(), res);
+        return sendWebResponse(methodNotAllowed(["GET"]), res);
       }
 
       return await runWithRequestContext(
@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (action === "duplicate") {
       if (req.method !== "POST") {
-        return sendWebResponse(methodNotAllowed(), res);
+        return sendWebResponse(methodNotAllowed(["POST"]), res);
       }
 
       return await runWithRequestContext(
@@ -47,7 +47,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (action === "generate") {
       if (req.method !== "POST") {
-        return sendWebResponse(methodNotAllowed(), res);
+        return sendWebResponse(methodNotAllowed(["POST"]), res);
       }
 
       return await runWithRequestContext(auth, async () => sendWebResponse(ok(await generateSourceQuestions(auth.userId, id)), res));
@@ -80,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
       }
 
-      return sendWebResponse(methodNotAllowed(), res);
+      return sendWebResponse(methodNotAllowed(["GET", "POST"]), res);
     }
 
     if (req.method === "GET") {
@@ -102,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    return sendWebResponse(methodNotAllowed(), res);
+    return sendWebResponse(methodNotAllowed(["GET", "PATCH", "DELETE"]), res);
   } catch (error) {
     return sendWebResponse(errorResponse(error), res);
   }

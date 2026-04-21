@@ -10,6 +10,10 @@ import type {
 import { createSupabaseServerClient } from "./supabase-server.js";
 import { getRequestContext } from "./request-context.js";
 
+function ensureNonNullString(value: unknown, fallback: string): string {
+  return typeof value === "string" ? value : fallback;
+}
+
 type ProgressResponse = {
   totals: {
     sources: number;
@@ -174,6 +178,24 @@ function addDays(date: Date, days: number): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
 }
 
+function sanitizeSessionDurationSeconds(
+  durationSeconds: number,
+  {
+    timeCapSeconds,
+    attemptCount,
+    questionCap,
+  }: {
+    timeCapSeconds: number;
+    attemptCount: number;
+    questionCap: number;
+  },
+): number {
+  const safeDuration = Number.isFinite(durationSeconds) ? Math.max(0, Math.round(durationSeconds)) : 0;
+  const safeTimeCap = Number.isFinite(timeCapSeconds) ? Math.max(60, Math.round(timeCapSeconds)) : 300;
+  const expectedAttemptWindow = Math.max(60, Math.min(45 * 60, Math.max(attemptCount, questionCap, 1) * 90));
+  return Math.min(safeDuration, Math.max(safeTimeCap, expectedAttemptWindow));
+}
+
 function computeWindow(
   attempts: AnalyticsAttemptRow[],
   sessions: AnalyticsSessionRow[],
@@ -244,9 +266,9 @@ function mapAttemptRow(
     question_id: attempt.questionId,
     source_id: question?.sourceId ?? null,
     source_title: source?.title ?? "Study kit",
-    prompt: question?.prompt ?? "",
-    answer: attempt.answer,
-    canonical_answer: attempt.canonicalAnswer,
+    prompt: ensureNonNullString(question?.prompt, "Question"),
+    answer: ensureNonNullString(attempt.answer, "Answer"),
+    canonical_answer: ensureNonNullString(attempt.canonicalAnswer, ensureNonNullString(attempt.answer, "")),
     outcome: attempt.outcome,
     is_retry: attempt.isRetry,
     final: attempt.final,
@@ -267,7 +289,7 @@ function mapQuestionProgressRow(
     question_id: reviewState.questionId,
     source_id: question?.sourceId ?? null,
     source_title: source?.title ?? "Study kit",
-    prompt: question?.prompt ?? "",
+    prompt: ensureNonNullString(question?.prompt, "Question"),
     stability: reviewState.stability,
     difficulty: reviewState.difficulty,
     next_due_at: reviewState.nextDueAt,
@@ -285,11 +307,10 @@ function mapQuestionProgressRow(
 }
 
 export async function syncSessionStart(session: Session, source: StudySource | undefined): Promise<void> {
-  const client = getClient();
-  if (!client) return;
-
-  const row = mapSessionRow(session, source, []);
-  await client.from("study_sessions").upsert(row, { onConflict: "id" });
+  // Canonical session persistence now happens in mutateUserBucket/store.ts.
+  // Keeping this as a no-op removes duplicate writes and partial-commit windows.
+  void session;
+  void source;
 }
 
 export async function syncAttemptRecord(
@@ -297,10 +318,11 @@ export async function syncAttemptRecord(
   question: Question | undefined,
   source: StudySource | undefined,
 ): Promise<void> {
-  const client = getClient();
-  if (!client) return;
-
-  await client.from("session_attempts").upsert(mapAttemptRow(attempt, question, source), { onConflict: "id" });
+  // Canonical attempt persistence now happens in mutateUserBucket/store.ts.
+  // Keeping this as a no-op removes duplicate writes and partial-commit windows.
+  void attempt;
+  void question;
+  void source;
 }
 
 export async function syncQuestionProgressRecord(
@@ -309,12 +331,12 @@ export async function syncQuestionProgressRecord(
   source: StudySource | undefined,
   reviewState: ReviewState,
 ): Promise<void> {
-  const client = getClient();
-  if (!client) return;
-
-  await client.from("question_progress").upsert(mapQuestionProgressRow(userId, question, source, reviewState), {
-    onConflict: "user_id,question_id",
-  });
+  // Canonical question-progress persistence now happens in mutateUserBucket/store.ts.
+  // Keeping this as a no-op removes duplicate writes and partial-commit windows.
+  void userId;
+  void question;
+  void source;
+  void reviewState;
 }
 
 export async function syncSessionFinal(
@@ -322,55 +344,18 @@ export async function syncSessionFinal(
   source: StudySource | undefined,
   attempts: Attempt[],
 ): Promise<void> {
-  const client = getClient();
-  if (!client) return;
-
-  await client.from("study_sessions").upsert(mapSessionRow(session, source, attempts), { onConflict: "id" });
+  // Canonical final session persistence now happens in mutateUserBucket/store.ts.
+  // Keeping this as a no-op removes duplicate writes and partial-commit windows.
+  void session;
+  void source;
+  void attempts;
 }
 
 export async function ensureAnalyticsBackfill(userId: string, bucket: UserBucket): Promise<boolean> {
-  const client = getClient();
-  if (!client) return false;
-
-  const existing = await client.from("study_sessions").select("id", { count: "exact", head: true }).eq("user_id", userId);
-  if (existing.error) return false;
-  if ((existing.count ?? 0) > 0) {
-    return true;
-  }
-
-  const sessions = Object.values(bucket.sessions).map((session) =>
-    mapSessionRow(
-      session,
-      session.sourceId ? bucket.sources[session.sourceId] : undefined,
-      Object.values(bucket.attempts).filter((attempt) => attempt.sessionId === session.id),
-    ),
-  );
-  const attempts = Object.values(bucket.attempts).map((attempt) => {
-    const question = bucket.questions[attempt.questionId];
-    const source = question?.sourceId ? bucket.sources[question.sourceId] : undefined;
-    return mapAttemptRow(attempt, question, source);
-  });
-  const questionProgress = Object.values(bucket.reviewStates).map((reviewState) => {
-    const question = bucket.questions[reviewState.questionId];
-    const source = question?.sourceId ? bucket.sources[question.sourceId] : undefined;
-    return mapQuestionProgressRow(userId, question, source, reviewState);
-  });
-
-  if (sessions.length > 0) {
-    const { error } = await client.from("study_sessions").upsert(sessions, { onConflict: "id" });
-    if (error) return false;
-  }
-  if (attempts.length > 0) {
-    const { error } = await client.from("session_attempts").upsert(attempts, { onConflict: "id" });
-    if (error) return false;
-  }
-  if (questionProgress.length > 0) {
-    const { error } = await client.from("question_progress").upsert(questionProgress, {
-      onConflict: "user_id,question_id",
-    });
-    if (error) return false;
-  }
-
+  // Canonical persistence already writes these tables during mutateUserBucket.
+  // Avoid doing write-on-read backfills here.
+  void userId;
+  void bucket;
   return true;
 }
 
@@ -399,6 +384,62 @@ export async function getAnalyticsProgress(
   const sessions = (sessionsResult.data ?? []) as AnalyticsSessionRow[];
   const attempts = (attemptsResult.data ?? []) as AnalyticsAttemptRow[];
   const questionProgress = (questionProgressResult.data ?? []) as AnalyticsQuestionProgressRow[];
+
+  return buildProgressResponse({
+    sourceCount,
+    activeQuestionCount,
+    sessions,
+    attempts,
+    questionProgress,
+  });
+}
+
+export function buildFallbackProgressFromBucket(
+  userId: string,
+  bucket: UserBucket,
+  sourceCount: number,
+  activeQuestionCount: number,
+): ProgressResponse | null {
+  const sessions = Object.values(bucket.sessions).map((session) =>
+    mapSessionRow(
+      session,
+      session.sourceId ? bucket.sources[session.sourceId] : undefined,
+      Object.values(bucket.attempts).filter((attempt) => attempt.sessionId === session.id),
+    ),
+  );
+  const attempts = Object.values(bucket.attempts).map((attempt) => {
+    const question = bucket.questions[attempt.questionId];
+    const source = question?.sourceId ? bucket.sources[question.sourceId] : undefined;
+    return mapAttemptRow(attempt, question, source);
+  });
+  const questionProgress = Object.values(bucket.reviewStates).map((reviewState) => {
+    const question = bucket.questions[reviewState.questionId];
+    const source = question?.sourceId ? bucket.sources[question.sourceId] : undefined;
+    return mapQuestionProgressRow(userId, question, source, reviewState);
+  });
+
+  return buildProgressResponse({
+    sourceCount,
+    activeQuestionCount,
+    sessions,
+    attempts,
+    questionProgress,
+  });
+}
+
+function buildProgressResponse({
+  sourceCount,
+  activeQuestionCount,
+  sessions,
+  attempts,
+  questionProgress,
+}: {
+  sourceCount: number;
+  activeQuestionCount: number;
+  sessions: AnalyticsSessionRow[];
+  attempts: AnalyticsAttemptRow[];
+  questionProgress: AnalyticsQuestionProgressRow[];
+}): ProgressResponse | null {
 
   if (sessions.length === 0 && attempts.length === 0 && questionProgress.length === 0) {
     return null;
@@ -440,7 +481,11 @@ export async function getAnalyticsProgress(
     correctCount: session.correct_count,
     incorrectCount: session.incorrect_count,
     attemptCount: session.attempt_count,
-    durationSeconds: session.duration_seconds,
+    durationSeconds: sanitizeSessionDurationSeconds(session.duration_seconds, {
+      timeCapSeconds: session.time_cap_seconds,
+      attemptCount: session.attempt_count,
+      questionCap: session.question_cap,
+    }),
     completedAt: session.ended_at ?? session.updated_at,
   }));
 

@@ -14,11 +14,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const action = Array.isArray(req.query.action) ? req.query.action[0] : req.query.action;
 
     if (action === "attempts") {
-      if (req.method !== "POST") return sendWebResponse(methodNotAllowed(), res);
+      if (req.method !== "POST") return sendWebResponse(methodNotAllowed(["POST"]), res);
 
       const payload = (await request.json().catch(() => null)) as { questionId?: string; answer?: string; isRetry?: boolean } | null;
       if (!payload) return sendWebResponse(badRequest("Request body must be valid JSON."), res);
-      if (!payload.questionId) return sendWebResponse(badRequest("Session id and question id are required."), res);
+      if (!payload.questionId) return sendWebResponse(badRequest("Question id is required."), res);
       if (!payload.answer || payload.answer.trim().length === 0) return sendWebResponse(badRequest("Answer cannot be empty."), res);
 
       return await runWithRequestContext(
@@ -38,7 +38,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method !== "GET") {
-      return sendWebResponse(methodNotAllowed(), res);
+      return sendWebResponse(methodNotAllowed(["GET"]), res);
     }
 
     return await runWithRequestContext(

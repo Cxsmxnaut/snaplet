@@ -1,7 +1,23 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { resolveOptionalAuthContext } from "./_lib/server/auth.js";
-import { badRequest, errorResponse, methodNotAllowed, ok } from "./_lib/server/http.js";
-import { recordProductEvent } from "./_lib/server/product-events.js";
+import {
+  ApiError,
+  assertOptionalString,
+  badRequest,
+  errorResponse,
+  forbidden,
+  isPlainObject,
+  methodNotAllowed,
+  ok,
+  readJsonObject,
+  tooManyRequests,
+  unauthorized,
+} from "./_lib/server/http.js";
+import {
+  allowsAnonymousProductEvent,
+  recordProductEvent,
+  validateProductEventTrustBoundary,
+} from "./_lib/server/product-events.js";
 import { isProductEventName } from "../shared/product-events.js";
 import { sendWebResponse, toWebRequest } from "./_lib/vercel-bridge.js";
 
@@ -46,40 +62,89 @@ function isRateLimited(req: VercelRequest, eventName: string): boolean {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method !== "POST") {
-      return sendWebResponse(methodNotAllowed(), res);
+      return sendWebResponse(methodNotAllowed(["POST"]), res);
     }
 
     const request = await toWebRequest(req);
     const auth = await resolveOptionalAuthContext(request);
-    const payload = (await request.json().catch(() => null)) as {
-      name?: string;
-      sourceId?: string | null;
-      sessionId?: string | null;
-      properties?: Record<string, unknown>;
-    } | null;
+    const payload = await readJsonObject(request);
+    const name = assertOptionalString(payload.name, "name", { maxLength: 80 });
+    const sourceId = assertOptionalString(payload.sourceId, "sourceId", { maxLength: 128, nullable: true });
+    const sessionId = assertOptionalString(payload.sessionId, "sessionId", { maxLength: 128, nullable: true });
+    const properties = payload.properties ?? {};
 
-    if (!payload || typeof payload.name !== "string" || !isProductEventName(payload.name)) {
+    if (!name || !isProductEventName(name)) {
       return sendWebResponse(badRequest("Event name is required."), res);
     }
 
-    if (isRateLimited(req, payload.name)) {
-      return sendWebResponse(
-        Response.json({ error: "Too many event writes. Try again shortly." }, { status: 429 }),
-        res,
-      );
+    if (!isPlainObject(properties)) {
+      return sendWebResponse(badRequest("Event properties must be a plain object."), res);
     }
 
-    await recordProductEvent({
-      name: payload.name,
+    if (Object.keys(properties).length > 25) {
+      throw new ApiError(400, "Too many event properties.", {
+        code: "too_many_event_properties",
+        details: { maxProperties: 25 },
+      });
+    }
+
+    if (JSON.stringify(properties).length > 4_000) {
+      throw new ApiError(400, "Event properties payload is too large.", {
+        code: "event_properties_too_large",
+        details: { maxBytes: 4_000 },
+      });
+    }
+
+    if (!auth && !allowsAnonymousProductEvent(name)) {
+      return sendWebResponse(unauthorized("Authentication required"), res);
+    }
+
+    if (isRateLimited(req, name)) {
+      return sendWebResponse(tooManyRequests("Too many event writes. Try again shortly."), res);
+    }
+
+    const validatedEvent = await validateProductEventTrustBoundary({
+      name,
       userId: auth?.userId ?? null,
       accessToken: auth?.accessToken ?? null,
-      sourceId: payload.sourceId ?? null,
-      sessionId: payload.sessionId ?? null,
-      properties: payload.properties ?? {},
+      sourceId: sourceId ?? null,
+      sessionId: sessionId ?? null,
+      properties,
+    });
+
+    await recordProductEvent({
+      name,
+      userId: validatedEvent.userId,
+      accessToken: auth?.accessToken ?? null,
+      sourceId: validatedEvent.sourceId,
+      sessionId: validatedEvent.sessionId,
+      properties: validatedEvent.properties,
     });
 
     return sendWebResponse(ok({ accepted: true }, 202), res);
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === "Authentication required") {
+        return sendWebResponse(unauthorized(error.message), res);
+      }
+
+      if (
+        error.message.includes("must be a string") ||
+        error.message.includes("Invalid sourceId") ||
+        error.message.includes("Invalid sessionId") ||
+        error.message.includes("does not match the referenced session")
+      ) {
+        return sendWebResponse(badRequest(error.message), res);
+      }
+
+      if (
+        error.message.includes("You do not have permission to attach this source") ||
+        error.message.includes("You do not have permission to attach this session")
+      ) {
+        return sendWebResponse(forbidden(error.message), res);
+      }
+    }
+
     return sendWebResponse(errorResponse(error), res);
   }
 }

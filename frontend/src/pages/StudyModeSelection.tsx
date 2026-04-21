@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Brain, ChevronDown, Rabbit, ShieldAlert, Sparkles, Target } from "lucide-react";
+import { useMemo } from "react";
+import { Brain, Rabbit, ShieldAlert, Sparkles, Target } from "lucide-react";
 import { Button } from "../components/Button";
 import { Kit, ProgressData } from "../types";
 import { BackendActiveSourceSession, StudyMode } from "../lib/api";
@@ -107,18 +107,20 @@ export const StudyModeSelection = ({
   onResumeSession,
   onBack,
 }: StudyModeSelectionProps) => {
-  const [showAssistant, setShowAssistant] = useState(false);
   const assistant = useMemo(() => getModeSuggestion(progress), [progress]);
+  const recommendedModeCard = MODE_CARDS.find((mode) => mode.id === assistant.recommendedMode) ?? MODE_CARDS[0];
+  const secondaryModes = MODE_CARDS.filter((mode) => mode.id !== assistant.recommendedMode);
+  const RecommendedIcon = recommendedModeCard.icon;
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
       <header className="space-y-3">
         <p className="text-xs uppercase tracking-[0.18em] font-bold text-primary">Start Session</p>
         <h1 className="text-3xl font-headline font-extrabold tracking-tight text-on-surface">
-          Choose how to study <span className="text-primary">{kit.title}</span>
+          Start studying <span className="text-primary">{kit.title}</span>
         </h1>
         <p className="text-on-surface-variant font-medium">
-          Pick a mode in one click. Your session starts immediately.
+          We picked the best next mode for you. You can still switch if you want a different pace.
         </p>
       </header>
 
@@ -146,66 +148,71 @@ export const StudyModeSelection = ({
         </section>
       ) : null}
 
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {MODE_CARDS.map((mode) => {
-          const Icon = mode.icon;
-          const recommended = assistant.recommendedMode === mode.id;
-          return (
-            <button
-              key={mode.id}
-              onClick={() => onStart(mode.id)}
-              className={cn(
-                "text-left rounded-2xl p-6 border transition-all duration-200 bg-surface-container-low hover:bg-surface-container-high",
-                recommended ? "border-primary/40" : "border-outline-variant/20",
-              )}
-            >
-              <div className="flex items-start justify-between gap-3 mb-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/20 text-primary flex items-center justify-center">
+      <section className="rounded-[28px] border border-primary/20 bg-primary/8 p-6 md:p-7">
+        <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/12 px-3 py-1 text-[10px] uppercase tracking-[0.18em] font-black text-primary">
+              <Brain className="w-3.5 h-3.5" />
+              Recommended mode
+            </div>
+            <div className="mt-4 flex items-start gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-primary/15 text-primary flex items-center justify-center shrink-0">
+                <RecommendedIcon className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-headline font-black text-on-surface">{recommendedModeCard.label}</h2>
+                <p className="mt-2 text-sm text-on-surface-variant">{recommendedModeCard.description}</p>
+                <p className="mt-4 text-sm text-on-surface">{assistant.reason}</p>
+                <p className="mt-2 text-sm text-on-surface-variant">{assistant.strategy}</p>
+              </div>
+            </div>
+          </div>
+          <div className="shrink-0">
+            <Button onClick={() => onStart(recommendedModeCard.id)} disabled={activeSessionLoading} className="min-w-[190px]">
+              {activeSessionLoading ? 'Checking session...' : 'Study now'}
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-headline font-bold text-on-surface">Other ways to study</h2>
+          <p className="text-sm text-on-surface-variant mt-1">Choose one of these if you want a different pace than the recommendation.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {secondaryModes.map((mode) => {
+            const Icon = mode.icon;
+            return (
+              <button
+                key={mode.id}
+                onClick={() => onStart(mode.id)}
+                disabled={activeSessionLoading}
+                className={cn(
+                  "text-left rounded-2xl p-5 border transition-all duration-200 bg-surface-container-low hover:bg-surface-container-high border-outline-variant/20 disabled:cursor-not-allowed disabled:opacity-60",
+                )}
+              >
+                <div className="h-10 w-10 rounded-xl bg-primary/12 text-primary flex items-center justify-center mb-4">
                   <Icon className="w-5 h-5" />
                 </div>
-                {recommended ? (
-                  <span className="text-[10px] uppercase tracking-widest font-black px-2 py-1 rounded-full bg-primary/15 text-primary">
-                    Recommended
-                  </span>
-                ) : null}
-              </div>
-              <h2 className="text-lg font-headline font-bold text-on-surface">{mode.label}</h2>
-              <p className="text-sm text-on-surface-variant mt-1">{mode.description}</p>
-            </button>
-          );
-        })}
+                <h3 className="text-base font-headline font-bold text-on-surface">{mode.label}</h3>
+                <p className="text-sm text-on-surface-variant mt-2">{mode.description}</p>
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       <section className="rounded-2xl p-5 border border-outline-variant/20 bg-surface-container-low">
-        <button
-          onClick={() => setShowAssistant((prev) => !prev)}
-          className="w-full flex items-center justify-between gap-3 text-left"
-        >
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-secondary/20 text-secondary flex items-center justify-center">
-              <Brain className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="font-bold text-on-surface">Need a recommendation?</p>
-              <p className="text-sm text-on-surface-variant">Open Snaplet's suggested study mode</p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-secondary/20 text-secondary flex items-center justify-center">
+            <Brain className="w-5 h-5" />
           </div>
-          <ChevronDown className={cn("w-5 h-5 text-on-surface-variant transition-transform", showAssistant && "rotate-180")} />
-        </button>
-
-        {showAssistant ? (
-          <div className="mt-4 p-4 rounded-xl bg-surface-container-high border border-outline-variant/20 space-y-2">
-            <p className="text-sm text-on-surface">
-              <span className="font-black">Recommended:</span>{" "}
-              {MODE_CARDS.find((mode) => mode.id === assistant.recommendedMode)?.label}
-            </p>
-            <p className="text-sm text-on-surface-variant">{assistant.reason}</p>
-            <p className="text-sm text-on-surface-variant">{assistant.strategy}</p>
-            <div className="pt-2">
-              <Button onClick={() => onStart(assistant.recommendedMode)}>Start Recommended Mode</Button>
-            </div>
+          <div>
+            <p className="font-bold text-on-surface">How we picked this</p>
+            <p className="text-sm text-on-surface-variant">The recommendation uses your recent outcomes and weak-question history.</p>
           </div>
-        ) : null}
+        </div>
       </section>
 
       <div className="flex items-center gap-3">
